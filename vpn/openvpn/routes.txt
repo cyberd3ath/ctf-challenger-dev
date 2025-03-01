@@ -1,0 +1,2 @@
+# Formatting: <static client ip> <target subnet/CIDR> <network device>
+10.8.0.10 10.0.200.0/24 vmbr3
