@@ -2,15 +2,7 @@
 require_once '../includes/auth.php';
 require_once '../includes/response.php';
 require_once '../includes/logger.php';
-$authData = loginToProxmox();
-if($authData === null){
-    logError("Proxmox authentication failed.");
-    jsonResponse(false, "An unexpected error occurred.", null, 500);
-    exit;
-}
-$cookie = "PVEAuthCookie=" . $authData['ticket'];
-$csrfToken = $authData['CSRFPreventionToken'];
-$base_url = $authData['base_url'];
+require_once '../includes/curlHelper.php';
 
 $sourceVmId = filter_input(INPUT_POST, 'source_vm_id', FILTER_VALIDATE_INT, ["options" => ["min_range" => 100]]);
 $newVmId = filter_input(INPUT_POST, 'new_vm_id', FILTER_VALIDATE_INT, ["options" => ["min_range" => 100]]);
@@ -25,7 +17,8 @@ if ($sourceVmId === false || $newVmId === false || empty(trim($sourceNode)) ||em
     exit;
 }
 
-$url = "$base_url/api2/json/nodes/$sourceNode/qemu/$sourceVmId/clone";
+$endpoint = "/api2/json/nodes/$sourceNode/qemu/$sourceVmId/clone";
+
 $post_params = json_encode([
     'newid' => $newVmId,
     'name' => $newVmName,
@@ -33,30 +26,19 @@ $post_params = json_encode([
     'full' => $fullClone ? 1 : 0
 ]);
 
-$ch = curl_init($url);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "Cookie: $cookie",
-    "CSRFPreventionToken: $csrfToken",
-    "Content-Type: application/json"
-]);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $post_params);
+$authHeaders = getAuthHeaders("application/json");
+$result = makeCurlRequest($endpoint, 'POST', $authHeaders, $post_params);
 
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-if (!$response) {
+if (!$result) {
     logError("cURL error while cloning VM ID $sourceVmId to VM ID $newVmId on node $targetNode.");
     jsonResponse(false, "Service temporarily unavailable.", null, 503);
-    curl_close($ch);
     exit;
 }
 
+$response = $result['response'];
+$httpCode = $result['http_code'];
+
 $responseData = json_decode($response, true);
-curl_close($ch);
 
 if (!$responseData || $httpCode !== 200) {
     logError("Unexpected response from Proxmox: HTTP $httpCode, Response: " . json_encode($responseData));

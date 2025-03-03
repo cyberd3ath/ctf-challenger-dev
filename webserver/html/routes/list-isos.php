@@ -2,14 +2,7 @@
 require_once '../includes/auth.php';
 require_once '../includes/response.php';
 require_once '../includes/logger.php';
-$authData = loginToProxmox();
-if($authData === null){
-    logError("Proxmox authentication failed.");
-    jsonResponse(false, "An unexpected error occurred.", null, 500);
-    exit;
-}
-$cookie = "PVEAuthCookie=" . $authData['ticket'];
-$base_url = $authData['base_url'];
+require_once '../includes/curlHelper.php';
 
 $node = filter_input(INPUT_GET, 'node', FILTER_SANITIZE_SPECIAL_CHARS);
 
@@ -19,28 +12,20 @@ if (empty(trim($node))) {
     exit;
 }
 
-$url = "$base_url/api2/json/nodes/$node/storage/local/content?content=iso";
+$endpoint = "/api2/json/nodes/$node/storage/local/content?content=iso";
 
-$ch = curl_init($url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "Cookie: $cookie"
-]);
+$authHeaders = getAuthHeaders();
+$result = makeCurlRequest($endpoint, 'GET', $authHeaders, null);
 
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-if (!$response) {
+if (!$result) {
     logError("cURL error while listing isos on node $node.");
     jsonResponse(false, "Service temporarily unavailable.", null, 503);
-    curl_close($ch);
     exit;
 }
+$response = $result['response'];
+$httpCode = $result['http_code'];
 
 $responseData = json_decode($response, true);
-curl_close($ch);
 
 if (!$responseData || $httpCode !== 200) {
     logError("Unexpected response from Proxmox: HTTP $httpCode, Response: " . json_encode($responseData));

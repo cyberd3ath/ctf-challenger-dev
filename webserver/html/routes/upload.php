@@ -2,6 +2,7 @@
 require_once '../includes/auth.php';
 require_once '../includes/response.php';
 require_once '../includes/logger.php';
+require_once '../includes/curlHelper.php';
 
 define('UPLOAD_DIR', __DIR__ . '/../uploads/');
 define('MAX_FILE_SIZE', 5 * 1024 * 1024 * 1024); // 5 GB
@@ -58,16 +59,6 @@ function validateFile($file)
     }
 }
 
-$authData = loginToProxmox();
-if ($authData === null) {
-    logError("Proxmox authentication failed.");
-    jsonResponse(false, "An unexpected error occurred.", null, 500);
-    exit;
-}
-$cookie = "PVEAuthCookie=" . $authData['ticket'];
-$csrfToken = $authData['CSRFPreventionToken'];
-$base_url = $authData['base_url'];
-
 $node = filter_input(INPUT_POST, 'node', FILTER_SANITIZE_SPECIAL_CHARS);
 
 if(empty(trim($node))){
@@ -98,39 +89,25 @@ if (!move_uploaded_file($_FILES['isoFile']['tmp_name'], $filePath)) {
     exit;
 }
 
+$endpoint = "/api2/json/nodes/$node/storage/local/upload";
+
 $post_params = [
     'content' => 'iso',
     'filename' => new CURLFile($filePath)
 ];
 
-$url = "$base_url/api2/json/nodes/$node/storage/local/upload";
+$authHeaders = getAuthHeaders("multipart/form-data");
+$result = makeCurlRequest($endpoint, 'POST', $authHeaders, $post_params);
 
-$ch = curl_init($url);
-curl_setopt_array($ch, [
-    CURLOPT_POST => true,
-    CURLOPT_SSL_VERIFYPEER => false,
-    CURLOPT_SSL_VERIFYHOST => false,
-    CURLOPT_POSTFIELDS => $post_params,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER => [
-        "Cookie: $cookie",
-        "CSRFPreventionToken: $csrfToken",
-        "Content-Type: multipart/form-data"
-    ]
-]);
-
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-if (!$response) {
+if (!$result) {
     logError("cURL error while uploading ISO $safeFileName.");
     jsonResponse(false, "Service temporarily unavailable.", null, 503);
-    curl_close($ch);
     exit;
 }
+$response = $result['response'];
+$httpCode = $result['http_code'];
 
 $responseData = json_decode($response, true);
-curl_close($ch);
 
 if (!$responseData || $httpCode !== 200) {
     logError("Unexpected response from Proxmox: HTTP $httpCode, Response: " . json_encode($responseData));
