@@ -24,6 +24,7 @@ To set up the service, follow these steps:
 
 ### Optional improvements:
 - unify html modal code in html or js
+- add real lightmode styling
 - (optional return list entries instead of isAdmin from header.php)
 - (optional change extend limiter to timebased restricting)
 - (optional cleaner styling / code on signup)
