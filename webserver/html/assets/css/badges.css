@@ -1,0 +1,336 @@
+
+.badges-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    color: var(--color-text);
+}
+
+.badges-header {
+    margin-bottom: 2rem;
+}
+
+.badges-header h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    color: var(--color-primary);
+}
+
+.progress-summary {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.progress-card {
+    flex: 1;
+    min-width: 200px;
+    background-color: var(--color-feature-bg);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.progress-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.progress-icon {
+    font-size: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-transparent);
+}
+
+.progress-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.progress-count {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.progress-label {
+    font-size: 0.9rem;
+    color: var(--color-text);
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    font-weight: 500;
+}
+
+select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-transparent);
+    color: var(--color-text);
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.badge-card {
+    background-color: var(--color-feature-bg);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+
+.badge-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.badge-header {
+    padding: 1.5rem;
+    text-align: center;
+    position: relative;
+}
+
+.badge-icon {
+    font-size: 3rem;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    background-color: var(--color-transparent);
+    border: 3px solid;
+}
+
+.badge-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.badge-rarity {
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 1rem;
+    text-transform: capitalize;
+}
+
+.badge-body {
+    padding: 0 1.5rem 1.5rem;
+}
+
+.badge-description {
+    color: var(--color-text);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    height: 2.8em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.badge-requirements {
+    font-size: 0.85rem;
+    color: var(--color-text);
+    margin-bottom: 1rem;
+    padding: 0 0.75rem 0.75rem;
+    background-color: var(--color-transparent);
+    border-radius: 4px;
+}
+
+.badge-footer {
+    padding: 0 1.5rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.badge-footer > div:first-child {
+    flex: initial;
+    min-width: 0;
+}
+
+.badge-progress {
+    width: 100%;
+    height: 6px;
+    background-color: var(--color-header-footer);
+    border-radius: 3px;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+}
+
+.badge-progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.badge-status {
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.badge-date {
+    font-size: 0.8rem;
+    color: var(--color-text);
+}
+
+.common {
+    border-color: #7fdbff;
+    color: #7fdbff;
+}
+
+.common .badge-rarity {
+    background-color: rgba(127, 219, 255, 0.1);
+    color: #7fdbff;
+}
+
+.badge-progress-bar.common {
+    background-color: #7fdbff;
+}
+
+.uncommon {
+    border-color: #2ecc40;
+    color: #2ecc40;
+}
+
+.uncommon .badge-rarity {
+    background-color: rgba(46, 204, 64, 0.1);
+    color: #2ecc40;
+}
+
+.uncommon.badge-progress-bar {
+    background-color: #2ecc40;
+}
+
+.rare {
+    border-color: #0074d9;
+    color: #0074d9;
+}
+
+.rare .badge-rarity {
+    background-color: rgba(0, 116, 217, 0.1);
+    color: #0074d9;
+}
+
+.rare.badge-progress-bar {
+    background-color: #0074d9;
+}
+
+.epic {
+    border-color: #b10dc9;
+    color: #b10dc9;
+}
+
+.epic .badge-rarity {
+    background-color: rgba(177, 13, 201, 0.1);
+    color: #b10dc9;
+}
+
+.epic.badge-progress-bar {
+    background-color: #b10dc9;
+}
+
+.legendary {
+    border-color: #ff851b;
+    color: #ff851b;
+}
+
+.legendary .badge-rarity {
+    background-color: rgba(255, 133, 27, 0.1);
+    color: #ff851b;
+}
+
+.legendary.badge-progress-bar {
+    background-color: #ff851b;
+}
+
+.badge-earned .badge-icon {
+    background-color: var(--color-transparent);
+}
+
+.badge-unearned {
+    opacity: 0.7;
+}
+
+.badge-unearned .badge-icon {
+    background-color: var(--color-feature-bg);
+    filter: grayscale(70%);
+}
+
+.empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 0;
+    grid-column: 1 / -1;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+}
+
+.empty-state p {
+    margin-bottom: 1.5rem;
+    color: var(--color-text);
+}
+
+@media (max-width: 768px) {
+    .progress-summary {
+        flex-direction: column;
+    }
+
+    .progress-card {
+        width: 100%;
+    }
+
+    .filter-group {
+        width: 100%;
+    }
+
+    select {
+        width: 100%;
+    }
+
+    .grid-container {
+        grid-template-columns: 1fr;
+    }
+}

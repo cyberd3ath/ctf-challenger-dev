@@ -1,0 +1,188 @@
+class MessageManager {
+    constructor() {
+        this.successMessageTimeout = null;
+        this.errorMessageTimeout = null;
+    }
+
+    showMessage(type, message, duration = 5000) {
+        const containerId = `${type}-message-container`;
+        let container = document.getElementById(containerId);
+
+        if (!container) {
+            container = document.createElement('div');
+            container.id = containerId;
+            container.className = `message-container ${type}-message`;
+            document.body.appendChild(container);
+        }
+
+        clearTimeout(this[`${type}MessageTimeout`]);
+
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+        container.innerHTML = `
+            <i class="fa-solid ${icon} message-icon"></i>
+            <span>${message}</span>
+        `;
+
+        setTimeout(() => {
+            container.style.transform = 'translateX(0)';
+        }, 10);
+
+        this[`${type}MessageTimeout`] = setTimeout(() => {
+            container.style.transform = 'translateX(150%)';
+        }, duration);
+
+        container.addEventListener('click', () => {
+            container.style.transform = 'translateX(150%)';
+            clearTimeout(this[`${type}MessageTimeout`]);
+        });
+    }
+
+    showSuccess(message, duration) {
+        this.showMessage('success', message, duration);
+    }
+
+    showError(message, duration) {
+        this.showMessage('error', message, duration);
+    }
+}
+
+
+class ApiClient {
+    constructor() {
+        this.messageManager = new MessageManager();
+        this.csrfToken = this.getCsrfToken();
+        this.publicEndpoints = ['explore', 'header', 'challenge'];
+    }
+
+    getCsrfToken() {
+        return document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrf_token='))
+            ?.split('=')[1];
+    }
+
+    buildRequestConfig(method, data) {
+        const hasData = data !== undefined && data !== null;
+        const isFormData = hasData && data instanceof FormData;
+
+        const config = {
+            method,
+            body: hasData ? (isFormData ? data : JSON.stringify(data)) : undefined,
+        };
+
+
+        if (!isFormData) {
+            config.headers = {
+                'Content-Type': 'application/json'
+            };
+        }
+
+        return config;
+    }
+
+    async request(url, options = {}) {
+        try {
+
+            const isPublicEndpoint = this.publicEndpoints.some(endpoint => url.includes(endpoint));
+
+            if (!isPublicEndpoint && !this.csrfToken) {
+                const error = new Error('Session expired. Please log in again.');
+                this.messageManager.showError(error.message);
+                setTimeout(() => window.location.href = '/login', 1500);
+                return null;
+            }
+
+
+            const headers = {
+                ...(options.headers || {}),
+                ...({'X-CSRF-Token': this.csrfToken})
+            };
+
+            const response = await fetch(url, {
+                ...options,
+                headers,
+                credentials: 'same-origin'
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                if (!isPublicEndpoint) {
+                    const error = new Error('Session expired. Please log in again.');
+                    this.messageManager.showError(error.message);
+                    setTimeout(() => window.location.href = '/login', 1500);
+                    return null;
+                }
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (contentType?.includes('application/octet-stream')) {
+                return this.handleFileDownload(response, url);
+            }
+
+            if (!response.ok) {
+                let errorMessage = `Request failed with status ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.message) {
+                        errorMessage = errorData.message;
+                    }
+                } catch (e) {
+                    console.error('Failed to parse error response:', e);
+                }
+                this.messageManager.showError(errorMessage);
+                return null;
+            }
+
+
+            if (response.status === 204) return null;
+
+            return await response.json();
+        } catch (error) {
+            console.error('API request error:', error);
+            this.messageManager.showError('Network error. Please check your connection and try again.');
+            return null;
+        }
+    }
+
+    async handleFileDownload(response, url) {
+        const blob = await response.blob();
+        const contentDisposition = response.headers.get('content-disposition');
+        let filename = 'download';
+
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="?([^"]+)"?/i);
+            if (match) filename = match[1];
+        } else {
+            filename = url.split('/').pop() || filename;
+        }
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+
+        return {success: true, filename};
+    }
+
+    async get(url) {
+        return this.request(url);
+    }
+
+    async post(url, data) {
+        return this.request(url, this.buildRequestConfig('POST', data));
+    }
+
+    async put(url, data) {
+        return this.request(url, this.buildRequestConfig('PUT', data));
+    }
+
+    async delete(url, options = {}) {
+        return this.request(url, this.buildRequestConfig('DELETE', options.data));
+    }
+}
+
+
+export const messageManager = new MessageManager();
+export const apiClient = new ApiClient();

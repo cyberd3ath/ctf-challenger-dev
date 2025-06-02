@@ -1,0 +1,52 @@
+
+.hero {
+    text-align: center;
+    padding: 100px 20px 50px;
+    background: linear-gradient(135deg, var(--color-background), var(--color-border-secondary));
+}
+
+.hero h2 {
+    font-size: 2.5rem;
+    font-weight: 600;
+}
+
+.terminal-text {
+    font-family: 'Courier New', monospace;
+    color: var(--color-terminal);
+}
+
+.hero p {
+    font-size: 1.2rem;
+    margin: 15px 0;
+}
+
+.cta-buttons {
+    margin-top: 40px;
+}
+
+.cta-button {
+    padding: 20px 40px;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.features {
+    display: flex;
+    justify-content: space-between;
+    padding: 60px 20px;
+    background-color: var(--color-header-footer);
+}
+
+.feature {
+    flex: 1;
+    text-align: center;
+    padding: 20px;
+    background: var(--color-feature-bg);
+    margin: 10px;
+    border-radius: 10px;
+    transition: transform 0.3s ease;
+}
+
+.feature:hover {
+    transform: translateY(-5px);
+}

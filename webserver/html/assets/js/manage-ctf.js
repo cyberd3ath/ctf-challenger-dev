@@ -1,0 +1,432 @@
+import {apiClient, messageManager} from './utils.js';
+
+class ChallengesManager {
+    constructor() {
+        this.challenges = [];
+        this.filteredChallenges = [];
+        this.currentPage = 1;
+        this.challengesPerPage = 10;
+
+        this.domElements = {
+            challengesList: document.getElementById('challenges-list'),
+            createNewBtn: document.getElementById('create-new-ctf'),
+            searchInput: document.getElementById('challenge-search'),
+            categoryFilter: document.getElementById('category-filter'),
+            statusFilter: document.getElementById('status-filter'),
+            prevPageBtn: document.getElementById('prev-page'),
+            nextPageBtn: document.getElementById('next-page'),
+            pageInfo: document.getElementById('page-info'),
+            editModal: document.getElementById('edit-modal'),
+            deleteModal: document.getElementById('delete-modal'),
+            editForm: document.getElementById('edit-challenge-form'),
+            closeModalBtns: document.querySelectorAll('.close-modal'),
+            toggleActive: document.getElementById('edit-active'),
+            toggleLabel: document.getElementById('toggle-label'),
+            totalChallengesEl: document.getElementById('total-challenges'),
+            activeDeploymentsEl: document.getElementById('active-deployments'),
+            totalDeploymentsEl: document.getElementById('total-deployments'),
+            avgCompletionEl: document.getElementById('avg-completion'),
+            confirmSoftDelete: document.getElementById('confirm-soft-delete'),
+            confirmHardDelete: document.getElementById('confirm-hard-delete')
+        };
+
+        this.loadConfig().then(() => {
+            this.init();
+        });
+    }
+
+    init() {
+        this.domElements.editForm.setAttribute('novalidate', '');
+        this.setupEventListeners();
+        this.fetchChallenges();
+    }
+
+    async loadConfig() {
+        try {
+            const response = await fetch('/config/general.config.json');
+            const config = await response.json();
+            this.config = config.ctf;
+        } catch (error) {
+            console.error('Failed to load config:', error);
+        }
+    }
+
+    setupEventListeners() {
+        this.domElements.createNewBtn.addEventListener('click', () => {
+            window.location.href = '/create-ctf';
+        });
+
+        this.domElements.searchInput.addEventListener('input', () => this.filterChallenges());
+        this.domElements.categoryFilter.addEventListener('change', () => this.filterChallenges());
+        this.domElements.statusFilter.addEventListener('change', () => this.filterChallenges());
+
+        this.domElements.prevPageBtn.addEventListener('click', () => this.handlePagination('prev'));
+        this.domElements.nextPageBtn.addEventListener('click', () => this.handlePagination('next'));
+
+        this.domElements.closeModalBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.closeModals());
+        });
+
+        this.domElements.editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
+        this.domElements.toggleActive.addEventListener('change', () => this.updateToggleLabel());
+        this.domElements.confirmSoftDelete.addEventListener('click', () => this.handleSoftDelete());
+        this.domElements.confirmHardDelete.addEventListener('click', () => this.handleHardDelete());
+
+        window.addEventListener('click', (e) => {
+            if (e.target === this.domElements.editModal) this.domElements.editModal.classList.remove('show');
+            if (e.target === this.domElements.deleteModal) this.domElements.deleteModal.classList.remove('show');
+        });
+
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => this.handleTabSwitch(e));
+        });
+    }
+
+    async fetchChallenges() {
+        try {
+            const response = await apiClient.get('../backend/manage-ctf.php?action=get_challenges');
+
+            if (response?.success) {
+                this.challenges = response.challenges;
+                this.updateStats(response.stats);
+                this.filterChallenges();
+            }
+        } catch (error) {
+            console.error('Fetch challenges error:', error);
+            messageManager.showError('Failed to load challenges');
+        }
+    }
+
+    updateStats(stats) {
+        this.domElements.totalChallengesEl.textContent = stats.total_challenges;
+        this.domElements.activeDeploymentsEl.textContent = stats.active_deployments;
+        this.domElements.totalDeploymentsEl.textContent = stats.total_deployments;
+        this.domElements.avgCompletionEl.textContent = this.formatCompletionTime(stats.avg_completion_minutes);
+    }
+
+    filterChallenges() {
+        const searchTerm = this.domElements.searchInput.value.toLowerCase();
+        const category = this.domElements.categoryFilter.value;
+        const status = this.domElements.statusFilter.value;
+
+        this.filteredChallenges = this.challenges.filter(challenge => {
+            const matchesSearch =
+                challenge.name.toLowerCase().includes(searchTerm) ||
+                challenge.description.toLowerCase().includes(searchTerm);
+            const matchesCategory = category === '' || challenge.category === category;
+            const matchesStatus = status === '' ||
+                (status === 'active' && challenge.is_active) ||
+                (status === 'inactive' && !challenge.is_active);
+
+            return matchesSearch && matchesCategory && matchesStatus;
+        });
+
+        this.currentPage = 1;
+        this.displayChallenges();
+    }
+
+    displayChallenges() {
+        const startIdx = (this.currentPage - 1) * this.challengesPerPage;
+        const endIdx = startIdx + this.challengesPerPage;
+        const paginatedChallenges = this.filteredChallenges.slice(startIdx, endIdx);
+
+        this.domElements.challengesList.innerHTML = paginatedChallenges.length === 0
+            ? this.createNoResultsRow()
+            : paginatedChallenges.map(challenge => this.createChallengeRow(challenge)).join('');
+
+        if (paginatedChallenges.length > 0) {
+            paginatedChallenges.forEach(challenge => {
+                const row = this.domElements.challengesList.querySelector(`tr button[data-id="${challenge.id}"]`)?.closest('tr');
+                if (row) {
+                    row.querySelector('.edit').addEventListener('click', () => this.openEditModal(challenge));
+                    row.querySelector('.delete').addEventListener('click', () => this.openDeleteModal(challenge.id));
+                }
+            });
+        }
+
+        this.updatePagination();
+    }
+
+    createNoResultsRow() {
+        return '<tr><td colspan="8" class="no-results">No challenges found. Create your first challenge!</td></tr>';
+    }
+
+    createChallengeRow(challenge) {
+        return `
+            <tr>
+                <td>
+                    <div class="challenge-info">
+                        <img src="${challenge.image_path || '../assets/images/ctf-default.png'}" 
+                             alt="${challenge.name}" class="challenge-image">
+                        <div>
+                            <div class="challenge-name">
+                                <a href="/challenge?id=${challenge.id}" target="_blank">
+                                    ${challenge.name}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="category-badge">${this.formatCategory(challenge.category)}</span></td>
+                <td><span class="difficulty-badge difficulty-${challenge.difficulty}">
+                    ${this.formatDifficulty(challenge.difficulty)}
+                </span></td>
+                <td><span class="status-badge ${challenge.is_active ? 'status-active' : 'status-inactive'}">
+                    ${challenge.is_active ? 'Active' : 'Inactive'}
+                </span></td>
+                <td>${challenge.total_deployments}</td>
+                <td>${challenge.active_deployments}</td>
+                <td>${this.formatCompletionTime(challenge.avg_completion_minutes)}</td>
+                <td class="actions-cell">
+                    <button class="action-btn edit" data-id="${challenge.id}">
+                        <i class="fa-solid fa-edit"></i>
+                    </button>
+                    <button class="action-btn delete" data-id="${challenge.id}">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+
+    handlePagination(direction) {
+        const newPage = direction === 'prev' ? this.currentPage - 1 : this.currentPage + 1;
+        const totalPages = Math.ceil(this.filteredChallenges.length / this.challengesPerPage);
+
+        if (newPage > 0 && newPage <= totalPages) {
+            this.currentPage = newPage;
+            this.displayChallenges();
+        }
+    }
+
+    updatePagination() {
+        const totalPages = Math.ceil(this.filteredChallenges.length / this.challengesPerPage);
+        this.domElements.pageInfo.textContent = `Page ${this.currentPage} of ${totalPages}`;
+        this.domElements.prevPageBtn.disabled = this.currentPage <= 1;
+        this.domElements.nextPageBtn.disabled = this.currentPage >= totalPages || totalPages === 0;
+    }
+
+    openEditModal(challenge) {
+        document.getElementById('edit-challenge-id').value = challenge.id;
+        document.getElementById('edit-name').value = challenge.name;
+        document.getElementById('edit-description').value = challenge.description;
+        document.getElementById('edit-category').value = challenge.category;
+        document.getElementById('edit-difficulty').value = challenge.difficulty;
+        document.getElementById('edit-hint').value = challenge.hint || '';
+        document.getElementById('edit-solution').value = challenge.solution || '';
+        this.domElements.toggleActive.checked = challenge.is_active;
+        this.updateToggleLabel();
+        this.domElements.editModal.classList.add('show');
+    }
+
+    openDeleteModal(challengeId) {
+        document.getElementById('delete-challenge-id').value = challengeId;
+        this.domElements.deleteModal.classList.add('show');
+    }
+
+    closeModals() {
+        this.domElements.editModal.classList.remove('show');
+        this.domElements.deleteModal.classList.remove('show');
+    }
+
+    updateToggleLabel() {
+        this.domElements.toggleLabel.textContent = this.domElements.toggleActive.checked ? 'Active' : 'Inactive';
+    }
+
+    async handleEditSubmit(e) {
+        e.preventDefault();
+
+        if (!this.validateChallengeForm()) return;
+
+        const formData = new FormData();
+        formData.append('id', document.getElementById('edit-challenge-id').value);
+        formData.append('name', document.getElementById('edit-name').value.trim());
+        formData.append('description', document.getElementById('edit-description').value.trim());
+        formData.append('category', document.getElementById('edit-category').value);
+        formData.append('difficulty', document.getElementById('edit-difficulty').value);
+        formData.append('hint', document.getElementById('edit-hint').value.trim());
+        formData.append('solution', document.getElementById('edit-solution').value.trim());
+        formData.append('isActive', this.domElements.toggleActive.checked);
+
+        try {
+            const response = await apiClient.post('../backend/manage-ctf.php', formData);
+
+            if (response?.success) {
+                messageManager.showSuccess('Challenge updated successfully!');
+                this.closeModals();
+                this.fetchChallenges();
+            }
+        } catch (error) {
+            console.error('Edit challenge error:', error);
+            messageManager.showError('Failed to update challenge');
+        }
+    }
+
+    async handleSoftDelete() {
+        const challengeId = document.getElementById('delete-challenge-id').value;
+
+        try {
+            const response = await apiClient.delete('../backend/manage-ctf.php', {
+                data: {
+                    action: 'delete_challenge',
+                    id: challengeId,
+                    force: false
+                }
+            });
+
+            if (response?.success) {
+                messageManager.showSuccess(response.message);
+                this.closeModals();
+                this.fetchChallenges();
+            }
+        } catch (error) {
+            console.error('Soft delete error:', error);
+            messageManager.showError('Failed to deactivate challenge');
+        }
+    }
+
+    async handleHardDelete() {
+        const confirmed = await this.showConfirmationDialog(
+            'WARNING: This will immediately terminate all active instances and permanently delete the challenge. Are you absolutely sure?'
+        );
+
+        if (!confirmed) return;
+
+        const challengeId = document.getElementById('delete-challenge-id').value;
+
+        try {
+            const response = await apiClient.delete('../backend/manage-ctf.php', {
+                data: {
+                    action: 'delete_challenge',
+                    id: challengeId,
+                    force: true
+                }
+            });
+
+            if (response?.success) {
+                messageManager.showSuccess('Challenge and all instances deleted');
+                this.closeModals();
+                this.fetchChallenges();
+            }
+        } catch (error) {
+            console.error('Hard delete error:', error);
+            messageManager.showError('Failed to delete challenge');
+        }
+    }
+
+    validateChallengeForm() {
+        const errors = [];
+        const fields = [];
+
+        const name = document.getElementById('edit-name').value.trim();
+        const description = document.getElementById('edit-description').value.trim();
+        const category = document.getElementById('edit-category').value;
+        const difficulty = document.getElementById('edit-difficulty').value;
+        const hint = document.getElementById('edit-hint').value.trim();
+        const solution = document.getElementById('edit-solution').value.trim();
+
+        if (!name) {
+            errors.push('Challenge name is required');
+            fields.push('edit-name');
+        } else if (name.length > this.config.MAX_CTF_NAME_LENGTH) {
+            errors.push(`Name cannot exceed ${this.config.MAX_CTF_NAME_LENGTH} characters`);
+            fields.push('edit-name');
+        }
+
+        if (!description) {
+            errors.push('Description is required');
+            fields.push('edit-description');
+        } else if (description.length > this.config.MAX_CTF_DESCRIPTION_LENGTH) {
+            errors.push(`Description cannot exceed ${this.config.MAX_CTF_DESCRIPTION_LENGTH} characters`);
+            fields.push('edit-description');
+        }
+
+        if (!category) {
+            errors.push('Category is required');
+            fields.push('edit-category');
+        }
+
+        if (!['easy', 'medium', 'hard'].includes(difficulty)) {
+            errors.push('Please select a valid difficulty level');
+            fields.push('edit-difficulty');
+        }
+
+        if (hint.length > this.config.MAX_HINT_LENGTH) {
+            errors.push(`Hint cannot exceed ${this.config.MAX_HINT_LENGTH} characters`);
+            fields.push('edit-hint');
+        }
+
+        if (solution.length > this.config.MAX_SOLUTION_LENGTH) {
+            errors.push(`Solution cannot exceed ${this.config.MAX_SOLUTION_LENGTH} characters`);
+            fields.push('edit-solution');
+        }
+
+        if (errors.length) {
+            this.highlightErrorFields(fields);
+            messageManager.showError(errors.join('<br>'));
+            return false;
+        }
+
+        return true;
+    }
+
+    highlightErrorFields(fieldIds) {
+        fieldIds.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.classList.add('error-field');
+                field.addEventListener('input', () => {
+                    field.classList.remove('error-field');
+                }, {once: true});
+            }
+        });
+    }
+
+    formatCompletionTime(minutes) {
+        if (!minutes || minutes <= 0) return 'N/A';
+
+        const hours = Math.floor(minutes / 60);
+        const mins = Math.floor(minutes % 60);
+        return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    }
+
+    formatCategory(category) {
+        const categories = {
+            'web': 'Web',
+            'crypto': 'Cryptography',
+            'forensics': 'Forensics',
+            'reverse': 'Reverse Engineering',
+            'pwn': 'Binary Exploitation',
+            'misc': 'Miscellaneous'
+        };
+        return categories[category] || category;
+    }
+
+    formatDifficulty(difficulty) {
+        return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+    }
+
+    handleTabSwitch(e) {
+        const button = e.currentTarget;
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        button.classList.add('active');
+
+        const tabId = button.dataset.tab + '-tab';
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(tabId).classList.add('active');
+    }
+
+    async showConfirmationDialog(message) {
+        return new Promise(resolve => {
+            resolve(confirm(message));
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    new ChallengesManager();
+});
