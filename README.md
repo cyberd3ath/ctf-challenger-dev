@@ -18,16 +18,11 @@ To set up the service, follow these steps:
 
 ### Mandatory for production:
 - Enable and enforce HTTPS/SSL
-- anonymize ips in logs
-- upload rate limiting
-- 
+- rate limiting
 
 ### Optional improvements:
 - unify html modal code in html or js
-- add real lightmode styling
-- (optional return list entries instead of isAdmin from header.php)
 - (optional change extend limiter to timebased restricting)
-- (optional cleaner styling / code on signup)
 - (optional loading bar for direct upload)
-- (optional extension warning popup einbauen)
+- (optional extension warning popup)
 

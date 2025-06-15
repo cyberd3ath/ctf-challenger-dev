@@ -141,6 +141,8 @@ def install_dependencies():
     """
     global time_start
 
+    subprocess.run(["timedatectl", "set-timezone", "Europe/Berlin"], check=True, capture_output=True)
+
     print("\tInstalling ntpdate")
     subprocess.run(["apt", "install", "-y", "ntpdate"], check=True, capture_output=True)
 
@@ -663,6 +665,13 @@ def setup_database_server():
         except Exception:
             pass
 
+    # Synchronize the time with NTP server
+    print("\tSynchronizing server time with NTP server")
+    execute_command("sudo timedatectl set-timezone Europe/Berlin")
+    execute_command("sudo apt update")
+    execute_command("sudo apt install -y ntpdate")
+    execute_command("sudo ntpdate time.google.com")
+
     # Install PostgreSQL on the database server
     print("\tInstalling PostgreSQL on the database server")
     execute_command("sudo apt update")
@@ -780,6 +789,13 @@ def setup_webserver():
 
     os.makedirs(f"{WEBSERVER_FILES_DIR}/html/uploads", exist_ok=True)
     os.makedirs(f"{WEBSERVER_FILES_DIR}/html/uploads/avatars", exist_ok=True)
+
+    # Synchronize the time with NTP server
+    print("\tSynchronizing server time with NTP server")
+    execute_command("sudo timedatectl set-timezone Europe/Berlin")
+    execute_command("sudo apt update")
+    execute_command("sudo apt install -y ntpdate")
+    execute_command("sudo ntpdate time.google.com")
 
     # Install Apache, PHP, and composer on the webserver
     print("\tInstalling Apache, PHP, and composer on the webserver")

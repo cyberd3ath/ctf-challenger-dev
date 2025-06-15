@@ -269,7 +269,7 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
             'description' => htmlspecialchars($challenge['description'], ENT_QUOTES, 'UTF-8'),
             'category' => htmlspecialchars($challenge['category'], ENT_QUOTES, 'UTF-8'),
             'difficulty' => htmlspecialchars($challenge['difficulty'], ENT_QUOTES, 'UTF-8'),
-            'image' => htmlspecialchars($challenge['image_path'] ?? '../assets/images/default-challenge.jpg', ENT_QUOTES, 'UTF-8'),
+            'image' => htmlspecialchars($challenge['image_path'] ?? '../assets/images/ctf-default.png', ENT_QUOTES, 'UTF-8'),
             'created_at' => $challenge['created_at'],
             'is_active' => $challenge['is_active'],
             'solved' => $solvedStatus === null ? null : (bool)$solvedStatus

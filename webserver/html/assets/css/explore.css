@@ -1,15 +1,4 @@
-
-body {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    background-color: var(--color-background);
-    color: var(--color-text);
-    font-family: 'Inter', sans-serif;
-    margin: 0;
-    padding: 0;
-}
-
+/* ===== BASE LAYOUT ===== */
 main {
     flex: 1;
 }
@@ -21,7 +10,7 @@ main {
     width: 100%;
 }
 
-
+/* ===== CTF LIST GRID ===== */
 .ctf-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -29,40 +18,24 @@ main {
 }
 
 .ctf-list.minimalistic-view {
-    gap: 50px;
+    gap: 20px 40px;
+    grid-template-columns: repeat(4, 1fr);
 }
 
-.loading, .no-results, .error {
-    text-align: center;
-    padding: 2rem;
-    grid-column: 1 / -1;
-    color: var(--color-text);
-}
-
-.solved-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: var(--color-primary);
-    color: white;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: bold;
-}
-
-
+/* ===== CTF CARD STYLES ===== */
 .ctf-card {
     background-color: var(--color-feature-bg);
     border-radius: 10px;
     overflow: hidden;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
-    display: flex;
-    flex-direction: column;
     position: relative;
     height: 300px;
     width: 100%;
+}
+
+.ctf-image-container {
+    overflow: hidden;
 }
 
 .ctf-image {
@@ -77,29 +50,15 @@ main {
     transition: opacity 0.3s ease;
 }
 
-.inactive-ribbon {
-    position: absolute;
-    top: -29px;
-    right: -58px;
-    background-color: rgba(200, 50, 50, 0.7);
-    color: white;
-    padding: 3px 30px;
-    font-size: 24px;
-    font-weight: bold;
-    transform: rotate(45deg);
-    transform-origin: left;
-    z-index: 2;
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
-}
-
-.ctf-image-container {
-    overflow: hidden;
+[data-theme="light"] .ctf-image[src*="/assets/images/ctf-default.png"] {
+    filter: invert(1) hue-rotate(180deg) saturate(0.6) brightness(1) contrast(1.2);
 }
 
 .ctf-card:hover .ctf-image {
     opacity: 1;
 }
 
+/* Card content area */
 .ctf-content {
     position: absolute;
     bottom: 0;
@@ -123,7 +82,6 @@ main {
     margin-top: 2px;
     margin-bottom: 0;
     text-align: center;
-    color: var(--color-text);
 }
 
 .ctf-description {
@@ -132,7 +90,6 @@ main {
     margin-bottom: 4px;
     margin-top: 2px;
     text-align: center;
-    color: var(--color-text);
     flex-grow: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -143,6 +100,7 @@ main {
     max-height: 4em;
 }
 
+/* Difficulty and category labels */
 .ctf-labels {
     display: flex;
     justify-content: space-between;
@@ -172,57 +130,7 @@ main {
     background-color: rgba(244, 67, 54, 0.8);
 }
 
-
-.view-toggle-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s ease;
-    margin-left: auto;
-}
-
-.view-toggle-button:hover {
-    transform: scale(1.1);
-}
-
-.stripe {
-    width: 20px;
-    height: 3px;
-    background-color: var(--color-slider-bg);
-    border-radius: 2px;
-    transition: background-color 0.3s ease;
-}
-
-.view-toggle-button:hover .stripe {
-    background-color: var(--color-primary);
-}
-
-.view-toggle-button.active .stripe {
-    background-color: var(--color-primary);
-}
-
-.view-toggle-button.active {
-    flex-direction: row;
-    gap: 4px;
-}
-
-.view-toggle-button.active .stripe {
-    width: 6px;
-    height: 6px;
-    border-radius: 2px;
-}
-
-.ctf-list.minimalistic-view {
-    gap: 20px 40px;
-    grid-template-columns: repeat(4, 1fr);
-}
-
+/* ===== MINIMALISTIC VIEW VARIANT ===== */
 .ctf-card.minimalistic {
     position: relative;
     height: 150px;
@@ -297,4 +205,86 @@ main {
 .ctf-card.minimalistic .ctf-difficulty {
     padding: 4px 8px;
     font-size: 0.8rem;
+}
+
+/* ===== SPECIAL ELEMENTS ===== */
+.solved-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--color-primary);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.inactive-ribbon {
+    position: absolute;
+    top: -29px;
+    right: -58px;
+    background-color: rgba(200, 50, 50, 0.7);
+    color: white;
+    padding: 3px 30px;
+    font-size: 24px;
+    font-weight: bold;
+    transform: rotate(45deg);
+    transform-origin: left;
+    z-index: 2;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== VIEW TOGGLE BUTTON ===== */
+.view-toggle-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+    margin-left: auto;
+}
+
+.view-toggle-button:hover {
+    transform: scale(1.1);
+}
+
+.view-toggle-button.active {
+    flex-direction: row;
+    gap: 4px;
+}
+
+.stripe {
+    width: 20px;
+    height: 3px;
+    background-color: var(--color-slider-bg);
+    border-radius: 2px;
+    transition: background-color 0.3s ease;
+}
+
+.view-toggle-button:hover .stripe {
+    background-color: var(--color-primary);
+}
+
+.view-toggle-button.active .stripe {
+    background-color: var(--color-primary);
+}
+
+.view-toggle-button.active .stripe {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+}
+
+/* ===== UTILITY CLASSES ===== */
+.loading, .no-results {
+    text-align: center;
+    padding: 2rem;
+    grid-column: 1 / -1;
+    color: var(--color-text);
 }

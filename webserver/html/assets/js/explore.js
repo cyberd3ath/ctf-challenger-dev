@@ -100,7 +100,7 @@ class CTFExplorer {
         return `
             <div class="ctf-image-container">
                 ${inactiveRibbon}
-                <img src="${challenge.image}" alt="${challenge.title}" class="ctf-image" onerror="this.src='../assets/images/default-challenge.jpg'">
+                <img src="${challenge.image}" alt="${challenge.title}" class="ctf-image" onerror="this.src='../assets/images/ctf-default.png'">
                 <div class="ctf-image-overlay"></div>
             </div>
             <div class="ctf-content">

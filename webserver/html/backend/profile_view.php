@@ -31,7 +31,7 @@ class ProfileHandler
         init_secure_session();
 
         if (!validate_session()) {
-            logWarning("Unauthorized access attempt to profile - IP: {$_SERVER['REMOTE_ADDR']}");
+            logWarning("Unauthorized access attempt to profile - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized', 401);
         }
     }
@@ -39,7 +39,7 @@ class ProfileHandler
     private function validateRequest()
     {
         if (empty($this->requestedUsername)) {
-            logError("Empty username requested - IP: {$_SERVER['REMOTE_ADDR']}");
+            logError("Empty username requested - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Username is required', 400);
         }
 
@@ -53,7 +53,7 @@ class ProfileHandler
         if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE', 'PATCH'])) {
             $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
             if (!validate_csrf_token($csrfToken)) {
-                logWarning("Invalid CSRF token in profile request - IP: {$_SERVER['REMOTE_ADDR']}");
+                logWarning("Invalid CSRF token in profile request - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
                 throw new Exception('Invalid request', 403);
             }
         }

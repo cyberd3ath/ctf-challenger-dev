@@ -1,4 +1,4 @@
-
+/* ===== MAIN CONTAINER ===== */
 .upload-ova-container {
     padding: 30px;
     max-width: 1200px;
@@ -18,7 +18,7 @@
     font-size: 1.2em;
 }
 
-
+/* ===== UPLOAD CARD ===== */
 .upload-card {
     background-color: var(--color-feature-bg);
     border-radius: 10px;
@@ -47,13 +47,19 @@
 
 .upload-area p {
     margin: 10px 0;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(var(--color-text-rgb), 0.7);
 }
 
+.upload-area.drag-over {
+    background-color: rgba(0, 173, 181, 0.1);
+    border: 2px dashed var(--color-primary);
+}
+
+/* ===== FILE INFO ===== */
 .file-info {
     margin-top: 20px;
     padding: 10px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--color-text-rgb), 0.05);
     border-radius: 8px;
     display: flex;
     flex-direction: column;
@@ -67,9 +73,10 @@
 
 #file-size {
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(var(--color-text-rgb), 0.6);
 }
 
+/* ===== UPLOAD FORM ===== */
 .upload-form {
     padding: 30px;
 }
@@ -81,7 +88,41 @@
     margin-top: 20px;
 }
 
+/* ===== PROGRESS BAR ===== */
+.upload-progress-container {
+    margin-top: 20px;
+    height: 40px;
+    background: rgba(var(--color-text-rgb), 0.05);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    border: 1px solid rgba(var(--color-text-rgb), 0.1);
+    position: relative;
+    overflow: hidden;
+}
 
+.upload-progress-bar {
+    height: 100%;
+    background-color: var(--color-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    transition: width 0.3s ease;
+}
+
+.upload-progress-text {
+    position: absolute;
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: var(--color-text);
+    pointer-events: none;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* ===== EXISTING OVAS ===== */
 .existing-ovas h2 {
     margin-bottom: 20px;
     font-size: 1.5rem;
@@ -103,20 +144,21 @@
     left: 12px;
     top: 50%;
     transform: translateY(-50%);
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(var(--color-text-rgb), 0.6);
 }
 
 .search-box input {
     width: 100%;
     padding: 10px 10px 10px 40px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(var(--color-text-rgb), 0.1);
     border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(var(--color-text-rgb), 0.1);
     color: var(--color-text);
     font-size: 1rem;
     outline: none;
 }
 
+/* ===== OVA LIST ===== */
 .ova-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -165,71 +207,31 @@
     font-size: 0.9rem;
 }
 
-.empty-state {
+/* ===== EMPTY/ERROR STATES ===== */
+.empty-state, .error-state {
     grid-column: 1 / -1;
     text-align: center;
     padding: 40px;
+}
+
+.empty-state {
     color: rgba(255, 255, 255, 0.5);
 }
 
-.empty-state i {
-    font-size: 3rem;
-    margin-bottom: 15px;
-    opacity: 0.5;
-}
-
 .error-state {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 40px;
     color: #ff4444;
 }
 
-.error-state i {
+.empty-state i, .error-state i {
     font-size: 3rem;
     margin-bottom: 15px;
 }
 
-
-.upload-area.drag-over {
-    background-color: rgba(0, 173, 181, 0.1);
-    border: 2px dashed var(--color-primary);
+.empty-state i {
+    opacity: 0.5;
 }
 
-.upload-progress-container {
-    margin-top: 20px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    position: relative;
-    overflow: hidden;
-}
-
-.upload-progress-bar {
-    height: 100%;
-    background-color: var(--color-primary);
-    border: 1px solid var(--color-border);
-    border-radius: 5px;
-    transition: width 0.3s ease;
-}
-
-.upload-progress-text {
-    position: absolute;
-    font-size: 1.3rem;
-    font-weight: 500;
-    color: var(--color-text);
-    pointer-events: none;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-
+/* ===== RESPONSIVE STYLES ===== */
 @media (max-width: 768px) {
     .upload-card {
         padding: 20px;

@@ -46,7 +46,7 @@ class OvaUploadHandler
     private function validateAccess(): void
     {
         if (!validate_session()) {
-            logWarning("Unauthorized access attempt from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logWarning("Unauthorized access attempt from IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new RuntimeException('Unauthorized - Please login', 401);
         }
 
@@ -57,7 +57,7 @@ class OvaUploadHandler
         }
 
         if (!validate_admin_access($this->pdo)) {
-            logWarning("Unauthorized admin access attempt by user ID: {$this->userId}");
+            logWarning("Unauthorized admin access attempt by user ID: " . ($_SESSION['user_id'] ?? 'unknown'));
             throw new RuntimeException('Unauthorized - Admin access required', 403);
         }
     }

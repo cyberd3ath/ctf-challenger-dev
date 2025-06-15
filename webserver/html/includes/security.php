@@ -17,7 +17,7 @@ class SecurityHelper
             self::regenerateSessionId();
             self::addSecurityHeaders();
 
-            logDebug("Secure session initialized for IP: " . self::anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logDebug("Secure session initialized for IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
 
         } catch (Exception $e) {
             logError("Secure session initialization failed: " . $e->getMessage());
@@ -64,7 +64,7 @@ class SecurityHelper
             foreach (self::SECURITY_HEADERS as $header) {
                 header($header);
             }
-            logDebug("Security headers added for IP: " . self::anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logDebug("Security headers added for IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
         } catch (Exception $e) {
             logError("Failed to add security headers: " . $e->getMessage());
         }
@@ -103,7 +103,7 @@ class SecurityHelper
             }
 
             if (!self::isValidTokenFormat($token)) {
-                logError("Invalid CSRF token format from IP: " . self::anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+                logError("Invalid CSRF token format from IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
                 return false;
             }
 
@@ -135,7 +135,7 @@ class SecurityHelper
     {
         $isValid = hash_equals($_SESSION['csrf_token'], $token);
         if (!$isValid) {
-            logError("Invalid CSRF token provided from IP: " . self::anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logError("Invalid CSRF token provided from IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
         }
         return $isValid;
     }
@@ -207,27 +207,11 @@ class SecurityHelper
         }
         return $stmt->fetchColumn();
     }
-
-    public static function anonymizeIp(string $ip): string
-    {
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            return preg_replace('/\.\d+$/', '.xxx', $ip);
-        }
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            return preg_replace('/:[^:]+$/', ':xxxx', $ip);
-        }
-        return 'invalid-ip';
-    }
 }
 
 function init_secure_session(): void
 {
     SecurityHelper::initSecureSession();
-}
-
-function add_security_headers(): void
-{
-    SecurityHelper::addSecurityHeaders();
 }
 
 function generate_csrf_token(): string

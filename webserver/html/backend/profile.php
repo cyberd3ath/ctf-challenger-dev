@@ -7,10 +7,11 @@ require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/curlHelper.php';
 $config = require __DIR__ . '/../config/backend.config.php';
 $generalConfig = json_decode(file_get_contents(__DIR__ . '/../config/general.config.json'), true);
 
-class ProfileHandler
+class ProfileHandlerPublic
 {
     private PDO $pdo;
     private ?int $userId;
@@ -25,9 +26,8 @@ class ProfileHandler
         $this->pdo = getPDO();
         $this->initSession();
         $this->validateSession();
-        $this->userId = (int)$_SESSION['user_id'];
         $this->requestMethod = $_SERVER['REQUEST_METHOD'];
-        logDebug("Initialized ProfileHandler for user ID: {$this->userId}");
+        logDebug("Initialized ProfileHandlerPublic for user ID: {$this->userId}");
     }
 
     private function initSession(): void
@@ -38,10 +38,10 @@ class ProfileHandler
     private function validateSession(): void
     {
         if (!validate_session()) {
-            logWarning("Unauthorized access attempt to profile - IP: {$_SERVER['REMOTE_ADDR']}");
+            logWarning("Unauthorized access attempt to profile - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized - Please login', 401);
         }
-
+        $this->userId = (int)$_SESSION['user_id'];
         $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!validate_csrf_token($csrfToken)) {
             logWarning("Invalid CSRF token in profile request - User ID: {$this->userId}, Token: {$csrfToken}");
@@ -1264,9 +1264,6 @@ class ProfileHandler
                 'user_badges',
                 'completed_challenges',
                 'user_profiles',
-                'user_sessions',
-                'password_resets',
-                'email_verifications',
                 'disk_files'
             ];
 
@@ -1374,7 +1371,7 @@ class ProfileHandler
 }
 
 try {
-    $handler = new ProfileHandler($config, $generalConfig);
+    $handler = new ProfileHandlerPublic($config, $generalConfig);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

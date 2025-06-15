@@ -69,6 +69,11 @@ class Dashboard {
     }
 
     initProgressChart(ctx) {
+        const textColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-text-rgb').trim();
+        const backgroundColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-background-rgb').trim();
+        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text').trim();
+        const tooltipBackgroundColor = this.flattenAlphaOverBackground(textColorRgb, backgroundColorRgb, 0.1);
+
         return new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -81,7 +86,14 @@ class Dashboard {
             },
             options: {
                 cutout: '70%',
-                plugins: {legend: {display: false}}
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: tooltipBackgroundColor,
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                    }
+                }
             }
         });
     }
@@ -120,22 +132,72 @@ class Dashboard {
     }
 
     updateChartColors() {
-        const colorText = getComputedStyle(document.documentElement)
-            .getPropertyValue('--color-text').trim();
-
-        console.log("Current text color:", colorText);
-
+        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary');
+        const primaryColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-rgb');
+        const secondaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-terminal');
+        const secondaryColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-terminal-rgb');
+        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text');
+        const textColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-text-rgb');
+        const backgroundColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-background-rgb');
+        const tooltipBackgroundColor = this.flattenAlphaOverBackground(textColorRgb, backgroundColorRgb, 0.1);
 
         if (this.timelineChart) {
-            this.timelineChart.options.plugins.legend.labels.color = colorText;
-            this.timelineChart.options.scales.x.ticks.color = colorText;
-            this.timelineChart.options.scales.y.ticks.color = colorText;
-            this.timelineChart.options.scales.y1.ticks.color = colorText;
+            this.timelineChart.options.plugins.legend.labels.color = textColor;
+            this.timelineChart.options.scales.x.ticks.color = `rgba(${textColorRgb}, 0.7)`;
+            this.timelineChart.options.scales.y.ticks.color = `rgba(${textColorRgb}, 0.7)`;
+            this.timelineChart.options.scales.y1.ticks.color = `rgba(${textColorRgb}, 0.7)`;
+            this.timelineChart.options.plugins.tooltip.bodyColor = textColor;
+            this.timelineChart.options.plugins.tooltip.titleColor = textColor;
+            this.timelineChart.options.plugins.tooltip.backgroundColor = tooltipBackgroundColor;
+
+            this.timelineChart.options.scales.x.grid.color = `rgba(${textColorRgb}, 0.05`;
+            this.timelineChart.options.scales.y.grid.color = `rgba(${textColorRgb}, 0.05`;
+
+            this.timelineChart.options.scales.y.title.color = primaryColor;
+            this.timelineChart.options.scales.y1.title.color = secondaryColor;
+
+            this.timelineChart.data.datasets[0].borderColor = primaryColor;
+            this.timelineChart.data.datasets[0].backgroundColor = `rgba(${primaryColorRgb}, 0.1)`;
+            this.timelineChart.data.datasets[0].pointBackgroundColor = primaryColor;
+
+            this.timelineChart.data.datasets[1].borderColor = secondaryColor;
+            this.timelineChart.data.datasets[1].backgroundColor = `rgba(${secondaryColorRgb}, 0.1)`;
+            this.timelineChart.data.datasets[1].pointBackgroundColor = secondaryColor;
+
             this.timelineChart.update();
+        }
+
+        if(this.progressChart) {
+            this.progressChart.options.plugins.tooltip.bodyColor = textColor;
+            this.progressChart.options.plugins.tooltip.titleColor = textColor;
+            this.progressChart.options.plugins.tooltip.backgroundColor = tooltipBackgroundColor;
+
+            this.progressChart.update();
         }
     }
 
+    flattenAlphaOverBackground(fgRgb, bgRgb, alpha) {
+        const fg = fgRgb.split(',').map(Number);
+        const bg = bgRgb.split(',').map(Number);
+
+        const r = Math.round((1 - alpha) * bg[0] + alpha * fg[0]);
+        const g = Math.round((1 - alpha) * bg[1] + alpha * fg[1]);
+        const b = Math.round((1 - alpha) * bg[2] + alpha * fg[2]);
+
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+
     initTimelineChart() {
+        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary');
+        const primaryColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-rgb');
+        const secondaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-terminal');
+        const secondaryColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-terminal-rgb');
+        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text');
+        const textColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-text-rgb');
+        const backgroundColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--color-background-rgb');
+        const tooltipBackground = this.flattenAlphaOverBackground(textColorRgb, backgroundColorRgb, 0.1);
+
         const ctx = document.getElementById('timelineChart').getContext('2d');
         return new Chart(ctx, {
             type: 'line',
@@ -145,12 +207,12 @@ class Dashboard {
                     {
                         label: 'Points Earned',
                         data: [],
-                        borderColor: '#00adb5',
-                        backgroundColor: 'rgba(0, 173, 181, 0.1)',
+                        borderColor: primaryColor,
+                        backgroundColor: `rgba(${primaryColorRgb}, 0.1)`,
                         borderWidth: 2,
                         fill: true,
                         tension: 0.3,
-                        pointBackgroundColor: '#00adb5',
+                        pointBackgroundColor: primaryColor,
                         pointRadius: 5,
                         pointHoverRadius: 7,
                         yAxisID: 'y'
@@ -158,12 +220,12 @@ class Dashboard {
                     {
                         label: 'Challenges Solved',
                         data: [],
-                        borderColor: '#f5abb9',
-                        backgroundColor: 'rgba(245, 171, 185, 0.1)',
+                        borderColor: secondaryColor,
+                        backgroundColor: `rgba(${secondaryColorRgb}, 0.1)`,
                         borderWidth: 2,
                         fill: true,
                         tension: 0.3,
-                        pointBackgroundColor: '#f5abb9',
+                        pointBackgroundColor: secondaryColor,
                         pointRadius: 5,
                         pointHoverRadius: 7,
                         yAxisID: 'y1'
@@ -184,7 +246,10 @@ class Dashboard {
                                     : `${context.raw} challenge${context.raw !== 1 ? 's' : ''}`;
                                 return label;
                             }
-                        }
+                        },
+                        backgroundColor: tooltipBackground,
+                        bodyColor: textColor,
+                        titleColor: textColor
                     },
                     legend: {
                         position: 'top',
@@ -196,21 +261,21 @@ class Dashboard {
                 },
                 scales: {
                     x: {
-                        grid: {color: 'rgba(255, 255, 255, 0.05)'},
-                        ticks: {color: 'rgba(255, 255, 255, 0.7)'}
+                        grid: {color: `rgba(${textColorRgb}, 0.05)`},
+                        ticks: {color: `rgba(${textColorRgb}, 0.7)`}
                     },
                     y: {
-                        title: {display: true, text: 'Points', color: '#00adb5'},
+                        title: {display: true, text: 'Points', color: primaryColor},
                         position: 'left',
-                        grid: {color: 'rgba(255, 255, 255, 0.05)'},
-                        ticks: {color: 'rgba(255, 255, 255, 0.7)'}
+                        grid: {color: `rgba(${textColorRgb}, 0.05`},
+                        ticks: {color: `rgba(${textColorRgb}, 0.7)`}
                     },
                     y1: {
-                        title: {display: true, text: 'Challenges', color: '#f5abb9'},
+                        title: {display: true, text: 'Challenges', color: secondaryColor},
                         position: 'right',
                         grid: {drawOnChartArea: false},
                         ticks: {
-                            color: 'rgba(255, 255, 255, 0.7)',
+                            color: `rgba(${textColorRgb}, 0.7)`,
                             precision: 0
                         }
                     }
@@ -553,7 +618,11 @@ class Dashboard {
 
         if (challengeData.elapsedSeconds !== undefined) {
             this.updateTimeSpentDisplay(challengeData.elapsedSeconds);
-            this.startTimeSpentCounter(challengeData.elapsedSeconds);
+            if (!challengeData.isSolved) {
+                this.startTimeSpentCounter(challengeData.elapsedSeconds);
+            } else {
+                this.clearTimeSpentInterval();
+            }
         }
     }
 

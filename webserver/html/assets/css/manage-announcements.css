@@ -1,10 +1,11 @@
-
+/* ===== MAIN CONTAINER ===== */
 .manage-announcements-container {
     padding: 2rem;
     max-width: 1200px;
     margin: 0 auto;
 }
 
+/* ===== HEADER STYLES ===== */
 .management-header {
     display: flex;
     justify-content: space-between;
@@ -17,7 +18,7 @@
     color: var(--color-primary);
 }
 
-
+/* ===== TABLE STYLES ===== */
 .announcements-table-container {
     overflow-x: auto;
     background-color: var(--color-feature-bg);
@@ -35,6 +36,9 @@
 .announcements-table td {
     padding: 1rem;
     text-align: left;
+}
+
+.announcements-table tr {
     border-bottom: 1px solid var(--color-border);
 }
 
@@ -52,7 +56,7 @@
     background-color: rgba(0, 173, 181, 0.05);
 }
 
-
+/* ===== IMPORTANCE BADGES ===== */
 .importance-badge {
     display: inline-block;
     padding: 0.25rem 0.5rem;
@@ -76,7 +80,7 @@
     color: #dc3545;
 }
 
-
+/* ===== ACTION BUTTONS ===== */
 .actions-cell {
     display: flex;
     gap: 0.5rem;
@@ -97,51 +101,18 @@
 }
 
 .action-btn.edit {
-    color: #17a2b8;
+    color: var(--color-primary);
 }
 
 .action-btn.delete {
     color: #dc3545;
 }
 
-
-.pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
-.pagination button {
-    background-color: var(--color-primary);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.pagination button:hover:not(:disabled) {
-    background-color: var(--color-primary-hover);
-}
-
-.pagination button:disabled {
-    background-color: var(--color-border);
-    cursor: not-allowed;
-}
-
-#page-info {
-    font-size: 0.9rem;
-    color: var(--color-text);
-}
-
-
+/* ===== MODAL STYLES ===== */
 .close-modal {
     background: none;
     border: none;
-    font-size: 2.0rem;
+    font-size: 2rem;
     cursor: pointer;
     color: var(--color-text);
     transition: color 0.2s;
@@ -151,7 +122,12 @@
     color: var(--color-primary);
 }
 
+.editor-modal {
+    max-width: 1216px;
+    max-height: 130vh;
+}
 
+/* ===== FORM STYLES ===== */
 .form-group {
     margin-bottom: 1.5rem;
 }
@@ -172,7 +148,6 @@
     background-color: rgba(255, 255, 255, 0.05);
     color: var(--color-text);
     font-size: 1rem;
-    box-sizing: border-box;
 }
 
 .form-group textarea {
@@ -196,6 +171,7 @@
     margin-top: 2rem;
 }
 
+/* ===== UTILITY CLASSES ===== */
 .button-danger {
     background-color: #dc3545;
     color: white;
@@ -213,7 +189,7 @@
     gap: 0.5rem;
 }
 
-
+/* ===== RESPONSIVE STYLES ===== */
 @media (max-width: 768px) {
     .management-header {
         flex-direction: column;
@@ -237,9 +213,4 @@
     .actions-cell {
         flex-direction: column;
     }
-}
-
-.editor-modal {
-    max-width: 1216px;
-    max-height: 130vh;
 }

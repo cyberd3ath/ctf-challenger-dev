@@ -6,6 +6,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/challengeHelper.php';
 $config = require __DIR__ . '/../config/backend.config.php';
 
 class DashboardHandler
@@ -35,7 +36,7 @@ class DashboardHandler
         init_secure_session();
 
         if (!validate_session()) {
-            logWarning("Unauthorized access attempt to dashboard - IP: {$_SERVER['REMOTE_ADDR']}");
+            logWarning("Unauthorized access attempt to dashboard - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized - Please login', 401);
         }
     }
@@ -819,51 +820,7 @@ class DashboardHandler
             $stmt->execute(['running_challenge_id' => $runningChallengeId]);
             $challenge_template_id = (int)$stmt->fetchColumn();
 
-            $stmt = $this->pdo->prepare("
-                WITH possible_flags AS (
-                    SELECT cf.id AS flag_id
-                    FROM challenge_flags cf
-                    WHERE cf.challenge_template_id = :challenge_template_id
-                ),
-                submitted_flags AS (
-                    SELECT cc.flag_id AS flag_id
-                    FROM completed_challenges cc
-                    WHERE cc.user_id = :user_id
-                      AND cc.challenge_template_id = :challenge_template_id
-                      AND cc.flag_id IS NOT NULL
-                ),
-                eola AS (
-                    SELECT CASE
-                        WHEN NOT EXISTS (
-                            SELECT 1 
-                            FROM possible_flags pf
-                            WHERE NOT EXISTS (
-                                SELECT 1 
-                                FROM submitted_flags sf
-                                WHERE sf.flag_id = pf.flag_id
-                            )
-                        ) THEN 
-                            (SELECT MAX(cc.completed_at)
-                             FROM completed_challenges cc
-                             WHERE cc.flag_id IS NOT NULL
-                            )
-                        ELSE NOW()
-                    END AS end_of_last_interval
-                ),
-                intervals AS (
-                    SELECT COALESCE(cc.completed_at, NOW()) - cc.started_at AS intvl
-                    FROM completed_challenges cc, eola
-                    WHERE cc.user_id = :user_id
-                      AND cc.challenge_template_id = :challenge_template_id
-                      AND (COALESCE(cc.completed_at, NOW()) <= eola.end_of_last_interval)
-                )
-                SELECT EXTRACT(EPOCH FROM SUM(intervals.intvl))::BIGINT AS total_seconds FROM intervals
-            ");
-            $stmt->execute([
-                'user_id' => $this->userId,
-                'challenge_template_id' => $challenge_template_id
-            ]);
-            $elapsedSeconds = (int)$stmt->fetchColumn();
+            $elapsedSeconds = getElapsedSecondsForChallenge($this->pdo,$this->userId,$challenge_template_id);
 
             $stmt = $this->pdo->prepare("
                 SELECT 
@@ -901,7 +858,8 @@ class DashboardHandler
                 'difficulty' => htmlspecialchars($challenge['difficulty']),
                 'points' => (int)$challenge['points'],
                 'started_at' => $challenge['current_attempt_started_at'],
-                'elapsedSeconds' => $elapsedSeconds
+                'elapsedSeconds' => $elapsedSeconds,
+                'isSolved' => isChallengeSolved($this->pdo, $this->userId, $challenge['id']),
             ];
         } catch (PDOException $e) {
             logError("Database error in getActiveChallengeData: " . $e->getMessage());
