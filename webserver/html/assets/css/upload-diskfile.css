@@ -231,6 +231,11 @@
     opacity: 0.5;
 }
 
+#cancel-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 /* ===== RESPONSIVE STYLES ===== */
 @media (max-width: 768px) {
     .upload-card {
