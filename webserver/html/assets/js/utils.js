@@ -1,40 +1,51 @@
 class MessageManager {
     constructor() {
-        this.successMessageTimeout = null;
-        this.errorMessageTimeout = null;
+        this.stackContainer = document.getElementById('message-stack-container');
+
+        if (!this.stackContainer) {
+            this.stackContainer = document.createElement('div');
+            this.stackContainer.id = 'message-stack-container';
+            this.stackContainer.className = 'message-stack-container';
+            document.body.appendChild(this.stackContainer);
+        }
     }
 
     showMessage(type, message, duration = 5000) {
-        const containerId = `${type}-message-container`;
-        let container = document.getElementById(containerId);
-
-        if (!container) {
-            container = document.createElement('div');
-            container.id = containerId;
-            container.className = `message-container ${type}-message`;
-            document.body.appendChild(container);
-        }
-
-        clearTimeout(this[`${type}MessageTimeout`]);
+        const container = document.createElement('div');
+        container.className = `message ${type}-message`;
+        container.setAttribute('data-duration', `${duration}ms`);
 
         const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
         container.innerHTML = `
             <i class="fa-solid ${icon} message-icon"></i>
-            <span>${message}</span>
+            <span class="message-text">${message}</span>
+            <button class="message-close-btn">&times;</button>
         `;
 
-        setTimeout(() => {
-            container.style.transform = 'translateX(0)';
-        }, 10);
+        this.stackContainer.appendChild(container);
 
-        this[`${type}MessageTimeout`] = setTimeout(() => {
-            container.style.transform = 'translateX(150%)';
+        // Force reflow before animation
+        requestAnimationFrame(() => {
+            container.style.opacity = '1';
+            container.style.transform = 'translateY(0)';
+        });
+
+        const timeout = setTimeout(() => {
+            this.hideMessage(container);
         }, duration);
 
-        container.addEventListener('click', () => {
-            container.style.transform = 'translateX(150%)';
-            clearTimeout(this[`${type}MessageTimeout`]);
+        container.querySelector('.message-close-btn').addEventListener('click', () => {
+            clearTimeout(timeout);
+            this.hideMessage(container);
         });
+    }
+
+    hideMessage(container) {
+        container.style.opacity = '0';
+        container.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+            container.remove();
+        }, 300); // Match CSS transition duration
     }
 
     showSuccess(message, duration) {
@@ -45,6 +56,7 @@ class MessageManager {
         this.showMessage('error', message, duration);
     }
 }
+
 
 
 class ApiClient {
@@ -82,8 +94,10 @@ class ApiClient {
 
     async request(url, options = {}) {
         try {
+            const pathname = new URL(url, window.location.origin).pathname;
+            const filename = pathname.split('/').pop();
 
-            const isPublicEndpoint = this.publicEndpoints.some(endpoint => url.includes(endpoint));
+            const isPublicEndpoint = this.publicEndpoints.includes(filename);
 
             if (!isPublicEndpoint && !this.csrfToken) {
                 const error = new Error('Session expired. Please log in again.');
@@ -106,7 +120,9 @@ class ApiClient {
 
             if (response.status === 401 || response.status === 403) {
                 if (!isPublicEndpoint) {
-                    const error = new Error('Session expired. Please log in again.');
+                    const error = new Error(response.status === 401 ?
+                        'Session expired. Please log in again.' :
+                        'You do not have permission for this action');
                     this.messageManager.showError(error.message);
                     setTimeout(() => window.location.href = '/login', 1500);
                     return null;

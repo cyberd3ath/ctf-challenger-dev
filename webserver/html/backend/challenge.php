@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/curlHelper.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/challengeHelper.php';
 $config = require __DIR__ . '/../config/backend.config.php';
 
 class ChallengeHandler
@@ -31,7 +32,7 @@ class ChallengeHandler
         init_secure_session();
 
         if (!validate_session()) {
-            logWarning("Unauthorized access attempt to challenge route - IP: {$_SERVER['REMOTE_ADDR']}");
+            logWarning("Unauthorized access attempt to challenge route - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized - Please login', 401);
         }
     }
@@ -40,7 +41,7 @@ class ChallengeHandler
     {
         $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!validate_csrf_token($csrfToken)) {
-            logWarning("Invalid CSRF token in challenge route - User ID: {$this->userId}");
+            logWarning("Invalid CSRF token in challenge route - User ID: " . ($_SESSION['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);
         }
     }
@@ -158,7 +159,7 @@ class ChallengeHandler
             'success' => true,
             'message' => 'Challenge deployment initiated',
             'entrypoints' => $entrypoints,
-            'elapsed_seconds' => $this->getElapsedSecondsForChallenge($challengeId),
+            'elapsed_seconds' => getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId),
             'remaining_seconds' => $this->getRemainingSecondsForChallenge($challengeId),
             'remaining_extensions' => $this->getRemainingExtensionsForChallenge($challengeId)
         ]);
@@ -632,7 +633,7 @@ class ChallengeHandler
         try {
             $challenge = $this->getChallengeDetails($challengeId);
             $challengeStatus = $this->getChallengeStatus($challengeId);
-            $isSolved = $this->isChallengeSolved($challengeId);
+            $isSolved = isChallengeSolved($this->pdo, $this->userId, $challengeId);
             $solution = $this->getChallengeSolution($challengeId, $isSolved);
             $flags = $this->getChallengeFlags($challengeId);
             $completedFlagIds = $this->getCompletedFlagIds($challengeId);
@@ -640,7 +641,7 @@ class ChallengeHandler
             $challengePoints = $this->calculateChallengePoints($flags);
             $hints = $this->getChallengeHints($challengeId, $userPoints);
             $entrypoints = $this->getEntrypointsIfRunning($challengeStatus);
-            $elapsedSeconds = $this->getElapsedSecondsForChallenge($challengeId);
+            $elapsedSeconds = getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId);
             $remainingSeconds = $this->getRemainingSecondsForChallenge($challengeId);
             $remainingExtensions = $this->getRemainingExtensionsForChallenge($challengeId);
 
@@ -768,25 +769,6 @@ class ChallengeHandler
             'challenge_id' => $challengeId
         ]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
-    private function isChallengeSolved(int $challengeId)
-    {
-        $stmt = $this->pdo->prepare("
-            SELECT 
-                COUNT(DISTINCT cf.id) AS total_flags,
-                COUNT(DISTINCT cc.flag_id) AS flags_completed,
-                (COUNT(DISTINCT cc.flag_id) >= COUNT(DISTINCT cf.id)) AS is_solved
-            FROM challenge_flags cf
-            LEFT JOIN completed_challenges cc ON 
-                cf.id = cc.flag_id AND 
-                cc.user_id = :user_id AND
-                cc.challenge_template_id = :challenge_id
-            WHERE cf.challenge_template_id = :challenge_id
-        ");
-        $stmt->execute(['user_id' => $this->userId, 'challenge_id' => $challengeId]);
-        $solvedData = $stmt->fetch(PDO::FETCH_ASSOC);
-        return (bool)$solvedData['is_solved'];
     }
 
     private function getChallengeSolution($challengeId, $isSolved)
@@ -919,56 +901,6 @@ class ChallengeHandler
         return $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
     }
 
-    private function getElapsedSecondsForChallenge(int $challengeId)
-    {
-        $stmt = $this->pdo->prepare("
-            WITH possible_flags AS (
-                SELECT cf.id AS flag_id
-                FROM challenge_flags cf
-                WHERE cf.challenge_template_id = :challenge_template_id
-            ),
-            submitted_flags AS (
-                SELECT cc.flag_id AS flag_id
-                FROM completed_challenges cc
-                WHERE cc.user_id = :user_id
-                  AND cc.challenge_template_id = :challenge_template_id
-                  AND cc.flag_id IS NOT NULL
-            ),
-            eola AS (
-                SELECT CASE
-                    WHEN NOT EXISTS (
-                        SELECT 1 
-                        FROM possible_flags pf
-                        WHERE NOT EXISTS (
-                            SELECT 1 
-                            FROM submitted_flags sf
-                            WHERE sf.flag_id = pf.flag_id
-                        )
-                    ) THEN 
-                        (SELECT MAX(cc.completed_at)
-                         FROM completed_challenges cc
-                         WHERE cc.flag_id IS NOT NULL
-                        )
-                    ELSE NOW()
-                END AS end_of_last_interval
-            ),
-            intervals AS (
-                SELECT COALESCE(cc.completed_at, NOW()) - cc.started_at AS intvl
-                FROM completed_challenges cc, eola
-                WHERE cc.user_id = :user_id
-                  AND cc.challenge_template_id = :challenge_template_id
-                  AND (COALESCE(cc.completed_at, NOW()) <= eola.end_of_last_interval)
-            )
-            SELECT EXTRACT(EPOCH FROM SUM(intervals.intvl))::BIGINT AS total_seconds FROM intervals;
-        ");
-        $stmt->execute([
-            'user_id' => $this->userId,
-            'challenge_template_id' => $challengeId
-        ]);
-
-        return (int)$stmt->fetchColumn();
-    }
-
     private function checkBadgeUnlocks(int $challengeId)
     {
         $unlockedBadges = [];
@@ -1046,7 +978,7 @@ class ChallengeHandler
 
     private function isSpeedRunner(int $challengeId)
     {
-        $elapsedSeconds = $this->getElapsedSecondsForChallenge($challengeId);
+        $elapsedSeconds = getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId);
         return $elapsedSeconds <= 300;
     }
 
@@ -1163,7 +1095,7 @@ class ChallengeHandler
             $stmt = $this->pdo->prepare("
                 UPDATE challenges
                 SET 
-                    expires_at = NOW() + (:extend_scalar * INTERVAL '1 second'),
+                    expires_at = NOW() + (:extend_scalar * INTERVAL '1 hour'),
                     used_extensions = used_extensions + 1
                 WHERE id = :challenge_id
             ");

@@ -98,7 +98,7 @@ class RegistrationHandler
     private function validateCsrfToken()
     {
         if (!validate_csrf_token($this->csrfToken)) {
-            logError("CSRF token validation failed from IP: {$_SERVER['REMOTE_ADDR']} with csrf_token={$this->csrfToken}");
+            logError("CSRF token validation failed from IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown') ." with csrf_token={$this->csrfToken}");
             throw new Exception('Invalid CSRF token', 403);
         }
     }
