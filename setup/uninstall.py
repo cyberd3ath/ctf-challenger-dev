@@ -139,15 +139,15 @@ def reset_iptables_rules():
     iptables_script_dir = "/etc/iptables-backend"
     subprocess.run(["systemctl", "stop", "iptables-backend.service"], capture_output=True)
     subprocess.run(["systemctl", "disable", "iptables-backend.service"], capture_output=True)
-    subprocess.run(["rm", "-f", IPTABLES_SERVICE_PATH], capture_output=True)
+    subprocess.run(["rm", "-rf", IPTABLES_SERVICE_PATH], capture_output=True)
     subprocess.run(["rm", "-rf", iptables_script_dir], capture_output=True)
 
 
 def remove_web_and_database_server():
     print("\tRemoving automatic server startup")
-    subprocess.run(["systemctl", "stop", "start-vms.service"], capture_output=True)
-    subprocess.run(["systemctl", "disable", "start-vms.service"], capture_output=True)
-    subprocess.run(["rm", "-f", f"{SYSTEMD_PATH}/start-vms.service"], capture_output=True)
+    subprocess.run(["systemctl", "stop", "start-vm.service"], capture_output=True)
+    subprocess.run(["systemctl", "disable", "start-vm.service"], capture_output=True)
+    subprocess.run(["rm", "-f", f"{SYSTEMD_PATH}/start-vm.service"], capture_output=True)
 
     print("\tRemoving servers")
     for vmid in [1000, 2000]:
