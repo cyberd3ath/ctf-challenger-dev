@@ -16,6 +16,7 @@ PROXMOX_USER = os.getenv("PROXMOX_USER", "root@pam")
 PROXMOX_PASSWORD = os.getenv("PROXMOX_PASSWORD")
 PROXMOX_PORT = os.getenv("PROXMOX_PORT", "8006")
 BACKEND_PORT = os.getenv("BACKEND_PORT", "8000")
+PROXMOX_INTERNAL_IP = os.getenv("PROXMOX_INTERNAL_IP", "10.0.3.4")
 PROXMOX_EXTERNAL_IP = os.getenv("PROXMOX_EXTERNAL_IP", "10.0.3.4")
 PROXMOX_HOSTNAME = os.getenv("PROXMOX_HOSTNAME", "pve")
 
@@ -384,10 +385,10 @@ iptables -A FORWARD -i {BACKEND_NETWORK_DEVICE} -o {BACKEND_NETWORK_DEVICE} -j A
 iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
 
 # Port forwarding for HTTP (port 80)
-iptables -t nat -A PREROUTING -p tcp -d {PROXMOX_EXTERNAL_IP} --dport 80 -j DNAT --to-destination {WEBSERVER_HOST}:80
+iptables -t nat -A PREROUTING -p tcp -d {PROXMOX_INTERNAL_IP} --dport 80 -j DNAT --to-destination {WEBSERVER_HOST}:80
 
 # Port forwarding for HTTPS (port 443)
-iptables -t nat -A PREROUTING -p tcp -d {PROXMOX_EXTERNAL_IP} --dport 443 -j DNAT --to-destination {WEBSERVER_HOST}:443
+iptables -t nat -A PREROUTING -p tcp -d {PROXMOX_INTERNAL_IP} --dport 443 -j DNAT --to-destination {WEBSERVER_HOST}:443
 
 # Masquerade traffic from webserver back to outside world
 iptables -t nat -A POSTROUTING -s {WEBSERVER_HOST} -o {BACKEND_NETWORK_DEVICE} -j MASQUERADE
