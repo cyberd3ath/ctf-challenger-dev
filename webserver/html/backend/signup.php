@@ -59,6 +59,7 @@ class RegistrationHandler
             $userId = $this->createUserAccount();
             $vpnIp = $this->assignVpnIp($userId);
             $this->generateAndSaveVpnConfig($userId);
+            $this->updateLastLogin($userId);
             $this->initializeUserSession($userId);
             $this->sendSuccessResponse($userId, $vpnIp);
         } catch (Exception $e) {
@@ -270,6 +271,12 @@ class RegistrationHandler
             logError("Config save failed: " . $e->getMessage());
             return false;
         }
+    }
+
+    private function updateLastLogin(int $userId)
+    {
+        $update = $this->pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = :id");
+        $update->execute(['id' => $userId]);
     }
 
     private function initializeUserSession($userId)
