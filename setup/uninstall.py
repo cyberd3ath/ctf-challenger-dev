@@ -150,15 +150,19 @@ def remove_web_and_database_server():
     subprocess.run(["rm", "-f", f"{SYSTEMD_PATH}/start-vms.service"], capture_output=True)
 
     print("\tRemoving servers")
-    for vmid in [1000, 1001]:
+    for vmid in [1000, 2000]:
         try:
             proxmox = ProxmoxAPI(PROXMOX_HOST, user=PROXMOX_USER, password=PROXMOX_PASSWORD, verify_ssl=False)
             proxmox.nodes(PROXMOX_HOSTNAME).qemu(vmid).delete()
-        except Exception as e:
+        except Exception:
             pass
 
 
 def remove_openvpn_server():
+    print("\tRemoving OpenVPN setup working directory")
+    openvpn_setup_dir = "/root/ctf-challenger/setup/openvpn_setup"
+    subprocess.run(["rm", "-rf", openvpn_setup_dir], capture_output=True)
+
     print("\tStopping and disabling OpenVPN service")
     subprocess.run(["systemctl", "stop", "openvpn@server"], capture_output=True)
     subprocess.run(["systemctl", "disable", "openvpn@server"], capture_output=True)
@@ -205,7 +209,7 @@ def remove_backend_network():
         proxmox = ProxmoxAPI(PROXMOX_HOST, user=PROXMOX_USER, password=PROXMOX_PASSWORD, verify_ssl=False)
         proxmox.nodes(PROXMOX_HOSTNAME).network.delete(BACKEND_NETWORK_DEVICE)
         proxmox.nodes(PROXMOX_HOSTNAME).network.put()
-    except Exception as e:
+    except Exception:
         pass
 
 
@@ -214,7 +218,7 @@ def remove_api_tokens():
     try:
         proxmox = ProxmoxAPI(PROXMOX_HOST, user=PROXMOX_USER, password=PROXMOX_PASSWORD, verify_ssl=False)
         proxmox.access.users(PROXMOX_USER).token("backend-token").delete()
-    except Exception as e:
+    except Exception:
         pass
 
 
