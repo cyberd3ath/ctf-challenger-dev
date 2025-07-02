@@ -1,4 +1,4 @@
-
+/* ===== Layout & Containers ===== */
 .activity-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -6,6 +6,7 @@
     color: var(--color-text);
 }
 
+/* ===== Header & Filters ===== */
 .activity-header {
     margin-bottom: 2rem;
 }
@@ -42,6 +43,7 @@ select {
     color: var(--color-text);
 }
 
+/* ===== Timeline Components ===== */
 .timeline-container {
     position: relative;
     padding-left: 3.2rem;
@@ -63,6 +65,7 @@ select {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* Timeline status indicators */
 .timeline-icon {
     position: absolute;
     left: -2.75rem;
@@ -78,81 +81,32 @@ select {
     border: 2px solid var(--color-border);
 }
 
-.timeline-icon.success {
-    border-color: #00adb5;
-    color: #00adb5;
-}
+.timeline-icon.success { border-color: #00adb5; color: #00adb5; }
+.timeline-icon.warning { border-color: #f5abb9; color: #f5abb9; }
+.timeline-icon.gold { border-color: #ffd700; color: #ffd700; }
+.timeline-icon.info { border-color: #7fdbff; color: #7fdbff; }
 
-.timeline-icon.warning {
-    border-color: #f5abb9;
-    color: #f5abb9;
-}
+/* Timeline content sections */
+.timeline-content { display: flex; flex-direction: column; gap: 0.5rem; }
+.timeline-header { display: flex; justify-content: space-between; align-items: center; }
+.timeline-header h3 { margin: 0; font-size: 1.1rem; }
 
-.timeline-icon.gold {
-    border-color: #ffd700;
-    color: #ffd700;
-}
+.points { font-weight: bold; font-size: 0.9rem; }
+.points.success { color: #00adb5; }
+.points.warning { color: #f5abb9; }
+.points.gold { color: #ffd700; }
+.points.info { color: #7fdbff; }
 
-.timeline-icon.info {
-    border-color: #7fdbff;
-    color: #7fdbff;
-}
-
-.timeline-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.timeline-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.timeline-header h3 {
-    margin: 0;
-    font-size: 1.1rem;
-}
-
-.points {
-    font-weight: bold;
-    font-size: 0.9rem;
-}
-
-.points.success {
-    color: #00adb5;
-}
-
-.points.warning {
-    color: #f5abb9;
-}
-
-.points.gold {
-    color: #ffd700;
-}
-
-.points.info {
-    color: #7fdbff;
-}
-
-.timeline-body {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
+.timeline-body { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 
 .challenge-link {
     color: var(--color-primary);
     text-decoration: none;
     font-weight: 500;
 }
+.challenge-link:hover { text-decoration: underline; }
 
-.challenge-link:hover {
-    text-decoration: underline;
-}
-
+/* Challenge category badges */
 .category-badge {
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
@@ -161,30 +115,12 @@ select {
     text-transform: uppercase;
 }
 
-.category-badge.web {
-    background-color: rgba(0, 173, 181, 0.1);
-    color: #00adb5;
-}
-
-.category-badge.crypto {
-    background-color: rgba(255, 215, 0, 0.1);
-    color: #ffd700;
-}
-
-.category-badge.forensics {
-    background-color: rgba(127, 219, 255, 0.1);
-    color: #7fdbff;
-}
-
-.category-badge.reverse {
-    background-color: rgba(245, 171, 185, 0.1);
-    color: #f5abb9;
-}
-
-.category-badge.pwn {
-    background-color: rgba(126, 87, 194, 0.1);
-    color: #7e57c2;
-}
+.category-badge.web { background-color: rgba(0, 173, 181, 0.1); color: #00adb5; }
+.category-badge.crypto { background-color: rgba(255, 215, 0, 0.1); color: #ffd700; }
+.category-badge.forensics { background-color: rgba(127, 219, 255, 0.1); color: #7fdbff; }
+.category-badge.reverse { background-color: rgba(245, 171, 185, 0.1); color: #f5abb9; }
+.category-badge.pwn { background-color: rgba(126, 87, 194, 0.1); color: #7e57c2; }
+.category-badge.misc { background-color: rgba(174, 234, 0, 0.1); color: #aeea00; }
 
 .timeline-footer {
     display: flex;
@@ -193,12 +129,7 @@ select {
     color: var(--color-text);
 }
 
-.duration, .attempts {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
+/* ===== Empty State ===== */
 .empty-state {
     display: none;
     flex-direction: column;
@@ -214,35 +145,14 @@ select {
     opacity: 0.5;
 }
 
-.empty-state h3 {
-    margin-bottom: 0.5rem;
-    color: var(--color-text);
-}
-
-.empty-state p {
-    margin-bottom: 1.5rem;
-    color: var(--color-text);
-}
-
-.pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 2rem;
-}
-
+/* ===== Responsive Adjustments ===== */
 @media (max-width: 768px) {
     .activity-filters {
         flex-direction: column;
         align-items: flex-start;
     }
 
-    .filter-group {
-        width: 100%;
-    }
-
-    select {
+    .filter-group, select {
         width: 100%;
     }
 

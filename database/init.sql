@@ -26,7 +26,6 @@ CREATE OR REPLACE FUNCTION find_lowest_available_user_id()
 DECLARE
     next_id INT;
 BEGIN
-    -- Lock the table to prevent concurrent inserts from conflicting
     LOCK TABLE users IN EXCLUSIVE MODE;
 
     SELECT COALESCE(MIN(u1.id + 1), 1) INTO next_id
@@ -49,12 +48,9 @@ BEGIN
     WHERE mt1.id BETWEEN 900000000 AND 999999998
       AND mt2.id IS NULL
       AND mt1.id + 1 BETWEEN 900000001 AND 999999999;
-
-    -- Ensure it's actually available
     IF EXISTS (
         SELECT 1 FROM machine_templates WHERE id = next_id
     ) THEN
-        -- This ID is already taken, and no other was found
         RAISE EXCEPTION 'No available machine_template ID in range 900000001–999999999';
     END IF;
 
@@ -73,12 +69,9 @@ BEGIN
     WHERE mt1.id BETWEEN 100000000 AND 899999998
       AND mt2.id IS NULL
       AND mt1.id + 1 BETWEEN 100000001 AND 899999999;
-
-    -- Ensure it's actually available
     IF EXISTS (
         SELECT 1 FROM machines WHERE id = next_id
     ) THEN
-        -- This ID is already taken, and no other was found
         RAISE EXCEPTION 'No available machine_template ID in range 100000001–899999999';
     END IF;
 
@@ -93,7 +86,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create the category enum
 CREATE TYPE challenge_category AS ENUM (
     'web',
     'crypto',
@@ -103,7 +95,6 @@ CREATE TYPE challenge_category AS ENUM (
     'misc'
 );
 
--- Create the difficulty enum
 CREATE TYPE challenge_difficulty AS ENUM (
     'easy',
     'medium',
@@ -129,7 +120,6 @@ CREATE TABLE vpn_static_ips (
     user_id INT
 );
 
--- Users table (must come first because other tables reference it)
 CREATE TABLE users (
     id INT PRIMARY KEY DEFAULT find_lowest_available_user_id(),
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -151,7 +141,6 @@ ADD CONSTRAINT fk_user_id
 FOREIGN KEY (user_id)
 REFERENCES users(id);
 
--- Challenge Templates Table
 CREATE TABLE challenge_templates (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -191,8 +180,6 @@ FOREIGN KEY (running_challenge)
 REFERENCES challenges(id) ON DELETE SET NULL;
 
 
-
--- User profiles
 CREATE TABLE user_profiles (
     user_id INT PRIMARY KEY,
     full_name VARCHAR(100),
@@ -206,8 +193,6 @@ CREATE TABLE user_profiles (
 );
 
 
-
--- Machine Templates Table
 CREATE TABLE machine_templates (
     id INTEGER PRIMARY KEY DEFAULT find_lowest_available_machine_template_id(),
     challenge_template_id INT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
@@ -217,7 +202,7 @@ CREATE TABLE machine_templates (
     ram_gb INT NOT NULL CHECK (ram_gb > 0)
 );
 
--- Network Templates Table
+
 CREATE TABLE network_templates (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -225,21 +210,19 @@ CREATE TABLE network_templates (
     is_dmz BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Domain Templates Table
 CREATE TABLE domain_templates (
     machine_template_id INT NOT NULL REFERENCES machine_templates(id) ON DELETE CASCADE,
     domain_name VARCHAR(255) NOT NULL,
     PRIMARY KEY (machine_template_id, domain_name)
 );
 
--- Machine-Network Mapping Table
+
 CREATE TABLE network_connection_templates (
     machine_template_id INT NOT NULL REFERENCES machine_templates(id) ON DELETE CASCADE,
     network_template_id INT NOT NULL REFERENCES network_templates(id) ON DELETE CASCADE,
     PRIMARY KEY (machine_template_id, network_template_id)
 );
 
--- Challenge Flags Table
 CREATE TABLE challenge_flags (
     id SERIAL PRIMARY KEY,
     challenge_template_id INT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
@@ -249,7 +232,6 @@ CREATE TABLE challenge_flags (
     order_index INT DEFAULT 0
 );
 
--- Challenge Hints Table
 CREATE TABLE challenge_hints (
     id SERIAL PRIMARY KEY,
     challenge_template_id INT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
@@ -258,7 +240,7 @@ CREATE TABLE challenge_hints (
     order_index INT DEFAULT 0
 );
 
--- Updated User completed_challenges table (now REFERENCES challenge_templates)
+
 CREATE TABLE completed_challenges (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
@@ -271,7 +253,6 @@ CREATE TABLE completed_challenges (
     FOREIGN KEY (challenge_template_id) REFERENCES challenge_templates(id)
 );
 
--- Badges table
 CREATE TABLE badges (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
@@ -282,7 +263,6 @@ CREATE TABLE badges (
     requirements TEXT NOT NULL
 );
 
--- User badges
 CREATE TABLE user_badges (
     user_id INT NOT NULL,
     badge_id INT NOT NULL,
@@ -292,52 +272,6 @@ CREATE TABLE user_badges (
     FOREIGN KEY (badge_id) REFERENCES badges(id) ON DELETE CASCADE
 );
 
--- Sessions table
-CREATE TABLE user_sessions (
-    id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL,
-    session_token VARCHAR(255) NOT NULL,
-    ip_address VARCHAR(45) NOT NULL,
-    user_agent TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL,
-    is_revoked BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Password reset tokens
-CREATE TABLE password_resets (
-    id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL,
-    token VARCHAR(255) NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    used_at TIMESTAMP NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Email verification tokens
-CREATE TABLE email_verifications (
-    id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL,
-    token VARCHAR(255) NOT NULL,
-    new_email VARCHAR(255),
-    expires_at TIMESTAMP NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Audit log
-CREATE TABLE audit_log (
-    id SERIAL PRIMARY KEY,
-    user_id INT,
-    action VARCHAR(50) NOT NULL,
-    ip_address VARCHAR(45),
-    user_agent TEXT,
-    details TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-);
-
--- Announcements
 CREATE TABLE announcements (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -345,7 +279,7 @@ CREATE TABLE announcements (
     short_description VARCHAR(255),
     importance announcement_importance NOT NULL,
     category announcement_category NOT NULL,
-    author VARCHAR(100) NOT NULL,
+    author VARCHAR(50) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -390,7 +324,6 @@ CREATE TABLE domains
     PRIMARY KEY (machine_id, domain_name)
 );
 
--- Create indexes
 CREATE INDEX idx_machine_templates_challenge ON machine_templates(challenge_template_id);
 CREATE INDEX idx_domain_templates_machine ON domain_templates(machine_template_id);
 CREATE INDEX idx_network_connection_templates_machine ON network_connection_templates(machine_template_id);
@@ -399,14 +332,11 @@ CREATE INDEX idx_challenge_flags_challenge ON challenge_flags(challenge_template
 CREATE INDEX idx_challenge_hints_challenge ON challenge_hints(challenge_template_id);
 CREATE INDEX idx_completed_challenges_user_id ON completed_challenges(user_id);
 CREATE INDEX idx_challenges_challenge_template_id ON challenges(challenge_template_id);
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
-CREATE INDEX idx_user_sessions_token ON user_sessions(session_token);
 CREATE INDEX idx_announcements_importance ON announcements(importance);
 CREATE INDEX idx_announcements_created_at ON announcements(created_at);
 CREATE INDEX idx_disk_files_user_id ON disk_files(user_id);
 CREATE INDEX idx_disk_files_upload_date ON disk_files(upload_date);
 
--- Enable cryptographic functions
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 INSERT INTO badges (name, description, icon, color, rarity, requirements)
