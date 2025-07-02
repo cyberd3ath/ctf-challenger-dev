@@ -73,6 +73,17 @@ class ApiClient {
             ?.split('=')[1];
     }
 
+    isSamePageReferer() {
+        const { referrer } = document;
+        if (!referrer) return false;
+
+        try {
+            return new URL(referrer).href === window.location.href;
+        } catch {
+            return false;
+        }
+    }
+
     buildRequestConfig(method, data) {
         const hasData = data !== undefined && data !== null;
         const isFormData = hasData && data instanceof FormData;
@@ -101,11 +112,14 @@ class ApiClient {
 
             if (!isPublicEndpoint && !this.csrfToken) {
                 const error = new Error('Session expired. Please log in again.');
-                this.messageManager.showError(error.message);
-                setTimeout(() => window.location.href = '/login', 1500);
+                if (this.isSamePageReferer()) {
+                    this.messageManager.showError(error.message);
+                    setTimeout(() => window.location.href = '/login', 1500);
+                } else {
+                    window.location.href = '/login';
+                }
                 return null;
             }
-
 
             const headers = {
                 ...(options.headers || {}),
@@ -123,8 +137,12 @@ class ApiClient {
                     const error = new Error(response.status === 401 ?
                         'Session expired. Please log in again.' :
                         'You do not have permission for this action');
-                    this.messageManager.showError(error.message);
-                    setTimeout(() => window.location.href = '/login', 1500);
+                    if (this.isSamePageReferer()) {
+                        this.messageManager.showError(error.message);
+                        setTimeout(() => window.location.href = '/login', 1500);
+                    } else {
+                        window.location.href = '/login';
+                    }
                     return null;
                 }
             }
@@ -147,7 +165,6 @@ class ApiClient {
                 this.messageManager.showError(errorMessage);
                 return null;
             }
-
 
             if (response.status === 204) return null;
 

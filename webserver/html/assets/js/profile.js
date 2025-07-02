@@ -60,6 +60,7 @@ class ProfileManager {
 
     updateProfileInfo(data) {
         document.getElementById('username-display').textContent = data.username;
+        document.getElementById('full-name-value').textContent = data.full_name || 'N/A';
         document.getElementById('email-value').textContent = data.email;
         document.querySelector('.field-value[data-field="member_since"]').textContent =
             new Date(data.join_date).toLocaleDateString();
