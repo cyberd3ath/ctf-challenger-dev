@@ -205,7 +205,7 @@ def allow_ova_upload_to_proxmox():
 
 lvmthin: local-lvm
         thinpool data
-        vgname {PROXMOX_HOSTNAME}
+        vgname pve
         content rootdir,images
 """)
 
