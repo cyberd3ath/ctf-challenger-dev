@@ -5,7 +5,6 @@ class ChallengesManager {
         this.challenges = [];
         this.filteredChallenges = [];
         this.currentPage = 1;
-        this.totalPages = 1;
         this.challengesPerPage = 10;
 
         this.domElements = {
@@ -16,7 +15,7 @@ class ChallengesManager {
             statusFilter: document.getElementById('status-filter'),
             prevPageBtn: document.getElementById('prev-page'),
             nextPageBtn: document.getElementById('next-page'),
-            pageInfo: document.querySelector('.page-info'),
+            pageInfo: document.getElementById('page-info'),
             editModal: document.getElementById('edit-modal'),
             deleteModal: document.getElementById('delete-modal'),
             editForm: document.getElementById('edit-challenge-form'),
@@ -140,7 +139,7 @@ class ChallengesManager {
                 const row = this.domElements.challengesList.querySelector(`tr button[data-id="${challenge.id}"]`)?.closest('tr');
                 if (row) {
                     row.querySelector('.edit').addEventListener('click', () => this.openEditModal(challenge));
-                    row.querySelector('.delete').addEventListener('click', () => this.openDeleteModal(challenge));
+                    row.querySelector('.delete').addEventListener('click', () => this.openDeleteModal(challenge.id));
                 }
             });
         }
@@ -183,7 +182,7 @@ class ChallengesManager {
                         <i class="fa-solid fa-edit"></i>
                     </button>
                     <button class="action-btn delete" data-id="${challenge.id}">
-                        <i class="fa-solid ${challenge.marked_for_deletion ? 'fa-rotate-left' : 'fa-trash'}"></i>
+                        <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
             </tr>
@@ -192,19 +191,19 @@ class ChallengesManager {
 
     handlePagination(direction) {
         const newPage = direction === 'prev' ? this.currentPage - 1 : this.currentPage + 1;
-        this.totalPages = Math.ceil(this.filteredChallenges.length / this.challengesPerPage);
+        const totalPages = Math.ceil(this.filteredChallenges.length / this.challengesPerPage);
 
-        if (newPage > 0 && newPage <= this.totalPages) {
+        if (newPage > 0 && newPage <= totalPages) {
             this.currentPage = newPage;
             this.displayChallenges();
         }
     }
 
     updatePagination() {
-        this.totalPages = Math.ceil(this.filteredChallenges.length / this.challengesPerPage);
-        this.domElements.pageInfo.textContent = `Page ${this.currentPage} of ${this.totalPages || 1}`;
+        const totalPages = Math.ceil(this.filteredChallenges.length / this.challengesPerPage);
+        this.domElements.pageInfo.textContent = `Page ${this.currentPage} of ${totalPages}`;
         this.domElements.prevPageBtn.disabled = this.currentPage <= 1;
-        this.domElements.nextPageBtn.disabled = this.currentPage >= this.totalPages || this.totalPages === 0;
+        this.domElements.nextPageBtn.disabled = this.currentPage >= totalPages || totalPages === 0;
     }
 
     openEditModal(challenge) {
@@ -220,42 +219,9 @@ class ChallengesManager {
         this.domElements.editModal.classList.add('show');
     }
 
-    openDeleteModal(challenge) {
-        document.getElementById('delete-challenge-id').value = challenge.id;
-
-        const modal = this.domElements.deleteModal;
-        const modalHeader = modal.querySelector('.modal-header h2');
-        const softDeleteTab = modal.querySelector('.tab-button[data-tab="soft-delete"]');
-        const softDeleteContent = modal.querySelector('#soft-delete-tab');
-        const softDeleteBtn = modal.querySelector('#confirm-soft-delete');
-
-        if (challenge.marked_for_deletion) {
-            modalHeader.textContent = 'Challenge Recovery';
-            softDeleteTab.textContent = 'Restore Challenge';
-            softDeleteContent.querySelector('h4').textContent = 'Restore Challenge';
-            softDeleteContent.querySelector('p').textContent = 'Return this challenge to active status.';
-            softDeleteContent.querySelector('ul').innerHTML = `
-            <li>Challenge will be available immediately</li>
-            <li>All existing instances remain unaffected</li>
-            <li>Can be deleted again if needed</li>
-        `;
-            softDeleteBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Restore Challenge';
-            softDeleteBtn.classList.replace('button-warning', 'button-success');
-        } else {
-            modalHeader.textContent = 'Delete Challenge';
-            softDeleteTab.textContent = 'Standard Delete';
-            softDeleteContent.querySelector('h4').textContent = 'Standard (Safe) Deletion';
-            softDeleteContent.querySelector('p').textContent = 'The challenge will be marked for deletion and automatically removed when all active instances are terminated.';
-            softDeleteContent.querySelector('ul').innerHTML = `
-            <li>Active instances can finish their sessions</li>
-            <li>Challenge remains available until last instance closes</li>
-            <li>Can be undone while instances are running</li>
-        `;
-            softDeleteBtn.innerHTML = '<i class="fa-solid fa-trash-alt"></i> Mark for Deletion';
-            softDeleteBtn.classList.replace('button-success', 'button-warning');
-        }
-
-        modal.classList.add('show');
+    openDeleteModal(challengeId) {
+        document.getElementById('delete-challenge-id').value = challengeId;
+        this.domElements.deleteModal.classList.add('show');
     }
 
     closeModals() {
@@ -273,7 +239,6 @@ class ChallengesManager {
         if (!this.validateChallengeForm()) return;
 
         const formData = new FormData();
-        formData.append('action', 'update_challenge');
         formData.append('id', document.getElementById('edit-challenge-id').value);
         formData.append('name', document.getElementById('edit-name').value.trim());
         formData.append('description', document.getElementById('edit-description').value.trim());
@@ -299,24 +264,15 @@ class ChallengesManager {
 
     async handleSoftDelete() {
         const challengeId = document.getElementById('delete-challenge-id').value;
-        const challenge = this.challenges.find(c => c.id === Number(challengeId));
 
         try {
-            let response;
-            if (challenge.marked_for_deletion) {
-                const formData = new FormData();
-                formData.append('action', 'restore_challenge');
-                formData.append('id', challengeId);
-                response = await apiClient.post('../backend/manage-ctf.php', formData);
-            } else {
-                response = await apiClient.delete('../backend/manage-ctf.php', {
-                    data: {
-                        action: 'delete_challenge',
-                        id: challengeId,
-                        force: false
-                    }
-                });
-            }
+            const response = await apiClient.delete('../backend/manage-ctf.php', {
+                data: {
+                    action: 'delete_challenge',
+                    id: challengeId,
+                    force: false
+                }
+            });
 
             if (response?.success) {
                 messageManager.showSuccess(response.message);
@@ -324,10 +280,8 @@ class ChallengesManager {
                 this.fetchChallenges();
             }
         } catch (error) {
-            console.error('Soft delete/restore error:', error);
-            messageManager.showError(challenge.marked_for_deletion
-                ? 'Failed to restore challenge'
-                : 'Failed to deactivate challenge');
+            console.error('Soft delete error:', error);
+            messageManager.showError('Failed to deactivate challenge');
         }
     }
 
@@ -370,9 +324,6 @@ class ChallengesManager {
         const difficulty = document.getElementById('edit-difficulty').value;
         const hint = document.getElementById('edit-hint').value.trim();
         const solution = document.getElementById('edit-solution').value.trim();
-        const challengeId = document.getElementById('edit-challenge-id').value;
-        const challenge = this.challenges.find(c => c.id === Number(challengeId));
-        const isActive = this.domElements.toggleActive.checked;
 
         if (!name) {
             errors.push('Challenge name is required');
@@ -410,18 +361,8 @@ class ChallengesManager {
             fields.push('edit-solution');
         }
 
-        if (challenge?.marked_for_deletion && isActive) {
-            errors.push('Cannot activate a challenge marked for deletion. Restore it first.');
-            fields.push('edit-active');
-        }
-
         if (errors.length) {
             this.highlightErrorFields(fields);
-            if (fields.includes('edit-active')) {
-                this.domElements.toggleActive.checked = false;
-                this.updateToggleLabel();
-            }
-
             messageManager.showError(errors.join('<br>'));
             return false;
         }

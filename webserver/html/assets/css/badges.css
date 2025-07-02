@@ -1,4 +1,4 @@
-/* ===== Layout & Containers ===== */
+
 .badges-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -6,14 +6,6 @@
     color: var(--color-text);
 }
 
-.grid-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-/* ===== Header & Progress Summary ===== */
 .badges-header {
     margin-bottom: 2rem;
 }
@@ -75,12 +67,37 @@
     color: var(--color-text);
 }
 
-/* ===== Badge Cards ===== */
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    font-weight: 500;
+}
+
+select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-transparent);
+    color: var(--color-text);
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
 .badge-card {
     background-color: var(--color-feature-bg);
     border-radius: 8px;
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
 }
 
 .badge-card:hover {
@@ -88,25 +105,12 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* Card sections */
 .badge-header {
     padding: 1.5rem;
     text-align: center;
+    position: relative;
 }
 
-.badge-body {
-    padding: 0 1.5rem 1.5rem;
-}
-
-.badge-footer {
-    padding: 0 1.5rem 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-}
-
-/* Badge elements */
 .badge-icon {
     font-size: 3rem;
     width: 80px;
@@ -126,6 +130,20 @@
     margin-bottom: 0.5rem;
 }
 
+.badge-rarity {
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 1rem;
+    text-transform: capitalize;
+}
+
+.badge-body {
+    padding: 0 1.5rem 1.5rem;
+}
+
 .badge-description {
     color: var(--color-text);
     font-size: 0.9rem;
@@ -138,30 +156,28 @@
     margin-bottom: 1rem;
 }
 
-/* Rarity styles */
-.badge-rarity {
-    font-size: 0.8rem;
-    font-weight: 500;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    display: inline-block;
+.badge-requirements {
+    font-size: 0.85rem;
+    color: var(--color-text);
     margin-bottom: 1rem;
-    text-transform: capitalize;
+    padding: 0 0.75rem 0.75rem;
+    background-color: var(--color-transparent);
+    border-radius: 4px;
 }
 
-.common { border-color: #7fdbff; color: #7fdbff; }
-.uncommon { border-color: #2ecc40; color: #2ecc40; }
-.rare { border-color: #0074d9; color: #0074d9; }
-.epic { border-color: #b10dc9; color: #b10dc9; }
-.legendary { border-color: #ff851b; color: #ff851b; }
+.badge-footer {
+    padding: 0 1.5rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
 
-.common .badge-rarity { background-color: rgba(127, 219, 255, 0.1); }
-.uncommon .badge-rarity { background-color: rgba(46, 204, 64, 0.1); }
-.rare .badge-rarity { background-color: rgba(0, 116, 217, 0.1); }
-.epic .badge-rarity { background-color: rgba(177, 13, 201, 0.1); }
-.legendary .badge-rarity { background-color: rgba(255, 133, 27, 0.1); }
+.badge-footer > div:first-child {
+    flex: initial;
+    min-width: 0;
+}
 
-/* Progress elements */
 .badge-progress {
     width: 100%;
     height: 6px;
@@ -177,13 +193,87 @@
     transition: width 0.3s ease;
 }
 
-.badge-progress-bar.common { background-color: #7fdbff; }
-.badge-progress-bar.uncommon { background-color: #2ecc40; }
-.badge-progress-bar.rare { background-color: #0074d9; }
-.badge-progress-bar.epic { background-color: #b10dc9; }
-.badge-progress-bar.legendary { background-color: #ff851b; }
+.badge-status {
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
 
-/* Badge states */
+.badge-date {
+    font-size: 0.8rem;
+    color: var(--color-text);
+}
+
+.common {
+    border-color: #7fdbff;
+    color: #7fdbff;
+}
+
+.common .badge-rarity {
+    background-color: rgba(127, 219, 255, 0.1);
+    color: #7fdbff;
+}
+
+.badge-progress-bar.common {
+    background-color: #7fdbff;
+}
+
+.uncommon {
+    border-color: #2ecc40;
+    color: #2ecc40;
+}
+
+.uncommon .badge-rarity {
+    background-color: rgba(46, 204, 64, 0.1);
+    color: #2ecc40;
+}
+
+.uncommon.badge-progress-bar {
+    background-color: #2ecc40;
+}
+
+.rare {
+    border-color: #0074d9;
+    color: #0074d9;
+}
+
+.rare .badge-rarity {
+    background-color: rgba(0, 116, 217, 0.1);
+    color: #0074d9;
+}
+
+.rare.badge-progress-bar {
+    background-color: #0074d9;
+}
+
+.epic {
+    border-color: #b10dc9;
+    color: #b10dc9;
+}
+
+.epic .badge-rarity {
+    background-color: rgba(177, 13, 201, 0.1);
+    color: #b10dc9;
+}
+
+.epic.badge-progress-bar {
+    background-color: #b10dc9;
+}
+
+.legendary {
+    border-color: #ff851b;
+    color: #ff851b;
+}
+
+.legendary .badge-rarity {
+    background-color: rgba(255, 133, 27, 0.1);
+    color: #ff851b;
+}
+
+.legendary.badge-progress-bar {
+    background-color: #ff851b;
+}
+
 .badge-earned .badge-icon {
     background-color: var(--color-transparent);
 }
@@ -197,7 +287,6 @@
     filter: grayscale(70%);
 }
 
-/* ===== Empty State ===== */
 .empty-state {
     display: none;
     flex-direction: column;
@@ -214,13 +303,30 @@
     opacity: 0.5;
 }
 
-/* ===== Responsive Adjustments ===== */
+.empty-state h3 {
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+}
+
+.empty-state p {
+    margin-bottom: 1.5rem;
+    color: var(--color-text);
+}
+
 @media (max-width: 768px) {
     .progress-summary {
         flex-direction: column;
     }
 
     .progress-card {
+        width: 100%;
+    }
+
+    .filter-group {
+        width: 100%;
+    }
+
+    select {
         width: 100%;
     }
 

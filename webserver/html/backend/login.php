@@ -45,7 +45,7 @@ class LoginHandler
         $redirectUrl = '/dashboard';
         $userId = $_SESSION['user_id'];
         $username = $_SESSION['username'];
-        $ip = anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+        $ip = $_SERVER['REMOTE_ADDR'];
 
         logWarning("User already authenticated - User ID: {$userId}, Username: {$username}, IP: {$ip}");
 
@@ -97,22 +97,22 @@ class LoginHandler
     private function validateInput()
     {
         if (empty($this->csrfToken)) {
-            logError("Empty CSRF token - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logError("Empty CSRF token - IP: {$_SERVER['REMOTE_ADDR']}");
             throw new Exception('Invalid request token.', 403);
         }
 
         if (!validate_csrf_token($this->csrfToken)) {
-            logError("Invalid CSRF token - Received: {$this->csrfToken}, IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown') .", Username: {$this->username}");
+            logError("Invalid CSRF token - Received: {$this->csrfToken}, IP: {$_SERVER['REMOTE_ADDR']}, Username: {$this->username}");
             throw new Exception('Invalid request token.', 403);
         }
 
         if (empty($this->username)) {
-            logError("Empty username provided - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logError("Empty username provided - IP: {$_SERVER['REMOTE_ADDR']}");
             throw new Exception('Username is required.', 400);
         }
 
         if (empty($this->password)) {
-            logError("Empty password provided - Username: {$this->username}, IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logError("Empty password provided - Username: {$this->username}, IP: {$_SERVER['REMOTE_ADDR']}");
             throw new Exception('Password is required.', 400);
         }
     }
@@ -140,7 +140,7 @@ class LoginHandler
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
-            logError("User not found - Username: {$this->username}, IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logError("User not found - Username: {$this->username}, IP: {$_SERVER['REMOTE_ADDR']}");
             throw new Exception('Invalid username or password.', 401);
         }
 
@@ -150,7 +150,7 @@ class LoginHandler
     private function verifyPassword(array $user)
     {
         if (!password_verify($this->password, $user['password_hash'])) {
-            logError("Invalid password attempt - User ID: {$user['id']}, Username: {$this->username}, IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logError("Invalid password attempt - User ID: {$user['id']}, Username: {$this->username}, IP: {$_SERVER['REMOTE_ADDR']}");
             throw new Exception('Invalid username or password.', 401);
         }
     }

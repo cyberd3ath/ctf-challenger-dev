@@ -240,7 +240,6 @@ class ProfileManager {
     initRadarChart(theme = 'dark') {
         const chartElement = document.getElementById("categoryChart");
         if (!chartElement) return;
-        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary');
 
         this.categoryChart = new ApexCharts(chartElement, {
             series: [{name: 'Completion', data: []}],
@@ -251,7 +250,8 @@ class ProfileManager {
                 background: 'transparent'
             },
             theme: {mode: theme},
-            colors: [primaryColor],
+            colors: ['#00adb5'],
+            xaxis: {categories: []},
             yaxis: {show: false, max: 100, min: 0},
             markers: {size: 5, hover: {size: 7}},
             tooltip: {
@@ -262,28 +262,11 @@ class ProfileManager {
                     size: 120,
                     polygons: {
                         strokeColors: theme === 'light'
-                            ? 'rgba(0, 0, 0, 0.2)'
+                            ? 'rgba(0, 0, 0, 0.1)'
                             : 'rgba(255, 255, 255, 0.1)',
-                        fill: {
-                            colors: [
-                                theme === 'light'
-                                    ? 'rgba(0, 0, 0, 0.05)'
-                                    : 'rgba(255, 255, 255, 0.05)'
-                            ]
-                        }
-                    }
-                }
-            },
-            xaxis: {
-                categories: [],
-                labels: {
-                    show: true,
-                    style: {
-                        colors: theme === 'light'
-                            ? ['#212529','#212529','#212529','#212529','#212529','#212529']
-                            : ['#fcfcfc','#fcfcfc','#fcfcfc','#fcfcfc','#fcfcfc','#fcfcfc'],
-                        fontSize: "11px",
-                        fontFamily: "Arial"
+                        fill: {colors: [theme === 'light'
+                                ? 'rgba(0, 0, 0, 0.03)'
+                                : 'rgba(255, 255, 255, 0.05)']}
                     }
                 }
             }
@@ -301,46 +284,31 @@ class ProfileManager {
 
     updateChartColors() {
         const theme = document.documentElement.getAttribute('data-theme') || 'dark';
-        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary');
 
         if (this.categoryChart) {
             this.categoryChart.updateOptions({
                 theme: {
                     mode: theme
                 },
-                colors: [primaryColor],
                 plotOptions: {
                     radar: {
                         polygons: {
                             strokeColors: theme === 'light'
-                                ? 'rgba(0, 0, 0, 0.2)'
+                                ? 'rgba(0, 0, 0, 0.1)'
                                 : 'rgba(255, 255, 255, 0.1)',
                             fill: {
                                 colors: [
                                     theme === 'light'
-                                        ? 'rgba(0, 0, 0, 0.05)'
+                                        ? 'rgba(0, 0, 0, 0.03)'
                                         : 'rgba(255, 255, 255, 0.05)'
                                 ]
                             }
                         }
                     }
-                },
-                xaxis: {
-                    labels: {
-                        show: true,
-                        style: {
-                            colors: theme === 'light'
-                                ? ['#212529','#212529','#212529','#212529','#212529','#212529']
-                                : ['#fcfcfc','#fcfcfc','#fcfcfc','#fcfcfc','#fcfcfc','#fcfcfc'],
-                            fontSize: "11px",
-                            fontFamily: "Arial"
-                        }
-                    }
-                },
+                }
             }, false, true);
         }
     }
-
 
     validateUsername(username) {
         const errors = [];

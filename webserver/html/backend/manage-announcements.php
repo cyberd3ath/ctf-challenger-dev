@@ -36,7 +36,7 @@ class AdminAnnouncementsHandler
         init_secure_session();
 
         if (!validate_session()) {
-            logWarning("Unauthorized access attempt to admin announcements - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logWarning("Unauthorized access attempt to admin announcements - IP: {$_SERVER['REMOTE_ADDR']}");
             throw new Exception('Unauthorized', 401);
         }
     }
@@ -45,12 +45,12 @@ class AdminAnnouncementsHandler
     {
         $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!validate_csrf_token($csrfToken)) {
-            logWarning("Invalid CSRF token in admin announcements - User ID: " . ($_SESSION['user_id'] ?? 'unknown') . ", Token: {$csrfToken}");
+            logWarning("Invalid CSRF token in admin announcements - User ID: {$this->userId}, Token: {$csrfToken}");
             throw new Exception('Invalid CSRF token', 403);
         }
 
         if (!validate_admin_access($this->pdo)) {
-            logWarning("Non-admin access attempt to admin announcements - User ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+            logWarning("Non-admin access attempt to admin announcements - User ID: {$this->userId}");
             throw new Exception('Unauthorized - Admin access only', 403);
         }
     }

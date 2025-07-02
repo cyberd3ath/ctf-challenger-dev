@@ -23,9 +23,9 @@ class CTFManagementHandler
         $this->config = $config;
         $this->generalConfig = $generalConfig;
         header('Content-Type: application/json');
-        $this->pdo = getPDO();
         $this->initSession();
         $this->validateAccess();
+        $this->pdo = getPDO();
         $this->userId = $_SESSION['user_id'];
         $this->method = $_SERVER['REQUEST_METHOD'];
         $this->inputData = $this->parseInputData();
@@ -46,19 +46,14 @@ class CTFManagementHandler
     private function validateAccess(): void
     {
         if (!validate_session()) {
-            logWarning("Unauthorized access attempt to manage CTF - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logWarning("Unauthorized access attempt to manage CTF - IP: {$_SERVER['REMOTE_ADDR']}");
             throw new RuntimeException('Unauthorized - Please login', 401);
         }
 
         $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!validate_csrf_token($csrfToken)) {
-            logWarning("Invalid CSRF token in manage CTF - User ID: " . ($_SESSION['user_id'] ?? 'unknown') . ", Token: {$csrfToken}");
+            logWarning("Invalid CSRF token in manage CTF - User ID: {$_SESSION['user_id']}, Token: {$csrfToken}");
             throw new RuntimeException('Invalid CSRF token', 403);
-        }
-
-        if (!validate_admin_access($this->pdo)) {
-            logWarning("Non-admin access attempt to manage CTF - User ID: " . ($_SESSION['user_id'] ?? 'unknown'));
-            throw new Exception('Unauthorized - Admin access only', 403);
         }
     }
 
@@ -116,22 +111,6 @@ class CTFManagementHandler
 
     private function handlePostRequest(): void
     {
-        $action = $this->inputData['action'] ?? null;
-
-        switch ($action) {
-            case 'update_challenge':
-                $this->handleUpdateChallenge();
-                break;
-            case 'restore_challenge':
-                $this->handleRestoreRequest();
-                break;
-            default:
-                throw new RuntimeException('Invalid action', 400);
-        }
-    }
-
-    private function handleUpdateChallenge(): void
-    {
         $errors = $this->validateChallengeData();
         if (!empty($errors['errors'])) {
             logWarning("Validation failed in CTF update - User ID: {$this->userId}, Errors: " . implode(', ', $errors['errors']));
@@ -140,19 +119,7 @@ class CTFManagementHandler
             exit;
         }
 
-        $challenge = $this->verifyChallengeOwnershipAndStatus((int)$this->inputData['id']);
-
-        if ($challenge['marked_for_deletion'] && !empty($this->inputData['isActive'])) {
-            logWarning("Attempt to activate deleted challenge - ID: {$this->inputData['id']}, User ID: {$this->userId}");
-            http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Cannot activate a challenge marked for deletion. Restore it first.',
-                'fields' => ['edit-active']
-            ]);
-            exit;
-        }
-
+        $this->verifyChallengeOwnership((int)$this->inputData['id']);
         $this->updateChallenge();
 
         logInfo("CTF challenge updated - ID: {$this->inputData['id']}, Name: {$this->inputData['name']}, User ID: {$this->userId}");
@@ -160,30 +127,6 @@ class CTFManagementHandler
         echo json_encode([
             'success' => true,
             'message' => 'Challenge updated successfully'
-        ]);
-    }
-
-    private function handleRestoreRequest(): void
-    {
-        if (empty($this->inputData['id'])) {
-            throw new RuntimeException('Challenge ID is required', 400);
-        }
-
-        $challengeId = (int)$this->inputData['id'];
-        $challenge = $this->verifyChallengeOwnershipAndStatus($challengeId);
-
-        if (!$challenge['marked_for_deletion']) {
-            logWarning("Attempt to restore non-deleted challenge - ID: {$challengeId}, User ID: {$this->userId}");
-            throw new RuntimeException('Challenge is not marked for deletion', 400);
-        }
-
-        $this->restoreChallenge($challengeId);
-
-        logInfo("CTF challenge restored - ID: {$challengeId}, User ID: {$this->userId}");
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Challenge restored successfully'
         ]);
     }
 
@@ -254,36 +197,22 @@ class CTFManagementHandler
         return $errors;
     }
 
-    private function verifyChallengeOwnershipAndStatus(int $challengeId): array
+    private function verifyChallengeOwnership(int $challengeId): void
     {
         $stmt = $this->pdo->prepare("
-        SELECT id, marked_for_deletion 
-        FROM challenge_templates 
-        WHERE id = :id AND creator_id = :user_id
-    ");
+            SELECT id FROM challenge_templates 
+            WHERE id = :id AND creator_id = :user_id
+        ");
         $stmt->execute(['id' => $challengeId, 'user_id' => $this->userId]);
-        $challenge = $stmt->fetch();
 
-        if (!$challenge) {
+        if (!$stmt->fetch()) {
             logError("Challenge not found or access denied - Challenge ID: {$challengeId}, User ID: {$this->userId}");
             throw new RuntimeException('Challenge not found or access denied', 404);
         }
-
-        return $challenge;
     }
 
     private function updateChallenge(): void
     {
-        $isActive = !empty($this->inputData['isActive']) ? $this->inputData['isActive'] : 0;
-
-        $stmt = $this->pdo->prepare("SELECT marked_for_deletion FROM challenge_templates WHERE id = :id");
-        $stmt->execute(['id' => $this->inputData['id']]);
-        $challenge = $stmt->fetch();
-
-        if ($challenge['marked_for_deletion']) {
-            $isActive = 0;
-        }
-
         $stmt = $this->pdo->prepare("
             UPDATE challenge_templates SET
                 name = :name,
@@ -305,19 +234,8 @@ class CTFManagementHandler
             'difficulty' => $this->inputData['difficulty'],
             'hint' => !empty($this->inputData['hint']) ? $this->inputData['hint'] : null,
             'solution' => !empty($this->inputData['solution']) ? $this->inputData['solution'] : null,
-            'is_active' => $isActive
+            'is_active' => !empty($this->inputData['isActive']) ? $this->inputData['isActive'] : 0
         ]);
-    }
-
-    private function restoreChallenge(int $challengeId): void
-    {
-        $stmt = $this->pdo->prepare("
-        UPDATE challenge_templates 
-        SET marked_for_deletion = false, 
-            is_active = true
-        WHERE id = :challenge_id
-    ");
-        $stmt->execute(['challenge_id' => $challengeId]);
     }
 
     private function handleDeleteRequest(): void
@@ -657,7 +575,6 @@ class CTFManagementHandler
                 ct.image_path,
                 ct.is_active,
                 ct.created_at,
-                ct.marked_for_deletion,
                 COALESCE(rd.total_count, 0) AS total_deployments,
                 ct.hint,
                 ct.solution,

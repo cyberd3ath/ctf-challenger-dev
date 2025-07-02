@@ -35,14 +35,4 @@ function logWarning($message)
     file_put_contents($logFile, $formattedMessage, FILE_APPEND);
 }
 
-function anonymizeIp(string $ip): string
-{
-    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-        return preg_replace('/\.\d+$/', '.xxx', $ip);
-    }
-    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-        return preg_replace('/:[^:]+$/', ':xxxx', $ip);
-    }
-    return 'invalid-ip';
-}
 ?>

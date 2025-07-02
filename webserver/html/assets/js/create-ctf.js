@@ -926,9 +926,9 @@ class CTFCreator {
             }
         });
 
-        this.flagForm['hint-text'].value = hint.hint_text;
-        this.flagForm['hint-points'].value = hint.unlock_points;
-        this.flagForm['hint-order'].value = hint.order_index;
+        this.hintForm['hint-text'].value = hint.hint_text;
+        this.hintForm['hint-points'].value = hint.unlock_points;
+        this.hintForm['hint-order'].value = hint.order_index;
         this.hintSubmitButton.textContent = 'Update Hint';
 
         if (!this.hintInput.classList.contains('active')) {

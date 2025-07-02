@@ -141,8 +141,6 @@ def install_dependencies():
     """
     global time_start
 
-    subprocess.run(["timedatectl", "set-timezone", "Europe/Berlin"], check=True, capture_output=True)
-
     print("\tInstalling ntpdate")
     subprocess.run(["apt", "install", "-y", "ntpdate"], check=True, capture_output=True)
 
@@ -665,13 +663,6 @@ def setup_database_server():
         except Exception:
             pass
 
-    # Synchronize the time with NTP server
-    print("\tSynchronizing server time with NTP server")
-    execute_command("sudo timedatectl set-timezone Europe/Berlin")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install -y ntpdate")
-    execute_command("sudo ntpdate time.google.com")
-
     # Install PostgreSQL on the database server
     print("\tInstalling PostgreSQL on the database server")
     execute_command("sudo apt update")
@@ -790,13 +781,6 @@ def setup_webserver():
     os.makedirs(f"{WEBSERVER_FILES_DIR}/html/uploads", exist_ok=True)
     os.makedirs(f"{WEBSERVER_FILES_DIR}/html/uploads/avatars", exist_ok=True)
 
-    # Synchronize the time with NTP server
-    print("\tSynchronizing server time with NTP server")
-    execute_command("sudo timedatectl set-timezone Europe/Berlin")
-    execute_command("sudo apt update")
-    execute_command("sudo apt install -y ntpdate")
-    execute_command("sudo ntpdate time.google.com")
-
     # Install Apache, PHP, and composer on the webserver
     print("\tInstalling Apache, PHP, and composer on the webserver")
     execute_command("sudo apt update")
@@ -908,6 +892,28 @@ def setup_webserver():
     execute_command("sudo mv /var/www/html/composer.json /var/www/composer.json")
     execute_command("sudo mv /var/www/html/composer.lock /var/www/composer.lock")
 
+    # Generate a self-signed certificate for HTTPS
+    print("\tGenerating self-signed SSL certificate")
+    execute_command(
+        "sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 "
+        "-keyout /etc/ssl/private/apache-selfsigned.key "
+        "-out /etc/ssl/certs/apache-selfsigned.crt "
+        "-subj \"/C=US/ST=Denial/L=Springfield/O=Dis/CN=localhost\""
+    )
+
+    # Configure Apache for HTTPS
+    print("\tEnabling SSL and default SSL site in Apache")
+    execute_command("sudo a2enmod ssl")
+    execute_command("sudo a2ensite default-ssl")
+
+    # Replace default-ssl.conf with your custom version if needed
+    print("\tCustomizing default-ssl.conf")
+    copy_file_to_server(
+        os.path.join(WEBSERVER_FILES_DIR, "default-ssl.conf"),
+        "/tmp/default-ssl.conf"
+    )
+    execute_command("sudo mv /tmp/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf")
+
     # Restart Apache
     print("\tRestarting Apache")
     execute_command("sudo systemctl restart apache2")
@@ -996,7 +1002,7 @@ def validate_running_and_reachable(webserver_id, database_id, api_token, timeout
     while time.time() - start_time < timeout and not (webserver_reachable and database_reachable):
         if not webserver_reachable:
             try:
-                response = requests.get(f"http://{WEBSERVER_HOST}:{WEBSERVER_HTTP_PORT}", timeout=5)
+                response = requests.get(f"https://{WEBSERVER_HOST}:{WEBSERVER_HTTPS_PORT}", timeout=5, verify=False)
                 if response.status_code == 200:
                     webserver_reachable = True
 

@@ -121,9 +121,9 @@ class ChallengePage {
             this.showDeletionBanner();
         }
 
-        this.challengeImage.src = challenge.image_path || '../assets/images/ctf-default.png';
+        this.challengeImage.src = challenge.image_path || '../assets/images/default-challenge.jpg';
         this.challengeImage.onerror = () => {
-            this.challengeImage.src = '../assets/images/ctf-default.png';
+            this.challengeImage.src = '../assets/images/default-challenge.jpg';
         };
     }
 
@@ -214,6 +214,7 @@ class ChallengePage {
 
             const copyBtn = document.createElement('button');
             copyBtn.className = 'copy-btn';
+            copyBtn.innerHTML = '📋';
             copyBtn.title = 'copy';
             copyBtn.onclick = () => this.copyToClipboard(ip, copyBtn);
             ipContainer.appendChild(copyBtn);
@@ -227,20 +228,10 @@ class ChallengePage {
     }
 
     copyToClipboard(text, button) {
-        button.classList.add('copied');
-
-        navigator.clipboard.writeText(text)
-            .catch(err => {
-                console.error('Failed to copy:', err);
-                button.classList.add('copy-error');
-                setTimeout(() => button.classList.remove('copy-error'), 2000);
-            });
-
-        setTimeout(() => {
-            button.classList.remove('copied');
-        }, 2000);
+        navigator.clipboard.writeText(text);
+        button.innerHTML = '✓';
+        setTimeout(() => button.innerHTML = '📋', 2000);
     }
-
 
     setupEventListeners(challenge) {
         this.cleanupEventListeners();
@@ -577,7 +568,7 @@ class ChallengePage {
     populateHints(challenge) {
         this.hintsContainer.innerHTML = '';
 
-        if (challenge.hint?.trim()) {
+        if (challenge.hint !== "") {
             const hintSection = document.getElementById('hint-section');
             hintSection.style.display = 'block';
             this.hintsContainer.appendChild(this.createHintElement({
@@ -598,23 +589,6 @@ class ChallengePage {
             const solutionSection = document.getElementById('solution-section');
             solutionSection.style.display = 'block';
             document.getElementById('solution-text').textContent = challenge.solution;
-
-            const solutionOverlay = document.querySelector('.solution-overlay');
-            const solutionToggle = document.querySelector('.solution-toggle');
-
-            const toggleSolutionVisibility = () => {
-                const isHidden = solutionOverlay.classList.contains('hidden');
-                solutionOverlay.classList.toggle('hidden', !isHidden);
-
-                if (isHidden) {
-                    solutionToggle.className = 'fa-solid fa-eye-slash solution-toggle';
-                } else {
-                    solutionToggle.className = 'fa-solid fa-eye solution-toggle';
-                }
-            };
-
-            solutionOverlay.addEventListener('click', toggleSolutionVisibility);
-            solutionToggle.addEventListener('click', toggleSolutionVisibility);
         }
     }
 

@@ -188,43 +188,40 @@ class FileUploader {
                 totalChunks: totalChunks
             });
 
-            if(initData?.success) {
-                this.state.currentUploadId = initData.uploadId;
+            this.state.currentUploadId = initData.uploadId;
 
-                for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-                    if (!this.state.uploadInProgress) throw new Error('Upload cancelled');
+            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                if (!this.state.uploadInProgress) throw new Error('Upload cancelled');
 
-                    const start = chunkIndex * chunkSize;
-                    const end = Math.min(start + chunkSize, this.state.selectedFile.size);
-                    const chunk = this.state.selectedFile.slice(start, end);
+                const start = chunkIndex * chunkSize;
+                const end = Math.min(start + chunkSize, this.state.selectedFile.size);
+                const chunk = this.state.selectedFile.slice(start, end);
 
-                    const formData = new FormData();
-                    formData.append('chunk', chunk);
-                    formData.append('uploadId', this.state.currentUploadId);
-                    formData.append('chunkIndex', chunkIndex);
-                    formData.append('phase', 'chunk');
+                const formData = new FormData();
+                formData.append('chunk', chunk);
+                formData.append('uploadId', this.state.currentUploadId);
+                formData.append('chunkIndex', chunkIndex);
+                formData.append('phase', 'chunk');
 
-                    await apiClient.post('../backend/upload-diskfile.php', formData);
+                await apiClient.post('../backend/upload-diskfile.php', formData);
 
 
-                    const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
-                    this.updateProgress(progress);
-                }
-
-                this.domElements.cancelBtn.disabled = true;
-
-                const finalizeResponse = await apiClient.post('../backend/upload-diskfile.php', {
-                    phase: 'finalize',
-                    uploadId: this.state.currentUploadId
-                });
-
-                if (finalizeResponse?.success) {
-                    messageManager.showSuccess('File uploaded successfully!');
-                }
-
-                this.resetForm();
-                this.fetchUserOVAs();
+                const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+                this.updateProgress(progress);
             }
+
+
+            const finalizeResponse = await apiClient.post('../backend/upload-diskfile.php', {
+                phase: 'finalize',
+                uploadId: this.state.currentUploadId
+            });
+
+            if (finalizeResponse?.success) {
+                messageManager.showSuccess('File uploaded successfully!');
+            }
+
+            this.resetForm();
+            this.fetchUserOVAs();
         } finally {
             this.state.uploadInProgress = false;
             this.state.currentUploadId = null;
@@ -238,7 +235,6 @@ class FileUploader {
             ? '<span class="loading-spinner"></span> Uploading...'
             : 'Upload OVA';
         this.domElements.cancelBtn.style.display = showCancel ? 'inline-block' : 'none';
-        this.domElements.cancelBtn.disabled = false;
 
         if (!isUploading) {
             this.resetProgressUI();

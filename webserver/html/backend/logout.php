@@ -28,7 +28,7 @@ class LogoutHandler
     private function validateSession()
     {
         if (!validate_session() || empty($_SESSION['authenticated'])) {
-            logWarning("Unauthorized logout attempt - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logWarning("Unauthorized logout attempt - IP: {$_SERVER['REMOTE_ADDR']}, Session: " . json_encode($_SESSION));
             throw new Exception('Unauthorized - Please login', 401);
         }
 
@@ -54,7 +54,7 @@ class LogoutHandler
     private function validateCsrfToken()
     {
         if (!validate_csrf_token($this->csrfToken)) {
-            logError("Invalid CSRF token during logout - User ID: {$this->userId}, Token: {$this->csrfToken}, IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            logError("Invalid CSRF token during logout - User ID: {$this->userId}, Token: {$this->csrfToken}, IP: {$_SERVER['REMOTE_ADDR']}");
             throw new Exception('Invalid security token', 403);
         }
     }
@@ -112,7 +112,7 @@ class LogoutHandler
 
         logError("Logout failed - Code: {$code}, Message: " . $e->getMessage() .
             ", User ID: {$this->userId}" .
-            ", IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            ", IP: {$_SERVER['REMOTE_ADDR']}");
 
         echo json_encode([
             'success' => false,

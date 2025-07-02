@@ -13,7 +13,7 @@ class AnnouncementsManager {
             createBtn: document.getElementById('create-announcement'),
             prevPageBtn: document.getElementById('prev-page'),
             nextPageBtn: document.getElementById('next-page'),
-            pageInfo: document.querySelector('.page-info'),
+            pageInfo: document.getElementById('page-info'),
             editorModal: document.getElementById('editor-modal'),
             deleteModal: document.getElementById('delete-modal'),
             announcementForm: document.getElementById('announcement-form'),
@@ -127,7 +127,7 @@ class AnnouncementsManager {
     }
 
     updatePagination() {
-        this.domElements.pageInfo.textContent = `Page ${this.currentPage} of ${this.totalPages || 1}`;
+        this.domElements.pageInfo.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
         this.domElements.prevPageBtn.disabled = this.currentPage <= 1;
         this.domElements.nextPageBtn.disabled = this.currentPage >= this.totalPages;
     }
