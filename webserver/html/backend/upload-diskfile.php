@@ -565,7 +565,7 @@ class OvaUploadHandler
 
         $this->checkDuplicateFileName($displayName);
 
-        $endpoint = "/api2/json/nodes/" . $this->config['upload']['NODE'] . "/storage/local/upload";
+        $endpoint = "/api2/json/nodes/" . $_ENV['PROXMOX_HOSTNAME'] . "/storage/local/upload";
         $postParams = [
             'content' => 'import',
             'filename' => new CURLFile(
@@ -648,7 +648,7 @@ class OvaUploadHandler
 
     private function deleteFromProxmox(string $proxmoxFilename): void
     {
-        $endpoint = "/api2/json/nodes/" . $this->config['upload']['NODE'] . "/storage/local/content/import/" . urlencode($proxmoxFilename);
+        $endpoint = "/api2/json/nodes/" . $_ENV['PROXMOX_HOSTNAME'] . "/storage/local/content/import/" . urlencode($proxmoxFilename);
         $authHeaders = getAuthHeaders();
         $result = makeCurlRequest($endpoint, 'DELETE', $authHeaders);
 

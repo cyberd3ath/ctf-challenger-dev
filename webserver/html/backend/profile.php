@@ -1234,7 +1234,7 @@ class ProfileHandler
 
             foreach ($ovas as $ova) {
                 try {
-                    $endpoint = "/api2/json/nodes/" . $this->config['upload']['NODE'] . "/storage/local/content/import/" .
+                    $endpoint = "/api2/json/nodes/" . $_ENV['PROXMOX_HOSTNAME'] . "/storage/local/content/import/" .
                         urlencode($ova['proxmox_filename']);
                     $result = makeCurlRequest($endpoint, 'DELETE', getAuthHeaders());
 

@@ -29,7 +29,6 @@ return [
         'MAX_VMDK_COUNT' => 8,
         'MAX_OVF_SIZE_BYTES' => 10 * 1024 ** 2,
         'UPLOAD_TEMP_DIR' => '/tmp/ova_uploads/',
-        'NODE' => 'pve',
     ],
     'announcement' => [
         'VALID_CATEGORIES' => ['general', 'updates', 'maintenance', 'events', 'security'],

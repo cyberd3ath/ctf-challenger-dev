@@ -2,13 +2,14 @@ import os
 from dotenv import load_dotenv
 import requests
 
+load_dotenv()
+node = os.getenv("PROXMOX_HOSTNAME", "pve")
+
 
 def make_api_call(method, endpoint, data=None):
     """
     Make an API call to Proxmox.
     """
-
-    load_dotenv()
     proxmox_url = os.getenv("PROXMOX_URL")
     proxmox_api_token = os.getenv("PROXMOX_API_TOKEN")
 
@@ -32,7 +33,7 @@ def clone_vm_api_call(machine_template, machine):
     """
     Clone a virtual machine in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/qemu/{machine_template.id}/clone"
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine_template.id}/clone"
     data = {
         "newid": machine.id,
         "full": False
@@ -44,7 +45,7 @@ def create_network_api_call(network):
     """
     Create a network in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/network"
+    endpoint = f"api2/json/nodes/{node}/network"
     data = {
         "iface": network.host_device,
         "type": "bridge",
@@ -58,7 +59,7 @@ def reload_network_api_call():
     """
     Reload a network in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/network"
+    endpoint = f"api2/json/nodes/{node}/network"
     data = {}
 
     return make_api_call("PUT", endpoint, data)
@@ -68,7 +69,7 @@ def delete_vm_api_call(machine):
     """
     Delete a virtual machine in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/qemu/{machine.id}"
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine.id}"
     return make_api_call("DELETE", endpoint)
 
 
@@ -76,7 +77,7 @@ def delete_network_api_call(network):
     """
     Delete a network in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/network/{network.host_device}"
+    endpoint = f"api2/json/nodes/{node}/network/{network.host_device}"
     return make_api_call("DELETE", endpoint)
 
 
@@ -87,7 +88,7 @@ def attach_networks_to_vm_api_call(machine):
     responses = []
 
     for local_connection_id, connection in enumerate(machine.connections.values()):
-        endpoint = f"api2/json/nodes/pve/qemu/{machine.id}/config"
+        endpoint = f"api2/json/nodes/{node}/qemu/{machine.id}/config"
         data = {
             f"net{local_connection_id}": f"model=e1000,"
                                          f"bridge={connection.network.host_device},"
@@ -103,7 +104,7 @@ def launch_vm_api_call(machine):
     """
     Launch a virtual machine in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/qemu/{machine.id}/status/start"
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine.id}/status/start"
     return make_api_call("POST", endpoint)
 
 
@@ -111,7 +112,7 @@ def stop_vm_api_call(machine):
     """
     Stop a virtual machine in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/qemu/{machine.id}/status/stop"
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine.id}/status/stop"
     return make_api_call("POST", endpoint)
 
 
@@ -119,7 +120,7 @@ def vm_is_stopped_api_call(machine):
     """
     Check if a virtual machine is stopped in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/qemu/{machine.id}/status/current"
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine.id}/status/current"
     response = make_api_call("GET", endpoint)
 
     return response["data"]["status"] == "stopped"
@@ -129,7 +130,7 @@ def initial_configuration_api_call(machine_template):
     """
     Initial configuration of a virtual machine in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/qemu/{machine_template.id}/config"
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine_template.id}/config"
     data = {
         "memory": machine_template.ram,
         "cores": machine_template.cores,
@@ -143,7 +144,7 @@ def convert_vm_to_template_api_call(machine_template_id):
     """
     Convert a virtual machine to a template in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/qemu/{machine_template_id}/template"
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine_template_id}/template"
     return make_api_call("POST", endpoint)
 
 
@@ -151,7 +152,7 @@ def vm_exists_api_call(machine):
     """
     Check if a virtual machine exists in Proxmox.
     """
-    endpoint = f"api2/json/nodes/pve/qemu/{machine.id}/status/current"
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine.id}/status/current"
     try:
         make_api_call("GET", endpoint)
         return True

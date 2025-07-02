@@ -11,13 +11,13 @@ load_dotenv()
 BACKEND_DIR = "/root/ctf-challenger/backend"
 sys.path.append(BACKEND_DIR)
 
-PROXMOX_HOST = os.getenv("PROXMOX_HOST", "localhost")
+PROXMOX_HOST = os.getenv("PROXMOX_HOST", "10.0.0.1")
 PROXMOX_USER = os.getenv("PROXMOX_USER", "root@pam")
 PROXMOX_PASSWORD = os.getenv("PROXMOX_PASSWORD")
 PROXMOX_PORT = os.getenv("PROXMOX_PORT", "8006")
 BACKEND_PORT = os.getenv("BACKEND_PORT", "8000")
 PROXMOX_EXTERNAL_IP = os.getenv("PROXMOX_EXTERNAL_IP", "10.0.3.4")
-PROXMOX_HOSTNAME = os.getenv("PROXMOX_HOSTNAME", "pve.local")
+PROXMOX_HOSTNAME = os.getenv("PROXMOX_HOSTNAME", "pve")
 
 UBUNTU_BASE_SERVER_URL = os.getenv("UBUNTU_BASE_SERVER_URL", "https://heibox.uni-heidelberg.de/f/aa4f76f2eb9649cdb686"
                                                              "/?dl=1")
@@ -205,7 +205,7 @@ def allow_ova_upload_to_proxmox():
 
 lvmthin: local-lvm
         thinpool data
-        vgname pve
+        vgname {PROXMOX_HOSTNAME}
         content rootdir,images
 """)
 
@@ -241,14 +241,14 @@ def setup_backend_network(api_token):
     proxmox = ProxmoxAPI("localhost", **api_token, verify_ssl=False)
 
     # Create the backend network
-    proxmox.nodes('pve').network.create(
+    proxmox.nodes(PROXMOX_HOSTNAME).network.create(
         iface=BACKEND_NETWORK_DEVICE,
         type='bridge',
         cidr=BACKEND_NETWORK_SUBNET,
         autostart=1,
     )
 
-    proxmox.nodes('pve').network.put()
+    proxmox.nodes(PROXMOX_HOSTNAME).network.put()
 
     print("\tWaiting for backend network to be created")
     while not os.path.exists(f"/sys/class/net/{BACKEND_NETWORK_DEVICE}"):
@@ -489,7 +489,7 @@ def setup_web_and_database_server(api_token):
 
     # Configure the webserver
     print("\tConfiguring webserver")
-    proxmox.nodes('pve').qemu(webserver_id).config.put(
+    proxmox.nodes(PROXMOX_HOSTNAME).qemu(webserver_id).config.put(
         name='WebServer',
         cores=1,
         memory=2048,
@@ -499,7 +499,7 @@ def setup_web_and_database_server(api_token):
 
     # Configure the database server
     print("\tConfiguring database server")
-    proxmox.nodes('pve').qemu(database_id).config.put(
+    proxmox.nodes(PROXMOX_HOSTNAME).qemu(database_id).config.put(
         name='DatabaseServer',
         cores=1,
         memory=2048,
@@ -533,8 +533,8 @@ WantedBy=multi-user.target
     # Wait for the webserver and database server to be up
     print("\tWaiting for webserver and database server to be up")
     while True:
-        webserver_status = proxmox.nodes('pve').qemu(webserver_id).status.current.get()
-        database_status = proxmox.nodes('pve').qemu(database_id).status.current.get()
+        webserver_status = proxmox.nodes(PROXMOX_HOSTNAME).qemu(webserver_id).status.current.get()
+        database_status = proxmox.nodes(PROXMOX_HOSTNAME).qemu(database_id).status.current.get()
 
         if webserver_status['status'] == 'running' and database_status['status'] == 'running':
             break
@@ -977,8 +977,8 @@ def validate_running_and_reachable(webserver_id, database_id, api_token, timeout
     database_running = False
     start_time = time.time()
     while time.time() - start_time < timeout:
-        webserver_status = proxmox.nodes('pve').qemu(webserver_id).status.current.get()
-        database_status = proxmox.nodes('pve').qemu(database_id).status.current.get()
+        webserver_status = proxmox.nodes(PROXMOX_HOSTNAME).qemu(webserver_id).status.current.get()
+        database_status = proxmox.nodes(PROXMOX_HOSTNAME).qemu(database_id).status.current.get()
 
         if webserver_status['status'] == 'running':
             webserver_running = True

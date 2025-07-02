@@ -4,15 +4,14 @@
 ## Setup
 
 To set up the service, follow these steps:
-1. Set up a fresh Proxmox installation using pve/pve.local as a hostname
-2. Disable the Proxmox VE repositories to prevent error output from apt update
-3. Clone this repository into `/root/`
-4. `cd /root/ctf-challenger/setup/`
-5. Edit the `/root/ctf-challenger/setup/.env` variables to suit the environment of the Proxmox installation and the desired values
-6. Install pre-requisites by running `bash /root/ctf-challenger/setup/install_requirements.sh`
-7. Run the setup by executing `python3 /root/ctf-challenger/setup/setup.py`
-8. Wait for the setup to complete, which may take a while (~10 minutes)
-9. After the setup is complete, you can access the service at `http://localhost/` or `http://<external-proxmox-ip>/`
+1. Disable the Proxmox VE repositories to prevent error output from apt update
+2. Clone this repository into `/root/`
+3. `cd /root/ctf-challenger/setup/`
+4. Edit the `/root/ctf-challenger/setup/.env` variables to suit the environment of the Proxmox installation and the desired values
+5. Install pre-requisites by running `bash /root/ctf-challenger/setup/install_requirements.sh`
+6. Run the setup by executing `python3 /root/ctf-challenger/setup/setup.py`
+7. Wait for the setup to complete, which may take a while (~10 minutes)
+8. After the setup is complete, you can access the service at `http://localhost/` or `http://<external-proxmox-ip>/`
 
 ## TODO:
 
