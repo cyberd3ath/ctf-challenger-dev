@@ -636,6 +636,9 @@ verb 7
     subprocess.run(["systemctl", "enable", "openvpn@server"], check=True, capture_output=True)
     subprocess.run(["systemctl", "start", "openvpn@server"], check=True, capture_output=True)
 
+    print("\tRemoving working directory")
+    subprocess.run(["rm", "-rf", workdir], check=True, capture_output=True)
+
 def setup_database_server():
     """
     Setup the database server.
