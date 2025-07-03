@@ -14,6 +14,7 @@ class CtfCreationHandler
     private PDO $pdo;
     private int $userId;
     private string $action;
+    private int $isActive;
     private array $inputData;
     private array $config;
     private array $generalConfig;
@@ -179,6 +180,8 @@ class CtfCreationHandler
             $errors[] = 'Invalid difficulty';
             $errorFields[] = 'ctf-difficulty';
         }
+
+        $this->isActive = (int)filter_var($this->inputData['isActive'], FILTER_VALIDATE_BOOLEAN);
 
         try {
             $subnets = $this->getValidatedJson('subnets');
@@ -416,10 +419,10 @@ class CtfCreationHandler
         $stmt = $this->pdo->prepare("
             INSERT INTO challenge_templates (
                 name, description, category, difficulty, 
-                image_path, creator_id, hint, solution
+                image_path, is_active, creator_id, hint, solution
             ) VALUES (
                 :name, :description, :category, :difficulty, 
-                :image_path, :creator_id, :hint, :solution
+                :image_path, :is_active, :creator_id, :hint, :solution
             ) RETURNING id
         ");
 
@@ -429,6 +432,7 @@ class CtfCreationHandler
             'category' => trim($this->inputData['category']),
             'difficulty' => trim($this->inputData['difficulty']),
             'image_path' => $imagePath,
+            'is_active' => $this->isActive,
             'creator_id' => $this->userId,
             'hint' => $this->inputData['hint'] ?? null,
             'solution' => $this->inputData['solution'] ?? null,

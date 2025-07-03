@@ -274,7 +274,7 @@ class CTFManagementHandler
 
     private function updateChallenge(): void
     {
-        $isActive = !empty($this->inputData['isActive']) ? $this->inputData['isActive'] : 0;
+        $isActive = (int)filter_var($this->inputData['isActive'], FILTER_VALIDATE_BOOLEAN);
 
         $stmt = $this->pdo->prepare("SELECT marked_for_deletion FROM challenge_templates WHERE id = :id");
         $stmt->execute(['id' => $this->inputData['id']]);

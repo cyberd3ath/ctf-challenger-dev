@@ -197,9 +197,29 @@ class ChallengeHandler
             throw new Exception("This challenge has been marked for deletion and cannot be deployed", 400);
         }
 
-        if (!$template['is_active']) {
+        if (!$template['is_active'] && !$this->isCreator($challengeId)) {
             logWarning("Attempt to deploy inactive challenge - ID: {$challengeId}, User ID: {$this->userId}");
             throw new Exception("This challenge is currently inactive and cannot be deployed", 400);
+        }
+    }
+
+    private function isCreator(int $challengeId)
+    {
+        try{
+            $stmt = $this->pdo->prepare("
+                SELECT creator_id
+                FROM challenge_templates
+                WHERE id = :challenge_id
+            ");
+            $stmt->execute(['challenge_id' => $challengeId]);
+            $creatorId = $stmt->fetchColumn();
+            if($creatorId === $this->userId){
+                return true;
+            }
+            return false;
+        }catch (PDOException $e){
+            logError("Failed to check Creator - Challenge ID: {$challengeId}, Error: {$e->getMessage()}");
+            throw new Exception("Failed to start Challenge", 500);
         }
     }
 
@@ -682,6 +702,7 @@ class ChallengeHandler
                 ct.hint,
                 ct.marked_for_deletion,
                 u.username as creator_username,
+                ct.creator_id,
                 (
                     SELECT COUNT(DISTINCT cc.user_id)
                     FROM completed_challenges cc
@@ -702,7 +723,7 @@ class ChallengeHandler
             FROM challenge_templates ct
             LEFT JOIN users u ON ct.creator_id = u.id
             WHERE ct.id = :id
-            GROUP BY ct.id, u.username
+            GROUP BY ct.id, u.username, ct.creator_id
         ");
         $stmt->execute(['id' => $challengeId]);
         $challenge = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -711,6 +732,12 @@ class ChallengeHandler
             logWarning("Challenge not found - ID: {$challengeId}, User ID: {$this->userId}");
             throw new Exception("Challenge not found", 404);
         }
+
+        logError($challenge['creator_id']);
+        logError($this->userId);
+
+        $challenge['isCreator'] = ($challenge['creator_id'] == $this->userId);
+        unset($challenge['creator_id']);
 
         return $challenge;
     }
