@@ -152,8 +152,8 @@ def remove_web_and_database_server():
     print("\tRemoving servers")
     for vmid in [1000, 2000]:
         try:
-            proxmox = ProxmoxAPI(PROXMOX_HOST, user=PROXMOX_USER, password=PROXMOX_PASSWORD, verify_ssl=False)
-            proxmox.nodes(PROXMOX_HOSTNAME).qemu(vmid).delete()
+            subprocess.run(["qm", "stop", str(vmid)], capture_output=True)
+            subprocess.run(["qm", "destroy", str(vmid)], capture_output=True)
         except Exception:
             pass
 
