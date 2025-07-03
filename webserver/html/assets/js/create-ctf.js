@@ -70,13 +70,13 @@ class CTFCreator {
             difficulty: document.getElementById('ctf-difficulty'),
             hint: document.getElementById('ctf-hint'),
             solution: document.getElementById('ctf-solution'),
-            image: document.getElementById('ctf-image-preview')
+            image: document.getElementById('ctf-image-preview'),
+            isActive: document.getElementById('ctf-is-active'),
         };
 
 
         this.vmIconsContainer = document.getElementById('vm-icons');
         this.subnetRegionsContainer = document.getElementById('subnet-regions');
-        this.subnetVMsSelect = document.getElementById('subnet-vms');
         this.flagsList = document.getElementById('flags-list');
         this.hintsList = document.getElementById('hints-list');
 
@@ -339,6 +339,7 @@ class CTFCreator {
             formData.append('difficulty', this.ctfForm.difficulty.value);
             formData.append('hint', this.ctfForm.hint.value);
             formData.append('solution', this.ctfForm.solution.value);
+            formData.append('isActive', this.ctfForm.isActive.checked);
 
             const imageInput = document.querySelector('input[type="file"]');
             if (imageInput?.files[0]) {
@@ -466,7 +467,6 @@ class CTFCreator {
                 fields.push('ctf-image-preview');
             }
         }
-
 
         if (this.vms.length === 0) {
             errors.push('Please add at least one VM');

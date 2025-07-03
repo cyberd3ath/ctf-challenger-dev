@@ -115,6 +115,10 @@ class ChallengePage {
 
         if (!challenge.is_active) {
             this.showInactiveBanner();
+            if (this.deployButton && !challenge.isCreator) {
+                this.deployButton.disabled = true;
+                this.deployButton.title = 'Challenge is inactive';
+            }
         }
 
         if (challenge.marked_for_deletion) {
@@ -133,29 +137,29 @@ class ChallengePage {
     }
 
     showInactiveBanner() {
-        const banner = document.createElement('div');
-        banner.className = 'challenge-banner inactive';
-        banner.innerHTML = `
+        const existingBanner = this.challengeContent.querySelector('.challenge-banner.inactive');
+        if (!existingBanner) {
+            const banner = document.createElement('div');
+            banner.className = 'challenge-banner inactive';
+            banner.innerHTML = `
             <span class="banner-icon">⚠️</span>
             <span class="banner-text">This challenge is currently inactive and cannot be deployed</span>
         `;
-        this.challengeContent.insertBefore(banner, this.challengeContent.firstChild);
-
-
-        if (this.deployButton) {
-            this.deployButton.disabled = true;
-            this.deployButton.title = 'Challenge is inactive';
+            this.challengeContent.insertBefore(banner, this.challengeContent.firstChild);
         }
     }
 
     showDeletionBanner() {
-        const banner = document.createElement('div');
-        banner.className = 'challenge-banner deletion';
-        banner.innerHTML = `
+        const existingBanner = this.challengeContent.querySelector('.challenge-banner.deletion');
+        if(!existingBanner) {
+            const banner = document.createElement('div');
+            banner.className = 'challenge-banner deletion';
+            banner.innerHTML = `
             <span class="banner-icon">🗑️</span>
             <span class="banner-text">This challenge is marked for deletion</span>
         `;
-        this.challengeContent.insertBefore(banner, this.challengeContent.firstChild);
+            this.challengeContent.insertBefore(banner, this.challengeContent.firstChild);
+        }
     }
 
     handleDeploymentState(challenge) {
