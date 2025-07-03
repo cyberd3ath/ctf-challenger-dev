@@ -28,17 +28,17 @@ def restore_database(backup_file_path):
     if confirm != "overwrite":
         print("Restore operation cancelled.")
         sys.exit(0)
+
+    print("Transferring backup file to remote host")
+    remote_tmp_path = f"/tmp/{time.time()}.restore.backup"
+    subprocess.run(["scp", backup_file_path, f"{DATABASE_USER}@{DATABASE_HOST}:{remote_tmp_path}"], check=True,
+                   capture_output=True)
     
     print("\nCreating backup of current database before restoring")
     backup_database()
 
     time_now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"\nStarting restoring the database")
-
-    remote_tmp_path = f"/tmp/{time.time()}.restore.backup"
-
-    print("Transferring backup file to remote host")
-    subprocess.run(["scp", backup_file_path, f"{DATABASE_USER}@{DATABASE_HOST}:{remote_tmp_path}"], check=True, capture_output=True)
 
     print(f"Restoring database '{DATABASE_NAME}'")
     restore_cmd = f"pg_restore -U {DATABASE_USER} -d {DATABASE_NAME} --clean --no-owner {remote_tmp_path}"
