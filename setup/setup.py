@@ -479,12 +479,17 @@ def setup_web_and_database_server(api_token):
     subprocess.run(["tar", "-xf", "ubuntu-base-server/ubuntu-base-server.ova", "-C", "ubuntu-base-server"],
                    check=True, capture_output=True)
 
+    files = os.listdir("ubuntu-base-server")
+    ovf_file = next((f for f in files if f.endswith('.ovf')), None)
+    if not ovf_file:
+        raise FileNotFoundError("OVF file not found in the extracted OVA directory.")
+
     print("\tImporting OVA file as webserver")
-    subprocess.run(["qm", "importovf", str(webserver_id), "ubuntu-base-server/ubuntu-base-server.ovf", "local-lvm"],
+    subprocess.run(["qm", "importovf", str(webserver_id), ovf_file, "local-lvm"],
                    check=True, capture_output=True)
 
     print("\tImporting OVA file as database server")
-    subprocess.run(["qm", "importovf", str(database_id), "ubuntu-base-server/ubuntu-base-server.ovf", "local-lvm"],
+    subprocess.run(["qm", "importovf", str(database_id), ovf_file, "local-lvm"],
                    check=True, capture_output=True)
 
     proxmox = ProxmoxAPI("localhost", **api_token, verify_ssl=False)
