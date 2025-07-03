@@ -1,4 +1,7 @@
 vpn/workdir/
+setup/ubuntu-base-server/
 __pycache__
 .idea
-.env
+**/.env
+backend/certificates
+database/backups
