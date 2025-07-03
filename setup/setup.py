@@ -485,7 +485,7 @@ def setup_web_and_database_server(api_token):
         raise FileNotFoundError("OVF file not found in the extracted OVA directory.")
 
     print("\tImporting OVA file as webserver")
-    subprocess.run(["qm", "importovf", str(webserver_id), ovf_file, "local-lvm"],
+    subprocess.run(["qm", "importovf", str(webserver_id), "'" + ovf_file + "'", "local-lvm"],
                    check=True, capture_output=True)
 
     print("\tImporting OVA file as database server")
