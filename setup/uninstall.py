@@ -125,10 +125,6 @@ def stop_backend_service():
 
 
 def reset_iptables_rules():
-    print("\tDisabling IP-forwarding")
-    subprocess.run(["sed", "-i", "s/^net.ipv4.ip_forward=1/net.ipv4.ip_forward=0/", "/etc/sysctl.conf"], capture_output=True)
-    subprocess.run(["sysctl", "-p"], capture_output=True)
-
     print("\tResetting iptables rules")
     subprocess.run(["iptables", "-F"], capture_output=True)
     subprocess.run(["iptables", "-X"], capture_output=True)

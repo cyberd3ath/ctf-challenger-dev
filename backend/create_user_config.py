@@ -81,6 +81,9 @@ verb 3
 explicit-exit-notify 2
 key-direction 1
 
+tun-mtu 1338
+mssfix 1290
+
 <ca>
 {ca_crt}
 </ca>

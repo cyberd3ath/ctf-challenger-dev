@@ -301,6 +301,7 @@ def generate_and_distribute_env_files(api_token):
 
         backend_env_file.write(f"PROXMOX_URL='https://localhost:8006'\n")
         backend_env_file.write(f"PROXMOX_API_TOKEN='{api_token_string}'\n")
+        backend_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
 
         backend_env_file.write(f"VPN_SERVER_IP='{PROXMOX_EXTERNAL_IP}'\n")
 
