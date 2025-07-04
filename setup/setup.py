@@ -478,7 +478,6 @@ def setup_web_and_database_server(api_token):
     webserver_id = 1000
     database_id = 2000
 
-    """
     # Download the Ubuntu Base Server OVA if it doesn't exist
     if os.path.exists("ubuntu-base-server"):
         subprocess.run(["rm", "-rf", "ubuntu-base-server"], check=True, capture_output=True)
@@ -490,7 +489,6 @@ def setup_web_and_database_server(api_token):
     # Extract the OVA file
     subprocess.run(["tar", "-xf", "ubuntu-base-server/ubuntu-base-server.ova", "-C", "ubuntu-base-server"],
                    check=True, capture_output=True)
-    """
 
     files = os.listdir("ubuntu-base-server")
     ovf_file = next((f for f in files if f.endswith('.ovf')), None)
