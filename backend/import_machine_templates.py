@@ -71,12 +71,25 @@ def fetch_machine_templates(challenge_template, db_conn):
             challenge_template.add_machine_template(machine_template)
 
 
+def check_user_input(user_input):
+    """
+    Sanitize user input to prevent command injection attacks.
+    """
+    import re
+
+    blacklist_pattern = r"""[;&|><`$\\'"*?{}\[\]~!#()=]+"""
+    if re.search(blacklist_pattern, user_input):
+        raise ValueError("Input contains potentially dangerous characters.")
+
+
 def import_disk_images_to_vm_templates(challenge_template):
     """
     Import the disk images to VM templates.
     """
     for machine_template in challenge_template.machine_templates.values():
         disk_file_path = machine_template.disk_file_path
+        check_user_input(disk_file_path)
+
         disk_file_extension = os.path.splitext(disk_file_path)[1].lower()
 
         if disk_file_extension == ".ova":
@@ -118,8 +131,10 @@ def convert_ova_to_machine_template(disk_file_path, machine_template_id):
 
     # Convert the OVF file to a Proxmox template
     try:
-        subprocess.run(["qm", "importovf", str(machine_template_id), ovf_file, "local-lvm"], check=True,
-                       capture_output=True)
+        importovf_command = f"qm importovf {machine_template_id} \"{ovf_file}\" local-lvm"
+        if "|" in importovf_command or ";" in importovf_command or "&" in importovf_command:
+            raise ValueError("Invalid characters in import command.")
+        subprocess.run(importovf_command, shell=True, check=True, capture_output=True)
     except Exception as e1:
         try:
             subprocess.run(["qm", "delvm", str(machine_template_id)], check=True, capture_output=True)
@@ -142,8 +157,11 @@ def convert_iso_to_machine_template(disk_file_path, machine_template_id):
 
     # Convert the ISO file to a Proxmox template
     try:
-        subprocess.run(["qm", "importdisk", machine_template_id, disk_file_path, "local-lvm"], check=True,
-                       capture_output=True)
+        if "|" in disk_file_path or ";" in disk_file_path or "&" in disk_file_path:
+            raise ValueError("Invalid characters in disk file path.")
+
+        importdisk_command = f"qm importdisk {machine_template_id} \"{disk_file_path}\" local-lvm"
+        subprocess.run(importdisk_command, shell=True, check=True, capture_output=True)
     except Exception as e1:
         try:
             subprocess.run(["qm", "delvm", str(machine_template_id)], check=True, capture_output=True)

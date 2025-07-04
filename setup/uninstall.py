@@ -168,8 +168,11 @@ def remove_openvpn_server():
     subprocess.run(["systemctl", "disable", "openvpn@server"], capture_output=True)
 
     print("\tRemoving OpenVPN configuration files")
-    openvpn_config_dir = "/etc/openvpn/*"
+    openvpn_config_dir = "/etc/openvpn/"
     subprocess.run(["rm", "-rf", openvpn_config_dir], capture_output=True)
+    import os
+    os.makedirs(openvpn_config_dir, exist_ok=True)
+
 
 
 def remove_backend_dnsmasq_service():
