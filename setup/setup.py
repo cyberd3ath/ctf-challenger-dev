@@ -459,6 +459,17 @@ def download_ubuntu_base_server_ova():
         print("\tUbuntu Base Server OVA file already exists. Skipping download.")
 
 
+def check_user_input(user_input):
+    """
+    Sanitize user input to prevent command injection attacks.
+    """
+    import re
+
+    blacklist_pattern = r"""[;&|><`$\\'"*?{}\[\]~!#()=]+"""
+    if re.search(blacklist_pattern, user_input):
+        raise ValueError("Input contains potentially dangerous characters.")
+
+
 def setup_web_and_database_server(api_token):
     """
     Setup the webserver VM.
@@ -467,6 +478,7 @@ def setup_web_and_database_server(api_token):
     webserver_id = 1000
     database_id = 2000
 
+    """
     # Download the Ubuntu Base Server OVA if it doesn't exist
     if os.path.exists("ubuntu-base-server"):
         subprocess.run(["rm", "-rf", "ubuntu-base-server"], check=True, capture_output=True)
@@ -478,19 +490,22 @@ def setup_web_and_database_server(api_token):
     # Extract the OVA file
     subprocess.run(["tar", "-xf", "ubuntu-base-server/ubuntu-base-server.ova", "-C", "ubuntu-base-server"],
                    check=True, capture_output=True)
+    """
 
     files = os.listdir("ubuntu-base-server")
     ovf_file = next((f for f in files if f.endswith('.ovf')), None)
+    check_user_input(ovf_file)
+
     if not ovf_file:
         raise FileNotFoundError("OVF file not found in the extracted OVA directory.")
 
     print("\tImporting OVA file as webserver")
-    subprocess.run(["qm", "importovf", str(webserver_id), "'" + ovf_file + "'", "local-lvm"],
-                   check=True, capture_output=True)
+    importovf_command = f"qm importovf {webserver_id} \"ubuntu-base-server/{ovf_file}\" local-lvm"
+    subprocess.run(importovf_command, shell=True, check=True, capture_output=True)
 
     print("\tImporting OVA file as database server")
-    subprocess.run(["qm", "importovf", str(database_id), ovf_file, "local-lvm"],
-                   check=True, capture_output=True)
+    importovf_command = f"qm importovf {database_id} \"ubuntu-base-server/{ovf_file}\" local-lvm"
+    subprocess.run(importovf_command, shell=True, check=True, capture_output=True)
 
     proxmox = ProxmoxAPI("localhost", **api_token, verify_ssl=False)
 
