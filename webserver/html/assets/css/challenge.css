@@ -218,6 +218,151 @@
     color: #2196F3;
 }
 
+/* ===== Leaderboard ===== */
+.leaderboard-section {
+    margin: 2rem 0;
+    background: var(--color-feature-bg);
+    border-radius: 10px;
+    padding: 1.5rem;
+}
+
+.leaderboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.leaderboard-title {
+    font-size: 1.5rem;
+    color: var(--color-primary);
+    margin: 0;
+}
+
+.leaderboard-refresh {
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    color: var(--color-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.leaderboard-refresh:hover {
+    background: rgba(var(--color-primary-rgb), 0.2);
+}
+
+.leaderboard-refresh:active {
+    transform: scale(0.98);
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+}
+
+.leaderboard-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--color-text);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+}
+
+.leaderboard-table td {
+    padding: 1rem;
+    color: var(--color-text);
+    vertical-align: middle;
+}
+
+.leaderboard-table tr {
+    border-bottom: 1px solid var(--color-border);
+}
+
+.leaderboard-table tr:last-child {
+    border-bottom: none;
+}
+
+.leaderboard-table tr:hover td {
+    background: rgba(var(--color-primary-rgb), 0.05);
+}
+
+.leaderboard-table th:nth-child(3),
+.leaderboard-table td:nth-child(3) {
+    width: 100px;
+    text-align: center;
+    padding-right: 1.5rem;
+}
+
+.leaderboard-rank {
+    font-weight: 700;
+    color: var(--color-primary);
+    width: 50px;
+}
+
+
+.leaderboard-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.leaderboard-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.leaderboard-time {
+    font-family: 'Courier New', monospace;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.leaderboard-table tr:nth-child(1) .leaderboard-rank {
+    color: #FFD700;
+    font-size: 1.1em;
+}
+
+.leaderboard-table tr:nth-child(2) .leaderboard-rank {
+    color: #C0C0C0;
+    font-size: 1.05em;
+}
+
+.leaderboard-table tr:nth-child(3) .leaderboard-rank {
+    color: #CD7F32;
+}
+
+.leaderboard-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--color-text-translucent);
+}
+
+@media (max-width: 768px) {
+    .leaderboard-table th,
+    .leaderboard-table td {
+        padding: 0.75rem;
+    }
+
+    .leaderboard-time {
+        font-size: 0.9rem;
+    }
+
+    .leaderboard-section {
+        padding: 1rem;
+    }
+}
+
 /* ===== Challenge Content ===== */
 .challenge-body {
     background: var(--color-feature-bg);

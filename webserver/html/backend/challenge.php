@@ -664,6 +664,7 @@ class ChallengeHandler
             $elapsedSeconds = getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId);
             $remainingSeconds = $this->getRemainingSecondsForChallenge($challengeId);
             $remainingExtensions = $this->getRemainingExtensionsForChallenge($challengeId);
+            $leaderboard = getSolvedLeaderboard($this->pdo,$challengeId);
 
             $this->sendResponse([
                 'success' => true,
@@ -677,7 +678,8 @@ class ChallengeHandler
                     'elapsed_seconds' => $elapsedSeconds,
                     'remaining_seconds' => $remainingSeconds,
                     'remaining_extensions' => $remainingExtensions,
-                    'isSolved' => $isSolved
+                    'isSolved' => $isSolved,
+                    'leaderboard' => $leaderboard,
                 ])
             ]);
         } catch (Exception $e) {
