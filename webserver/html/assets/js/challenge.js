@@ -47,6 +47,8 @@ class ChallengePage {
         this.challengeTimerInterval = null;
         this.elapsedSeconds = 0;
         this.remainingSeconds = 0;
+
+        this.leaderboardContainer = document.getElementById('leaderboard-content');
     }
 
     initAudio() {
@@ -98,11 +100,15 @@ class ChallengePage {
         this.populateHints(challenge);
         this.updateChallengeStatus(challenge.challenge_status?.challenge_status || 'not_tried');
         this.handleDeploymentState(challenge);
+        this.populateLeaderboard(challenge);
     }
 
     populateBasicInfo(challenge) {
         this.challengeTitle.textContent = challenge.name;
-        this.challengeDescription.innerHTML = `${challenge.description}<br><br><em>~ by ${challenge.creator_username || 'unknown'}</em>`;
+        this.challengeDescription.innerHTML = `
+            ${this.escapeHtml(challenge.description)}<br><br>
+            <em>~ by ${this.escapeHtml(challenge.creator_username || 'unknown')}</em>
+        `;
 
         this.challengeCategory.textContent = challenge.category;
         this.challengeCategory.className = `challenge-category ${challenge.category.toLowerCase()}`;
@@ -129,6 +135,72 @@ class ChallengePage {
         this.challengeImage.onerror = () => {
             this.challengeImage.src = '../assets/images/ctf-default.png';
         };
+    }
+
+    populateLeaderboard(challenge) {
+        const leaderboard = challenge.leaderboard;
+        if (!leaderboard || leaderboard.length === 0) {
+            this.leaderboardContainer.innerHTML = `
+                <tr>
+                    <td colspan="3" class="leaderboard-empty">
+                        No solves yet! Be the first to complete this challenge.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+
+        leaderboard.forEach((entry, index) => {
+            html += `
+                <tr class="leaderboard-row" data-username="${this.escapeHtml(entry.username)}">
+                    <td class="leaderboard-rank">${entry.rank}</td>
+                    <td class="leaderboard-user">
+                        <img src="${entry.avatar_url}" 
+                             alt="${entry.username}" 
+                             class="leaderboard-avatar"
+                             onerror="this.src='/assets/avatars/default-avatar.png'">
+                        ${this.escapeHtml(entry.username)}
+                    </td>
+                    <td class="leaderboard-time">${this.formatTime(entry.total_seconds)}</td>
+                </tr>
+            `;
+        });
+
+        this.leaderboardContainer.innerHTML = html;
+
+        document.querySelectorAll('.leaderboard-row').forEach(row => {
+            row.addEventListener('click', (e) => {
+                const username = row.dataset.username;
+                window.location.href = `/profile/${encodeURIComponent(username)}`;
+            });
+
+            row.addEventListener('mouseenter', () => {
+                row.style.cursor = 'pointer';
+            });
+        });
+
+        document.querySelector('.leaderboard-refresh')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.loadChallengeData();
+        });
+    }
+
+    formatTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+
+        return [
+            hours.toString().padStart(2, '0'),
+            minutes.toString().padStart(2, '0'),
+            secs.toString().padStart(2, '0')
+        ].join(':');
+    }
+
+    escapeHtml(str) {
+        return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     updateChallengeStatus(status) {
