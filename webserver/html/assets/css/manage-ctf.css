@@ -179,6 +179,12 @@
 }
 
 /* ===== ACTION BUTTONS ===== */
+.actions-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .action-btn {
     background: none;
     border: none;
@@ -228,6 +234,17 @@
 
 .close-modal:hover {
     color: var(--color-primary);
+}
+
+.modal-content.large {
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-content.large .modal-body{
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
 }
 
 /* ===== FORM STYLES ===== */
@@ -428,6 +445,117 @@ input:focus + .toggle-slider {
 .warning-message ul {
     margin: 0.5rem 0 0 1rem;
     padding-left: 1rem;
+}
+
+/* ===== LEADERBOARD STYLES ===== */
+.leaderboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.leaderboard-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.leaderboard-info .challenge-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+}
+
+.leaderboard-info h3 {
+    margin: 0 0 5px 0;
+    font-size: 1.2rem;
+}
+
+.leaderboard-stats {
+    display: flex;
+    gap: 10px;
+}
+
+.leaderboard-stats span {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.leaderboard-pagination {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    margin-top:20px;
+}
+
+.leaderboard-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.leaderboard-table th {
+    text-align: left;
+    padding: 10px;
+    background-color: var(--color-border-flat);
+    position: sticky;
+    top: 0;
+}
+
+.leaderboard-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.leaderboard-table tr:last-child td {
+    border-bottom: none;
+}
+
+.leaderboard-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.leaderboard-username {
+    color: var(--color-text);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.leaderboard-username:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
+}
+
+.leaderboard-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+}
+
+.leaderboard-rank {
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.leaderboard-points {
+    font-weight: bold;
+}
+
+.leaderboard-time {
+    font-family: monospace;
 }
 
 /* ===== RESPONSIVE STYLES ===== */

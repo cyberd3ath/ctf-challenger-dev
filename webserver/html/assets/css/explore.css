@@ -237,48 +237,7 @@ main {
 
 /* ===== VIEW TOGGLE BUTTON ===== */
 .view-toggle-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s ease;
     margin-left: auto;
-}
-
-.view-toggle-button:hover {
-    transform: scale(1.1);
-}
-
-.view-toggle-button.active {
-    flex-direction: row;
-    gap: 4px;
-}
-
-.stripe {
-    width: 20px;
-    height: 3px;
-    background-color: var(--color-slider-bg);
-    border-radius: 2px;
-    transition: background-color 0.3s ease;
-}
-
-.view-toggle-button:hover .stripe {
-    background-color: var(--color-primary);
-}
-
-.view-toggle-button.active .stripe {
-    background-color: var(--color-primary);
-}
-
-.view-toggle-button.active .stripe {
-    width: 6px;
-    height: 6px;
-    border-radius: 2px;
 }
 
 /* ===== UTILITY CLASSES ===== */

@@ -16,6 +16,7 @@
     --color-terminal: #f5abb9;
     --color-terminal-rgb: 245, 171, 185;
     --color-border: #4BCFFB;
+    --color-border-flat: #2a2a2a;
     --color-border-secondary: rgba(255, 255, 255, 0.1);
     --color-button-hover-bg: rgba(0, 123, 255, 0.1);
     --color-slider-bg: #e0e0e0;
@@ -42,6 +43,7 @@
     --color-terminal: #6610f2;
     --color-terminal-rgb: 102, 16, 242;
     --color-border: #0d6efd;
+    --color-border-flat: #e6edfb;
     --color-border-secondary: rgba(13, 110, 253, 0.1);
     --color-button-hover-bg: rgba(13, 110, 253, 0.05);
     --color-slider-bg: #dee2e6;
@@ -666,6 +668,11 @@ input.error + .input-error-icon {
     max-width: 600px;
 }
 
+.modal-content.large {
+    max-width: 850px;
+    min-height: 600px;
+}
+
 .modal-header {
     padding: 1.5rem;
     border-bottom: 1px solid var(--color-border);
@@ -993,6 +1000,51 @@ select:focus {
 #avatar-upload:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(0, 173, 181, 0.2);
+}
+
+/* ===== VIEW TOGGLE BUTTON ===== */
+.view-toggle-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.view-toggle-button:hover {
+    transform: scale(1.1);
+}
+
+.view-toggle-button.active {
+    flex-direction: row;
+    gap: 4px;
+}
+
+.stripe {
+    width: 20px;
+    height: 3px;
+    background-color: var(--color-slider-bg);
+    border-radius: 2px;
+    transition: background-color 0.3s ease;
+}
+
+.view-toggle-button:hover .stripe {
+    background-color: var(--color-primary);
+}
+
+.view-toggle-button.active .stripe {
+    background-color: var(--color-primary);
+}
+
+.view-toggle-button.active .stripe {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
 }
 
 /* ===== BADGE STYLES ===== */

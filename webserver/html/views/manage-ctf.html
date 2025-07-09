@@ -219,6 +219,54 @@
                 </div>
             </div>
         </div>
+        <div id="leaderboard-modal" class="modal">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h2>Challenge Leaderboard</h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="leaderboard-header">
+                        <div class="leaderboard-info">
+                            <img id="leaderboard-challenge-image" src="" alt="Challenge Image" class="challenge-image">
+                            <div>
+                                <h3 id="leaderboard-challenge-name"></h3>
+                                <div class="leaderboard-stats">
+                                    <span id="leaderboard-challenge-category"></span>
+                                    <span id="leaderboard-challenge-difficulty"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="leaderboard-table-container">
+                        <table class="leaderboard-table">
+                            <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>User</th>
+                                <th>Points</th>
+                                <th>Time</th>
+                            </tr>
+                            </thead>
+                            <tbody id="leaderboard-entries">
+                            <!-- This will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="leaderboard-pagination">
+                        <button id="leaderboard-prev" class="pagination-button button button-secondary" disabled>
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <span id="leaderboard-page-info">Page 1</span>
+                        <button id="leaderboard-next" class="pagination-button button button-secondary" disabled>
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 </div>
 <!--#include virtual="../partials/footer.html" -->

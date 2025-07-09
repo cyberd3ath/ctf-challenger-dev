@@ -199,8 +199,13 @@ class ChallengePage {
         ].join(':');
     }
 
-    escapeHtml(str) {
-        return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     updateChallengeStatus(status) {

@@ -132,3 +132,87 @@ function getSolvedLeaderboard(PDO $pdo, int $challengeTemplateId): array
     $stmt->execute(['challenge_template_id' => $challengeTemplateId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
+
+function getChallengeLeaderboard(PDO $pdo, int $challengeTemplateId, int $limit = 10, int $offset = 0): array
+{
+    $stmt = $pdo->prepare("
+        WITH possible_flags AS (
+            SELECT cf.id AS flag_id, cf.points
+            FROM challenge_flags cf
+            WHERE cf.challenge_template_id = :challenge_template_id
+        ),
+        user_submissions AS (
+            SELECT cc.user_id, cc.flag_id, cc.completed_at, cc.started_at
+            FROM completed_challenges cc
+            WHERE cc.challenge_template_id = :challenge_template_id
+        ),
+        user_points AS (
+            SELECT us.user_id, SUM(pf.points) AS total_points
+            FROM user_submissions us
+            JOIN possible_flags pf ON us.flag_id = pf.flag_id
+            GROUP BY us.user_id
+        ),
+        user_eola AS (
+            SELECT user_id, MAX(completed_at) AS end_of_last_flagged
+            FROM user_submissions
+            WHERE flag_id IS NOT NULL
+            GROUP BY user_id
+        ),
+        valid_submissions AS (
+            SELECT us.user_id, us.started_at, us.completed_at
+            FROM user_submissions us
+            JOIN user_eola eola ON us.user_id = eola.user_id
+            WHERE us.completed_at <= eola.end_of_last_flagged
+            
+            UNION ALL
+            
+            SELECT us.user_id, us.started_at, 
+                   CASE 
+                       WHEN us.completed_at IS NULL OR us.completed_at > eola.end_of_last_flagged 
+                       THEN eola.end_of_last_flagged
+                       ELSE us.completed_at
+                   END AS completed_at
+            FROM user_submissions us
+            JOIN user_eola eola ON us.user_id = eola.user_id
+            JOIN (
+                SELECT user_id, MIN(started_at) as first_flag_started_at
+                FROM user_submissions
+                WHERE flag_id IS NOT NULL
+                GROUP BY user_id
+            ) first_flag ON us.user_id = first_flag.user_id
+            WHERE us.started_at <= first_flag.first_flag_started_at
+            AND (us.completed_at IS NULL OR us.completed_at > eola.end_of_last_flagged)
+        ),
+        intervals AS (
+            SELECT user_id,
+                   completed_at - started_at AS intvl
+            FROM valid_submissions
+        ),
+        summed_time AS (
+            SELECT user_id, EXTRACT(EPOCH FROM SUM(intvl))::BIGINT AS total_seconds
+            FROM intervals
+            GROUP BY user_id
+        ),
+        ranked AS (
+            SELECT u.username, u.avatar_url,
+                   up.total_points,
+                   st.total_seconds,
+                   ROW_NUMBER() OVER (ORDER BY up.total_points DESC, st.total_seconds ASC) AS rank
+            FROM user_points up
+            JOIN summed_time st ON up.user_id = st.user_id
+            JOIN users u ON u.id = up.user_id
+        )
+        SELECT username, avatar_url, total_points, total_seconds, rank
+        FROM ranked
+        ORDER BY rank
+        LIMIT :limit OFFSET :offset;
+    ");
+
+    $stmt->bindValue(':challenge_template_id', $challengeTemplateId, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
