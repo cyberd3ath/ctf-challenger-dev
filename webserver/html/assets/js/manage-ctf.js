@@ -8,6 +8,13 @@ class ChallengesManager {
         this.totalPages = 1;
         this.challengesPerPage = 10;
 
+        this.leaderboard = {
+            currentPage: 1,
+            entriesPerPage: 10,
+            totalPages: 1,
+            currentChallenge: null
+        };
+
         this.domElements = {
             challengesList: document.getElementById('challenges-list'),
             createNewBtn: document.getElementById('create-new-ctf'),
@@ -16,9 +23,12 @@ class ChallengesManager {
             statusFilter: document.getElementById('status-filter'),
             prevPageBtn: document.getElementById('prev-page'),
             nextPageBtn: document.getElementById('next-page'),
+            leaderboardPrev: document.getElementById('leaderboard-prev'),
+            leaderboardNext: document.getElementById('leaderboard-next'),
             pageInfo: document.querySelector('.page-info'),
             editModal: document.getElementById('edit-modal'),
             deleteModal: document.getElementById('delete-modal'),
+            leaderboardModal: document.getElementById('leaderboard-modal'),
             editForm: document.getElementById('edit-challenge-form'),
             closeModalBtns: document.querySelectorAll('.close-modal'),
             toggleActive: document.getElementById('edit-active'),
@@ -64,6 +74,9 @@ class ChallengesManager {
         this.domElements.prevPageBtn.addEventListener('click', () => this.handlePagination('prev'));
         this.domElements.nextPageBtn.addEventListener('click', () => this.handlePagination('next'));
 
+        this.domElements.leaderboardPrev.addEventListener('click', () => this.handleLeaderboardPagination('prev'));
+        this.domElements.leaderboardNext.addEventListener('click', () => this.handleLeaderboardPagination('next'));
+
         this.domElements.closeModalBtns.forEach(btn => {
             btn.addEventListener('click', () => this.closeModals());
         });
@@ -73,9 +86,11 @@ class ChallengesManager {
         this.domElements.confirmSoftDelete.addEventListener('click', () => this.handleSoftDelete());
         this.domElements.confirmHardDelete.addEventListener('click', () => this.handleHardDelete());
 
+
         window.addEventListener('click', (e) => {
-            if (e.target === this.domElements.editModal) this.domElements.editModal.classList.remove('show');
-            if (e.target === this.domElements.deleteModal) this.domElements.deleteModal.classList.remove('show');
+            if (e.target === this.domElements.editModal) this.closeModals();
+            if (e.target === this.domElements.deleteModal) this.closeModals();
+            if (e.target === this.domElements.leaderboardModal) this.closeModals();
         });
 
         document.querySelectorAll('.tab-button').forEach(button => {
@@ -141,6 +156,7 @@ class ChallengesManager {
                 if (row) {
                     row.querySelector('.edit').addEventListener('click', () => this.openEditModal(challenge));
                     row.querySelector('.delete').addEventListener('click', () => this.openDeleteModal(challenge));
+                    row.querySelector('.leaderboard').addEventListener('click', () => {this.openLeaderboardModal(challenge)});
                 }
             });
         }
@@ -178,13 +194,20 @@ class ChallengesManager {
                 <td>${challenge.total_deployments}</td>
                 <td>${challenge.active_deployments}</td>
                 <td>${this.formatCompletionTime(challenge.avg_completion_minutes)}</td>
-                <td class="actions-cell">
+                <td>
+                    <div class="actions-cell">
                     <button class="action-btn edit" data-id="${challenge.id}">
                         <i class="fa-solid fa-edit"></i>
                     </button>
                     <button class="action-btn delete" data-id="${challenge.id}">
                         <i class="fa-solid ${challenge.marked_for_deletion ? 'fa-rotate-left' : 'fa-trash'}"></i>
                     </button>
+                    <button class="action-btn leaderboard view-toggle-button">
+                        <span class="stripe"></span>
+                        <span class="stripe"></span>
+                        <span class="stripe"></span>
+                    </button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -258,9 +281,132 @@ class ChallengesManager {
         modal.classList.add('show');
     }
 
+    openLeaderboardModal(challenge) {
+        const leaderboardChallengeImage = document.getElementById('leaderboard-challenge-image');
+        const leaderboardChallengeCategory = document.getElementById('leaderboard-challenge-category')
+        const leaderboardChallengeDifficulty = document.getElementById('leaderboard-challenge-difficulty');
+
+        document.getElementById('leaderboard-challenge-name').textContent = challenge.name;
+
+        this.leaderboard.currentChallenge = challenge;
+        this.leaderboard.currentPage = 1;
+
+        leaderboardChallengeImage.src = challenge.image_path || '../assets/images/ctf-default.png';
+        leaderboardChallengeImage.alt = challenge.name;
+
+        leaderboardChallengeCategory.textContent = this.formatCategory(challenge.category);
+        leaderboardChallengeCategory.className = 'category-badge';
+
+        leaderboardChallengeDifficulty.textContent = this.formatDifficulty(challenge.difficulty);
+        leaderboardChallengeDifficulty.className = `difficulty-badge difficulty-${challenge.difficulty}`;
+
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        this.domElements.leaderboardModal.style.overflow = 'auto';
+
+        this.domElements.leaderboardModal.classList.add('show');
+        this.fetchLeaderboard();
+    }
+
+    async fetchLeaderboard() {
+        if (!this.leaderboard.currentChallenge) return;
+
+        try {
+            const response = await apiClient.get(`../backend/manage-ctf.php?action=get_leaderboard&id=${this.leaderboard.currentChallenge.id}&page=${this.leaderboard.currentPage}&limit=${this.leaderboard.entriesPerPage}`);
+
+            if (response?.success) {
+                this.displayLeaderboard(response.leaderboard, response.total_entries);
+            }
+        } catch (error) {
+            console.error('Fetch leaderboard error:', error);
+            messageManager.showError('Failed to load leaderboard');
+        }
+    }
+
+    displayLeaderboard(entries, totalEntries) {
+        document.getElementById('leaderboard-page-info').textContent = `Page ${this.leaderboard.currentPage} of ${this.leaderboard.totalPages || 1}`;
+        const leaderboardEntries = document.getElementById('leaderboard-entries');
+
+        this.leaderboard.totalPages = Math.ceil(totalEntries / this.leaderboard.entriesPerPage);
+        this.domElements.leaderboardPrev.disabled = this.leaderboard.currentPage <= 1;
+        this.domElements.leaderboardNext.disabled = this.leaderboard.currentPage >= this.leaderboard.totalPages || this.leaderboard.totalPages === 0;
+
+        leaderboardEntries.innerHTML = '';
+
+        if (entries.length === 0) {
+            leaderboardEntries.innerHTML = `
+                <tr>
+                    <td colspan="4" class="no-results">No leaderboard entries yet</td>
+                </tr>
+            `;
+            return;
+        }
+
+        leaderboardEntries.innerHTML = entries.map(entry => this.createLeaderboardEntry(entry)).join('');
+    }
+    createLeaderboardEntry(entry) {
+        const timeFormatted = this.formatLeaderboardTime(entry.total_seconds);
+        const username = this.escapeHtml(entry.username);
+        const profileUrl = `/profile/${encodeURIComponent(username)}`;
+
+        return `
+        <tr>
+            <td class="leaderboard-rank">#${entry.rank}</td>
+            <td>
+                <div class="leaderboard-user">
+                    <img src="${entry.avatar_url || '../assets/images/default-avatar.png'}" 
+                         alt="${username}" class="leaderboard-avatar">
+                    <a href="${profileUrl}" class="leaderboard-username">${username}</a>
+                </div>
+            </td>
+            <td class="leaderboard-points">${entry.total_points}</td>
+            <td class="leaderboard-time">${timeFormatted}</td>
+        </tr>
+    `;
+    }
+
+    escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    formatLeaderboardTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+
+        return [
+            hours.toString().padStart(2, '0'),
+            minutes.toString().padStart(2, '0'),
+            secs.toString().padStart(2, '0')
+        ].join(':');
+    }
+
+    handleLeaderboardPagination(direction) {
+        const newPage = direction === 'prev'
+            ? this.leaderboard.currentPage - 1
+            : this.leaderboard.currentPage + 1;
+
+        if (newPage > 0 && newPage <= this.leaderboard.totalPages) {
+            this.leaderboard.currentPage = newPage;
+            this.fetchLeaderboard();
+        }
+    }
+
     closeModals() {
         this.domElements.editModal.classList.remove('show');
         this.domElements.deleteModal.classList.remove('show');
+        this.domElements.leaderboardModal.classList.remove('show');
+
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        this.domElements.leaderboardModal.style.overflowY = '';
     }
 
     updateToggleLabel() {

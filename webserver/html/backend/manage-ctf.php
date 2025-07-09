@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/curlHelper.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/challengeHelper.php';
 $config = require __DIR__ . '/../config/backend.config.php';
 $generalConfig = json_decode(file_get_contents(__DIR__ . '/../config/general.config.json'), true);
 
@@ -65,7 +66,7 @@ class CTFManagementHandler
     private function parseInputData(): array
     {
         if ($this->method === 'GET') {
-            return [];
+            return $_GET;
         }
 
         if ($this->method === 'DELETE') {
@@ -104,6 +105,22 @@ class CTFManagementHandler
 
     private function handleGetRequest(): void
     {
+        $action = $this->inputData['action'] ?? null;
+
+        switch($action) {
+            case 'get_challenges':
+                $this->handleGetChallenges();
+                break;
+            case 'get_leaderboard':
+                $this->handleLeaderboard();
+                break;
+            default:
+                $this->handleGetChallenges();
+        }
+    }
+
+    private function handleGetChallenges(): void
+    {
         $challenges = $this->getChallenges();
         $stats = $this->getChallengeStats();
 
@@ -113,6 +130,54 @@ class CTFManagementHandler
             'stats' => $stats
         ]);
     }
+
+    private function handleLeaderboard(): void
+   {
+       if (!isset($this->inputData['id'])) {
+           echo json_encode(['success' => false, 'message' => 'Challenge ID is required']);
+           exit;
+       }
+
+       $challengeId = (int)$this->inputData['id'];
+       $page = isset($this->inputData['page']) ? (int)$this->inputData['page'] : 1;
+       $limit = isset($this->inputData['limit']) ? (int)$this->inputData['limit'] : 10;
+       $offset = ($page - 1) * $limit;
+
+       try {
+           $stmt = $this->pdo->prepare("
+            SELECT creator_id 
+            FROM challenge_templates 
+            WHERE id = ?
+        ");
+           $stmt->execute([$challengeId]);
+           $creatorId = $stmt->fetchColumn();
+
+           if ($creatorId !== $this->userId) {
+               echo json_encode(['success' => false, 'message' => 'You are not authorized to view this leaderboard']);
+               exit;
+           }
+
+           $leaderboard = getChallengeLeaderboard($this->pdo, $challengeId, $limit, $offset);
+
+           $stmt = $this->pdo->prepare("
+            SELECT COUNT(DISTINCT cc.user_id) AS total 
+            FROM completed_challenges cc
+            JOIN challenge_flags cf ON cc.flag_id = cf.id
+            WHERE cc.challenge_template_id = ?
+            AND cf.points > 0
+        ");
+           $stmt->execute([$challengeId]);
+           $total = $stmt->fetchColumn();
+
+           echo json_encode([
+               'success' => true,
+               'leaderboard' => $leaderboard,
+               'total_entries' => $total
+           ]);
+       } catch (PDOException $e) {
+           echo json_encode(['success' => false, 'message' => 'Error getting leaderboard']);
+       }
+   }
 
     private function handlePostRequest(): void
     {
@@ -696,7 +761,7 @@ class CTFManagementHandler
             FROM (
                 SELECT challenge_template_id, COUNT(*) AS total_count
                 FROM completed_challenges
-                WHERE EXTRACT(EPOCH FROM (completed_at - started_at)) > 10 OR completed_at IS NULL
+                WHERE EXTRACT(EPOCH FROM (completed_at - started_at)) > 2 OR completed_at IS NULL
                 GROUP BY challenge_template_id
             ) rd
             JOIN challenge_templates ct ON rd.challenge_template_id = ct.id
