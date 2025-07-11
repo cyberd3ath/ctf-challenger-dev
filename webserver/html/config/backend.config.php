@@ -16,8 +16,8 @@ return [
     ],
     'challenge' => [
         'ALLOWED_ACTIONS' => ['deploy', 'cancel', 'submit_flag', 'extend_time'],
-        'MAX_TIME_EXTENSIONS' => 6,
-        'EXTENSION_HOURS' => 1,
+        'MAX_TIME_EXTENSIONS' => 3,
+        'EXTENSION_HOURS' => 6,
         'VALID_CATEGORIES' => ['web', 'crypto', 'forensics', 'reverse', 'pwn', 'misc'],
         'VALID_DIFFICULTIES' => ['easy', 'medium', 'hard'],
         'UPLOAD_DIR' => '/uploads/challenge_images/',

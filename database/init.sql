@@ -170,7 +170,7 @@ CREATE TABLE challenges (
     challenge_template_id INT NOT NULL,
     subnet INET REFERENCES challenge_subnets(subnet),
     FOREIGN KEY (challenge_template_id) REFERENCES challenge_templates(id),
-    expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '1 hour'),
+    expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '6 hour'),
     used_extensions INT DEFAULT 0
 );
 
