@@ -16,6 +16,7 @@ class ChallengePage {
     initElements() {
         this.loadingDiv = document.querySelector('.loading');
         this.challengeContent = document.querySelector('.challenge-content');
+        this.leaderboardSection = document.querySelector('.leaderboard-section');
         this.loginRequiredBanner = document.querySelector('.login-required-banner');
 
         this.challengeTitle = document.getElementById('challenge-title');
@@ -82,6 +83,7 @@ class ChallengePage {
     showLoadingState() {
         this.loadingDiv.style.display = 'block';
         this.challengeContent.style.display = 'none';
+        this.leaderboardSection.style.display = 'none';
         this.loginRequiredBanner.style.display = 'none';
     }
 
@@ -93,6 +95,7 @@ class ChallengePage {
     showContent() {
         this.loadingDiv.style.display = 'none';
         this.challengeContent.style.display = 'block';
+        this.leaderboardSection.style.display = 'block';
     }
 
     populateChallenge(challenge) {

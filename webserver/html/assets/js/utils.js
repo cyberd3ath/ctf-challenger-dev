@@ -107,8 +107,8 @@ class ApiClient {
         try {
             const pathname = new URL(url, window.location.origin).pathname;
             const filename = pathname.split('/').pop();
-
-            const isPublicEndpoint = this.publicEndpoints.includes(filename);
+            const base = filename.replace(/\.php$/, '');
+            const isPublicEndpoint = this.publicEndpoints.includes(base);
 
             if (!isPublicEndpoint && !this.csrfToken) {
                 const error = new Error('Session expired. Please log in again.');
