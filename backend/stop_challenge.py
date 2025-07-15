@@ -2,6 +2,7 @@ from DatabaseClasses import *
 from proxmox_api_calls import *
 import subprocess
 import os
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances"
 
@@ -11,23 +12,24 @@ def stop_challenge(user_id, db_conn):
     Stop a challenge for a user.
     """
 
-    challenge, user_vpn_ip = fetch_challenge(user_id, db_conn)
+    with db_conn:
+        challenge, user_vpn_ip = fetch_challenge(user_id, db_conn)
 
-    fetch_machines(challenge, db_conn)
+        fetch_machines(challenge, db_conn)
 
-    stop_machines(challenge)
+        stop_machines(challenge)
 
-    fetch_networks(challenge, db_conn)
+        fetch_networks(challenge, db_conn)
 
-    delete_network_devices(challenge)
+        delete_network_devices(challenge)
 
-    delete_iptables_rules(challenge, user_vpn_ip)
+        delete_iptables_rules(challenge, user_vpn_ip)
 
-    stop_dnsmasq_instances(challenge)
+        stop_dnsmasq_instances(challenge)
 
-    delete_machines(challenge)
+        delete_machines(challenge)
 
-    remove_database_entries(challenge, user_id, db_conn)
+        remove_database_entries(challenge, user_id, db_conn)
 
 
 def fetch_challenge(user_id, db_conn):
@@ -103,6 +105,7 @@ def fetch_networks(challenge, db_conn):
                 challenge.networks[network_id].add_connection(connection)
 
 
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
 def stop_machines(challenge):
     """
     Stop the machines for a challenge.
@@ -120,7 +123,20 @@ def stop_machines(challenge):
         except Exception:
             pass
 
+    all_machines_stopped = True
+    for machine in existing_machines.values():
+        try:
+            if not vm_is_stopped_api_call(machine):
+                all_machines_stopped = False
+                break
+        except Exception:
+            all_machines_stopped = False
 
+    if not all_machines_stopped:
+        raise Exception(f"Not all machines could be stopped, running machines: {', '.join(str(m.id) for m in existing_machines.values() if not vm_is_stopped_api_call(m))}.")
+
+
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
 def delete_machines(challenge):
     """
     Delete the machines for a challenge.
@@ -133,23 +149,23 @@ def delete_machines(challenge):
         if vm_exists_api_call(machine):
             existing_machines[machine.id] = machine
 
-    all_machines_stopped = False
-    while not all_machines_stopped:
-        all_machines_stopped = True
-        for machine in existing_machines.values():
-            try:
-                if not vm_is_stopped_api_call(machine):
-                    all_machines_stopped = False
-                    break
-
-            except Exception:
-                all_machines_stopped = False
-
     for machine in existing_machines.values():
         try:
             delete_vm_api_call(machine)
         except Exception:
             pass
+
+    all_machines_deleted = True
+    for machine in existing_machines.values():
+        try:
+            if vm_exists_api_call(machine):
+                all_machines_deleted = False
+                break
+        except Exception:
+            all_machines_deleted = False
+
+    if not all_machines_deleted:
+        raise Exception(f"Not all machines could be deleted. Running machines: {', '.join(str(m.id) for m in existing_machines.values() if vm_exists_api_call(m))}.")
 
 
 def delete_network_devices(challenge):
@@ -271,5 +287,3 @@ def remove_database_entries(challenge, user_id, db_conn):
         cursor.execute("DELETE FROM challenges WHERE id = %s", (challenge.id,))
 
         cursor.execute("UPDATE challenge_subnets SET available = TRUE WHERE subnet = %s", (challenge.subnet,))
-
-    db_conn.commit()
