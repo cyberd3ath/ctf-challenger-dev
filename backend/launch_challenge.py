@@ -5,68 +5,71 @@ from DatabaseClasses import *
 from proxmox_api_calls import *
 import os
 from stop_challenge import delete_iptables_rules, remove_database_entries, stop_dnsmasq_instances
+from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances/"
 os.makedirs(DNSMASQ_INSTANCES_DIR, exist_ok=True)
 
 
+@retry(stop=stop_after_attempt(10), wait=wait_exponential_jitter(initial=1, max=5, exp_base=1.1, jitter=1))
 def launch_challenge(challenge_template_id, user_id, db_conn):
     """
     Launch a challenge by creating a user and network device.
     """
-    try:
-        user_vpn_ip = fetch_user_vpn_ip(user_id, db_conn)
+    with db_conn:
+        try:
+            user_vpn_ip = fetch_user_vpn_ip(user_id, db_conn)
 
-        challenge_template = ChallengeTemplate(challenge_template_id)
+            challenge_template = ChallengeTemplate(challenge_template_id)
 
-        fetch_machines(challenge_template, db_conn)
+            fetch_machines(challenge_template, db_conn)
 
-        fetch_network_and_connection_templates(challenge_template, db_conn)
+            fetch_network_and_connection_templates(challenge_template, db_conn)
 
-        fetch_domain_templates(challenge_template, db_conn)
+            fetch_domain_templates(challenge_template, db_conn)
 
-    except Exception as e:
-        raise ValueError(f"Error fetching from database: {e}")
+        except Exception as e:
+            raise ValueError(f"Error fetching from database: {e}")
 
-    try:
-        challenge_subnet = fetch_challenge_subnet(db_conn)
+        try:
+            challenge_subnet = fetch_challenge_subnet(db_conn)
 
-    except Exception as e:
-        raise ValueError(f"Error fetching challenge subnet: {e}")
+        except Exception as e:
+            raise ValueError(f"Error fetching challenge subnet: {e}")
 
-    try:
-        challenge = create_challenge(challenge_template, challenge_subnet, db_conn)
+        try:
+            challenge = create_challenge(challenge_template, challenge_subnet, db_conn)
 
-    except Exception as e:
-        raise ValueError(f"Error creating challenge: {e}")
+        except Exception as e:
+            raise ValueError(f"Error creating challenge: {e}")
 
-    try:
-        clone_machines(challenge_template, challenge, db_conn)
+        try:
+            clone_machines(challenge_template, challenge, db_conn)
 
-        create_networks_and_connections(challenge_template, challenge, user_id, db_conn)
+            create_networks_and_connections(challenge_template, challenge, user_id, db_conn)
 
-        create_domains(challenge_template, challenge, db_conn)
+            create_domains(challenge_template, challenge, db_conn)
 
-        create_network_devices(challenge)
+            create_network_devices(challenge)
 
-        wait_for_networks_to_be_up(challenge)
+            wait_for_networks_to_be_up(challenge)
 
-        add_iptables_rules(challenge, user_vpn_ip)
+            add_iptables_rules(challenge, user_vpn_ip)
 
-        attach_networks_to_vms(challenge)
+            attach_networks_to_vms(challenge)
 
-        start_dnsmasq_instances(challenge, user_vpn_ip)
+            start_dnsmasq_instances(challenge, user_vpn_ip)
 
-        launch_machines(challenge)
+            launch_machines(challenge)
 
-        add_running_challenge_to_user(challenge, user_id, db_conn)
+            add_running_challenge_to_user(challenge, user_id, db_conn)
 
-    except Exception as e:
-        undo_launch_challenge(challenge, user_id, user_vpn_ip, db_conn)
-        raise ValueError(f"Error launching challenge: {e}")
+        except Exception as e:
+            undo_launch_challenge(challenge, user_id, user_vpn_ip, db_conn)
+            raise ValueError(f"Error launching challenge: {e}")
 
-    accessible_networks = [network.subnet for network in challenge.networks.values() if network.accessible]
-    accessible_networks.sort()
+        accessible_networks = [network.subnet for network in challenge.networks.values() if network.accessible]
+        accessible_networks.sort()
 
     return accessible_networks
 
@@ -161,10 +164,7 @@ def fetch_challenge_subnet(db_conn):
         result = cursor.fetchone()
 
         if result is None:
-            db_conn.rollback()
             raise ValueError("No available challenge subnet found")
-
-        db_conn.commit()
 
         challenge_subnet = result[0]
         challenge_subnet = ChallengeSubnet(subnet=challenge_subnet)
@@ -197,8 +197,6 @@ def create_challenge(challenge_template, challenge_subnet, db_conn):
         challenge_id = cursor.fetchone()[0]
         challenge = Challenge(challenge_id=challenge_id, template=challenge_template, subnet=challenge_subnet.subnet)
 
-        db_conn.commit()
-
     return challenge
 
 
@@ -220,10 +218,7 @@ def clone_machines(challenge_template, challenge, db_conn):
             machine_id = cursor.fetchone()[0]
 
             if machine_id > max_machine_id:
-                db_conn.rollback()
                 raise ValueError("Machine ID exceeds maximum limit")
-
-            db_conn.commit()
 
             machine = Machine(machine_id=machine_id, template=machine_template, challenge=challenge)
 
@@ -541,7 +536,6 @@ def add_running_challenge_to_user(challenge, user_id, db_conn):
 
     with db_conn.cursor() as cursor:
         cursor.execute("UPDATE users SET running_challenge = %s WHERE id = %s", (challenge.id, user_id))
-        db_conn.commit()
 
 
 def undo_launch_challenge(challenge, user_id, user_vpn_ip, db_conn):
@@ -556,7 +550,7 @@ def undo_launch_challenge(challenge, user_id, user_vpn_ip, db_conn):
     delete_network_devices(challenge)
     delete_iptables_rules(challenge, user_vpn_ip)
     stop_dnsmasq_instances(challenge)
-    remove_database_entries(user_id, challenge, db_conn)
+    remove_database_entries(challenge, user_id, db_conn)
 
 
 def stop_and_delete_machines(challenge):
