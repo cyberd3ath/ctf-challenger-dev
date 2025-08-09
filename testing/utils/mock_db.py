@@ -14,7 +14,11 @@ class MockDatabase:
         self.postgresql = None
         self.conn = None
 
+        original_getuid = os.getuid
+        os.getuid = lambda: 1000  # fake non-root UID
         self.postgresql = testing.postgresql.Postgresql(base_dir=TESTING_DATABASE_BASE_DIR)
+        os.getuid = original_getuid
+
         dsn = self.postgresql.dsn()
         self.conn = psycopg2.connect(**dsn)
 
