@@ -1205,8 +1205,17 @@ def setup_testing_database():
     os.makedirs(TESTING_DATABASE_BASE_DIR, exist_ok=True)
     subprocess.run(["sudo", "chown", "-R", "postgres:postgres", TESTING_DATABASE_BASE_DIR], check=True, capture_output=True)
 
+    print("\tFinding initdb path")
+    initdb_path = None
+    for path in ["/usr/lib/postgresql/15/bin/initdb", "/usr/lib/postgresql/14/bin/initdb", "/usr/lib/postgresql/13/bin/initdb"]:
+        if os.path.exists(path):
+            initdb_path = path
+            break
+
+    if not initdb_path:
+        raise FileNotFoundError("initdb binary not found. Please install PostgreSQL or modify the expected paths.")
+
     print("\tInitializing testing database")
-    initdb_path = subprocess.run(["ls", "/usr/lib/postgresql/*/bin/initdb"], check=True, capture_output=True, text=True).stdout.strip().split("\n")[0]
     subprocess.run(["sudo", "-u", "postgres", initdb_path, TESTING_DATABASE_BASE_DIR], check=True, capture_output=True)
     postgres_pid = subprocess.run(["sudo", "-u", "postgres", "pg_ctl", "-D", TESTING_DATABASE_BASE_DIR, "-p", str(TESTING_DATABASE_PORT), "&", "echo", "$!"], check=True, capture_output=True, text=True).stdout.strip()
 
