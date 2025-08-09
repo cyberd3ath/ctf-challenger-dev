@@ -69,6 +69,12 @@ CHALLENGES_ROOT_SUBNET = os.getenv("CHALLENGES_ROOT_SUBNET", "10.128.0.0")
 CHALLENGES_ROOT_SUBNET_MASK = os.getenv("CHALLENGES_ROOT_SUBNET_MASK", "255.128.0.0")
 
 TESTING_FILES_DIR = "/root/ctf-challenger/testing"
+TESTING_DATABASE_BASE_DIR = os.getenv("TESTING_DATABASE_BASE_DIR", "/tmp/pg_test_base")
+TESTING_DATABASE_NAME = os.getenv("TESTING_DATABASE_NAME", "ctf_challenger")
+TESTING_DATABASE_USER = os.getenv("TESTING_DATABASE_USER", "postgres")
+TESTING_DATABASE_PASSWORD = os.getenv("TESTING_DATABASE_PASSWORD")
+TESTING_DATABASE_PORT = os.getenv("TESTING_DATABASE_PORT", "5432")
+TESTING_DATABASE_HOST = os.getenv("TESTING_DATABASE_HOST", "localhost")
 
 REUSE_DOWNLOADED_OVA = True
 
@@ -178,9 +184,12 @@ def install_dependencies():
     # Install sshpass
     print("\tInstalling sshpass")
     subprocess.run(["apt", "install", "-y", "sshpass"], check=True, capture_output=True)
-
-    print("\tInstalling postgres (used for testing)")
+    
+    print("\tInstalling postgres (used in testing)")
     subprocess.run(["apt", "install", "-y", "postgresql", "postgresql-contrib"], check=True, capture_output=True)
+
+    print("\tInstalling sudo (used in testing)")
+    subprocess.run(["apt", "install", "-y", "sudo"], check=True, capture_output=True)
 
 
 def setup_backend_certificate():
@@ -1100,20 +1109,21 @@ def validate_running_and_reachable(webserver_id, database_id, api_token, timeout
         raise Exception("Database server is not reachable.")
 
 
-def setup_database():
+def setup_database(conn=None):
     """
     Setup the database.
     """
 
     import psycopg2
 
-    conn = psycopg2.connect(
-        dbname=DATABASE_NAME,
-        user=DATABASE_USER,
-        password=DATABASE_PASSWORD,
-        host=DATABASE_HOST,
-        port=DATABASE_PORT
-    )
+    if not conn:
+        conn = psycopg2.connect(
+            dbname=DATABASE_NAME,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            host=DATABASE_HOST,
+            port=DATABASE_PORT
+        )
 
     print("\tReading init.sql file")
     init_sql_path = os.path.join(DATABASE_FILES_DIR, "init.sql")
@@ -1180,6 +1190,33 @@ def setup_database():
 
     conn.commit()
     conn.close()
+
+def setup_testing_database():
+    """
+    Setup the testing database.
+    """
+    import psycopg2
+
+    print("\tSetting up testing database directory")
+    os.makedirs(TESTING_DATABASE_BASE_DIR, exist_ok=True)
+    subprocess.run(["sudo", "chown", "-R", "postgres:postgres", TESTING_DATABASE_BASE_DIR], check=True, capture_output=True)
+
+    print("\tInitializing testing database")
+    subprocess.run(["sudo", "-u", "postgres", "initdb", TESTING_DATABASE_BASE_DIR], check=True, capture_output=True)
+    postgres_pid = subprocess.run(["sudo", "-u", "postgres", "pg_ctl", "-D", TESTING_DATABASE_BASE_DIR, "-p", str(TESTING_DATABASE_PORT), "&", "echo", "$!"], check=True, capture_output=True, text=True).stdout.strip()
+
+    print(f"\tPostgreSQL testing server started with PID {postgres_pid}")
+    conn = psycopg2.connect(
+        dbname=TESTING_DATABASE_NAME,
+        user=TESTING_DATABASE_USER,
+        password=TESTING_DATABASE_PASSWORD,
+        host=TESTING_DATABASE_HOST,
+        port=TESTING_DATABASE_PORT
+    )
+
+    setup_database(conn)
+
+    os.kill(int(postgres_pid), 15)  # Gracefully stop the PostgreSQL server
 
 
 def start_backend():

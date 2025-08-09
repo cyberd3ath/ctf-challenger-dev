@@ -35,7 +35,7 @@ def restore_database(backup_file_path):
                    capture_output=True)
     
     print("\nCreating backup of current database before restoring")
-    backup_database("pre_restore_backup")
+    backup_database()
 
     time_now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"\nStarting restoring the database")

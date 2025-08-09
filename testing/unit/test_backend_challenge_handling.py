@@ -8,7 +8,7 @@ BACKEND_DIR = "/root/ctf-challenger/backend"
 sys.path.append(TEST_UTILS_DIR)
 sys.path.append(BACKEND_DIR)
 
-from test_db import TestDatabase
+from mock_db import MockDatabase
 from test_challenge_template_setup import test_plain_ubuntu_setup
 from import_machine_templates import import_machine_templates
 from delete_machine_templates import delete_machine_templates
