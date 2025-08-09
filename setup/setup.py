@@ -139,6 +139,9 @@ def setup():
     print("\nSetting up database")
     setup_database()
 
+    print("\nSetting up testing database")
+    setup_testing_database()
+
     print("\nStarting backend")
     start_backend()
 
@@ -1190,6 +1193,7 @@ def setup_database(conn=None):
 
     conn.commit()
     conn.close()
+
 
 def setup_testing_database():
     """
