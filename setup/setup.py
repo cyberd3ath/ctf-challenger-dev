@@ -1206,6 +1206,7 @@ def setup_testing_database():
     import os
     from pathlib import Path
     import time
+    import subprocess
 
     print("\tSetting up testing database directory")
     os.makedirs(TESTING_DATABASE_BASE_DIR, exist_ok=True)
@@ -1248,13 +1249,40 @@ def setup_testing_database():
         check=True
     )
 
-    # Wait a bit for the server to fully start
-    time.sleep(2)
-
+    # Wait until PostgreSQL is ready
+    for _ in range(10):  # try for up to ~10 seconds
+        try:
+            conn = psycopg2.connect(
+                dbname="postgres",
+                user=TESTING_DATABASE_USER,
+                password=TESTING_DATABASE_PASSWORD,
+                host=TESTING_DATABASE_HOST,
+                port=TESTING_DATABASE_PORT
+            )
+            conn.close()
+            break
+        except psycopg2.OperationalError:
+            time.sleep(1)
+    else:
+        raise RuntimeError("PostgreSQL did not start in time")
 
     print(f"\tPostgreSQL testing server started")
 
-    # Create connection to the server (will fail if DB doesn't exist yet)
+    # Create the testing database if it doesn't exist
+    with psycopg2.connect(
+        dbname="postgres",
+        user=TESTING_DATABASE_USER,
+        password=TESTING_DATABASE_PASSWORD,
+        host=TESTING_DATABASE_HOST,
+        port=TESTING_DATABASE_PORT
+    ) as conn:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT 1 FROM pg_database WHERE datname = %s", (TESTING_DATABASE_NAME,))
+            if not cur.fetchone():
+                cur.execute(f"CREATE DATABASE {TESTING_DATABASE_NAME}")
+
+    # Now connect to the testing database
     conn = psycopg2.connect(
         dbname=TESTING_DATABASE_NAME,
         user=TESTING_DATABASE_USER,
@@ -1264,12 +1292,14 @@ def setup_testing_database():
     )
 
     setup_database(conn)
+    conn.close()
 
     print("\tStopping PostgreSQL testing server")
     subprocess.run(
         ["sudo", "-u", "postgres", pg_ctl_path, "-D", TESTING_DATABASE_BASE_DIR, "stop"],
         check=True
     )
+
 
 
 def start_backend():
