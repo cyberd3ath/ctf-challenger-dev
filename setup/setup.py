@@ -68,6 +68,10 @@ BACKEND_AUTHENTICATION_TOKEN = os.getenv("BACKEND_AUTHENTICATION_TOKEN")
 CHALLENGES_ROOT_SUBNET = os.getenv("CHALLENGES_ROOT_SUBNET", "10.128.0.0")
 CHALLENGES_ROOT_SUBNET_MASK = os.getenv("CHALLENGES_ROOT_SUBNET_MASK", "255.128.0.0")
 
+TESTING_FILES_DIR = "/root/ctf-challenger/testing"
+
+REUSE_DOWNLOADED_OVA = True
+
 time_start = datetime.datetime.now()
 
 
@@ -305,6 +309,30 @@ def generate_and_distribute_env_files(api_token):
 
         backend_env_file.write(f"VPN_SERVER_IP='{PROXMOX_EXTERNAL_IP}'\n")
 
+    print("\tGenerating testing .env file")
+    with open(os.path.join(TESTING_FILES_DIR, ".env"), "w") as testing_env_file:
+        testing_env_file.write(f"PROXMOX_USER='{PROXMOX_USER}'\n")
+        testing_env_file.write(f"PROXMOX_PASSWORD='{PROXMOX_PASSWORD}'\n")
+        testing_env_file.write(f"PROXMOX_HOST='{PROXMOX_HOST}'\n")
+        testing_env_file.write(f"PROXMOX_PORT='{PROXMOX_PORT}'\n")
+        testing_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
+        backend_env_file.write(f"PROXMOX_URL='https://localhost:8006'\n")
+        backend_env_file.write(f"PROXMOX_API_TOKEN='{api_token_string}'\n")
+
+        testing_env_file.write(f"DB_HOST='{DATABASE_HOST}'\n")
+        testing_env_file.write(f"DB_NAME='{DATABASE_NAME}'\n")
+        testing_env_file.write(f"DB_USER='{DATABASE_USER}'\n")
+        testing_env_file.write(f"DB_PASSWORD='{DATABASE_PASSWORD}'\n")
+        testing_env_file.write(f"DB_PORT='{DATABASE_PORT}'\n")
+
+        testing_env_file.write(f"BACKEND_HOST='{PROXMOX_HOST}'\n")
+        testing_env_file.write(f"BACKEND_PORT='{BACKEND_PORT}'\n")
+        testing_env_file.write(f"BACKEND_LOGGING_DIR='{BACKEND_FILES_DIR}'\n")
+        testing_env_file.write(f"BACKEND_CERTIFICATE_FILE='{BACKEND_CERTIFICATE_FILE}'\n")
+        testing_env_file.write(f"BACKEND_CERTIFICATE_KEY_FILE='{BACKEND_CERTIFICATE_KEY_FILE}'\n")
+        testing_env_file.write(f"BACKEND_AUTHENTICATION_TOKEN='{BACKEND_AUTHENTICATION_TOKEN}'\n")
+
+        testing_env_file.write(f"VPN_SERVER_IP='{PROXMOX_EXTERNAL_IP}'\n")
 
 
 def setup_backend_dnsmasq():
@@ -480,7 +508,7 @@ def setup_web_and_database_server(api_token):
     database_id = 2000
 
     # Download the Ubuntu Base Server OVA if it doesn't exist
-    if os.path.exists("ubuntu-base-server"):
+    if os.path.exists("ubuntu-base-server") and not REUSE_DOWNLOADED_OVA:
         subprocess.run(["rm", "-rf", "ubuntu-base-server"], check=True, capture_output=True)
 
     download_ubuntu_base_server_ova()
@@ -1209,6 +1237,17 @@ WantedBy=multi-user.target
 
 
 if __name__ == "__main__":
+    if sys.argv[2] == "-h" or sys.argv[2] == "--help":
+        print("Usage: python setup.py [--download-ova]")
+        sys.exit(0)
+
+    if len(sys.argv) != 3 or sys.argv[2] not in ["--download-ova"]:
+        print("Invalid arguments. Use --download-ova to download the OVA file.")
+        sys.exit(1)
+
+    if sys.argv[2] == "--download-ova":
+        REUSE_DOWNLOADED_OVA = False
+
     setup()
     time_end = datetime.datetime.now()
 
