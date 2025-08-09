@@ -1226,7 +1226,7 @@ def setup_testing_database():
             break
 
     if not postgres_path:
-        raise FileNotFoundError("postgres binaries not found. Please install PostgreSQL or modify the expected paths.")
+        raise FileNotFoundError("postgres binaries not found. Please install PostgreSQL or modify the expected paths")
 
     initdb_path = os.path.join(postgres_path, "initdb")
     pg_ctl_path = os.path.join(postgres_path, "pg_ctl")
@@ -1252,7 +1252,7 @@ def setup_testing_database():
     time.sleep(2)
 
 
-    print(f"\tPostgreSQL testing server started with PID {postgres_pid}")
+    print(f"\tPostgreSQL testing server started")
 
     # Create connection to the server (will fail if DB doesn't exist yet)
     conn = psycopg2.connect(
