@@ -316,8 +316,8 @@ def generate_and_distribute_env_files(api_token):
         testing_env_file.write(f"PROXMOX_HOST='{PROXMOX_HOST}'\n")
         testing_env_file.write(f"PROXMOX_PORT='{PROXMOX_PORT}'\n")
         testing_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
-        backend_env_file.write(f"PROXMOX_URL='https://localhost:8006'\n")
-        backend_env_file.write(f"PROXMOX_API_TOKEN='{api_token_string}'\n")
+        testing_env_file.write(f"PROXMOX_URL='https://localhost:8006'\n")
+        testing_env_file.write(f"PROXMOX_API_TOKEN='{api_token_string}'\n")
 
         testing_env_file.write(f"DB_HOST='{DATABASE_HOST}'\n")
         testing_env_file.write(f"DB_NAME='{DATABASE_NAME}'\n")
