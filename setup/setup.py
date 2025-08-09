@@ -1237,16 +1237,17 @@ WantedBy=multi-user.target
 
 
 if __name__ == "__main__":
-    if sys.argv[2] == "-h" or sys.argv[2] == "--help":
-        print("Usage: python setup.py [--download-ova]")
-        sys.exit(0)
+    if len(sys.argv) > 2:
+        if sys.argv[2] == "-h" or sys.argv[2] == "--help":
+            print("Usage: python setup.py [--download-ova]")
+            sys.exit(0)
 
-    if len(sys.argv) != 3 or sys.argv[2] not in ["--download-ova"]:
-        print("Invalid arguments. Use --download-ova to download the OVA file.")
-        sys.exit(1)
+        if len(sys.argv) != 3 or sys.argv[2] not in ["--download-ova"]:
+            print("Invalid arguments. Use --download-ova to download the OVA file.")
+            sys.exit(1)
 
-    if sys.argv[2] == "--download-ova":
-        REUSE_DOWNLOADED_OVA = False
+        if sys.argv[2] == "--download-ova":
+            REUSE_DOWNLOADED_OVA = False
 
     setup()
     time_end = datetime.datetime.now()
