@@ -190,6 +190,9 @@ def install_dependencies():
     
     print("\tInstalling postgres (used in testing)")
     subprocess.run(["apt", "install", "-y", "postgresql", "postgresql-contrib"], check=True, capture_output=True)
+    subprocess.run(["systemctl", "stop", "postgresql"], check=True, capture_output=True)
+    subprocess.run(["systemctl", "disable", "postgresql"], check=True, capture_output=True)
+
 
     print("\tInstalling sudo (used in testing)")
     subprocess.run(["apt", "install", "-y", "sudo"], check=True, capture_output=True)
