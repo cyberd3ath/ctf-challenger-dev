@@ -20,15 +20,17 @@ DATABASE_HOST = os.getenv("DATABASE_HOST", "10.0.0.102")
 
 DATABASE_BACKUP_DIR = "/root/ctf-challenger/database/backups"
 
-def backup_database():
+
+def backup_database(common_name=None):
     """
     Backup the PostgreSQL database to a file.
     """
     if not os.path.exists(DATABASE_BACKUP_DIR):
         os.makedirs(DATABASE_BACKUP_DIR)
 
+    if not common_name:
+        common_name = get_common_name_for_backup()
 
-    common_name = get_common_name_for_backup()
     time_now = datetime.datetime.now()
     backup_filename = f"{DATABASE_NAME}_{time_now.strftime('%Y%m%d_%H%M%S')}_{common_name}.backup"
     backup_filepath = os.path.join(DATABASE_BACKUP_DIR, backup_filename)
@@ -49,6 +51,8 @@ def backup_database():
     print(f"Time:\t\t\t{time_now.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Common Name:\t\t{common_name}")
     print(f"Backup File:\t\t{backup_filepath}\n")
+
+    return backup_filepath
 
 
 def get_common_name_for_backup():

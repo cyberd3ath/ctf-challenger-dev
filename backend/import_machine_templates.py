@@ -105,7 +105,7 @@ def convert_ova_to_machine_template(disk_file_path, machine_template_id):
     Convert an OVA disk image file to a machine template.
     """
 
-    tmp_dir_name = f"proxmox_import_{sha256(str(time.time()).encode() + b" " + str(random.randint(0, 2**20)).encode()).hexdigest()}"
+    tmp_dir_name = f"proxmox_import_{sha256(str(time.time()).encode() + b' ' + str(random.randint(0, 2**20)).encode()).hexdigest()}"
 
     tmp_dir = os.path.join("/tmp", tmp_dir_name)
     os.makedirs(tmp_dir, exist_ok=True)

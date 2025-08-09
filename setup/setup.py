@@ -179,6 +179,9 @@ def install_dependencies():
     print("\tInstalling sshpass")
     subprocess.run(["apt", "install", "-y", "sshpass"], check=True, capture_output=True)
 
+    print("\tInstalling postgres (used for testing)")
+    subprocess.run(["apt", "install", "-y", "postgresql", "postgresql-contrib"], check=True, capture_output=True)
+
 
 def setup_backend_certificate():
     """
