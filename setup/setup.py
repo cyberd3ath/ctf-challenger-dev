@@ -1206,7 +1206,8 @@ def setup_testing_database():
     subprocess.run(["sudo", "chown", "-R", "postgres:postgres", TESTING_DATABASE_BASE_DIR], check=True, capture_output=True)
 
     print("\tInitializing testing database")
-    subprocess.run(["sudo", "-u", "postgres", "initdb", TESTING_DATABASE_BASE_DIR], check=True, capture_output=True)
+    initdb_path = subprocess.run(["ls", "/usr/lib/postgresql/*/bin/initdb"], check=True, capture_output=True, text=True).stdout.strip().split("\n")[0]
+    subprocess.run(["sudo", "-u", "postgres", initdb_path, TESTING_DATABASE_BASE_DIR], check=True, capture_output=True)
     postgres_pid = subprocess.run(["sudo", "-u", "postgres", "pg_ctl", "-D", TESTING_DATABASE_BASE_DIR, "-p", str(TESTING_DATABASE_PORT), "&", "echo", "$!"], check=True, capture_output=True, text=True).stdout.strip()
 
     print(f"\tPostgreSQL testing server started with PID {postgres_pid}")
