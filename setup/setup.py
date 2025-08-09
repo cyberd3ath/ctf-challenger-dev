@@ -1211,19 +1211,22 @@ def setup_testing_database():
         check=True, capture_output=True
     )
 
-    print("\tFinding initdb path")
-    initdb_path = None
+    print("\tFinding postgres binaries path")
+    postgres_path = None
     for path in [
-        "/usr/lib/postgresql/15/bin/initdb",
-        "/usr/lib/postgresql/14/bin/initdb",
-        "/usr/lib/postgresql/13/bin/initdb"
+        "/usr/lib/postgresql/15/bin",
+        "/usr/lib/postgresql/14/bin",
+        "/usr/lib/postgresql/13/bin"
     ]:
         if os.path.exists(path):
-            initdb_path = path
+            postgres_path = path
             break
 
-    if not initdb_path:
-        raise FileNotFoundError("initdb binary not found. Please install PostgreSQL or modify the expected paths.")
+    if not postgres_path:
+        raise FileNotFoundError("postgres binaries not found. Please install PostgreSQL or modify the expected paths.")
+
+    initdb_path = os.path.join(postgres_path, "initdb")
+    pg_ctl_path = os.path.join(postgres_path, "pg_ctl")
 
     print("\tInitializing testing database")
     subprocess.run(
@@ -1234,7 +1237,7 @@ def setup_testing_database():
     print("\tStarting PostgreSQL testing server")
     subprocess.run(
         [
-            "sudo", "-u", "postgres", "pg_ctl",
+            "sudo", "-u", "postgres", pg_ctl_path,
             "-D", TESTING_DATABASE_BASE_DIR,
             "-o", f"-p {TESTING_DATABASE_PORT}",
             "start"
@@ -1261,7 +1264,7 @@ def setup_testing_database():
 
     print("\tStopping PostgreSQL testing server")
     subprocess.run(
-        ["sudo", "-u", "postgres", "pg_ctl", "-D", TESTING_DATABASE_BASE_DIR, "stop"],
+        ["sudo", "-u", "postgres", pg_ctl_path, "-D", TESTING_DATABASE_BASE_DIR, "stop"],
         check=True
     )
 
