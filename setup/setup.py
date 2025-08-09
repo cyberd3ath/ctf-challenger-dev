@@ -1200,14 +1200,24 @@ def setup_testing_database():
     Setup the testing database.
     """
     import psycopg2
+    import os
+    from pathlib import Path
+    import time
 
     print("\tSetting up testing database directory")
     os.makedirs(TESTING_DATABASE_BASE_DIR, exist_ok=True)
-    subprocess.run(["sudo", "chown", "-R", "postgres:postgres", TESTING_DATABASE_BASE_DIR], check=True, capture_output=True)
+    subprocess.run(
+        ["sudo", "chown", "-R", "postgres:postgres", TESTING_DATABASE_BASE_DIR],
+        check=True, capture_output=True
+    )
 
     print("\tFinding initdb path")
     initdb_path = None
-    for path in ["/usr/lib/postgresql/15/bin/initdb", "/usr/lib/postgresql/14/bin/initdb", "/usr/lib/postgresql/13/bin/initdb"]:
+    for path in [
+        "/usr/lib/postgresql/15/bin/initdb",
+        "/usr/lib/postgresql/14/bin/initdb",
+        "/usr/lib/postgresql/13/bin/initdb"
+    ]:
         if os.path.exists(path):
             initdb_path = path
             break
@@ -1216,10 +1226,29 @@ def setup_testing_database():
         raise FileNotFoundError("initdb binary not found. Please install PostgreSQL or modify the expected paths.")
 
     print("\tInitializing testing database")
-    subprocess.run(["sudo", "-u", "postgres", initdb_path, TESTING_DATABASE_BASE_DIR], check=True, capture_output=True)
-    postgres_pid = subprocess.run(["sudo", "-u", "postgres", "pg_ctl", "-D", TESTING_DATABASE_BASE_DIR, "-p", str(TESTING_DATABASE_PORT), "&", "echo", "$!"], check=True, capture_output=True, text=True).stdout.strip()
+    subprocess.run(
+        ["sudo", "-u", "postgres", initdb_path, TESTING_DATABASE_BASE_DIR],
+        check=True, capture_output=True
+    )
+
+    print("\tStarting PostgreSQL testing server")
+    subprocess.run(
+        [
+            "sudo", "-u", "postgres", "pg_ctl",
+            "-D", TESTING_DATABASE_BASE_DIR,
+            "-o", f"-p {TESTING_DATABASE_PORT}",
+            "start"
+        ],
+        check=True
+    )
+
+    # Wait a bit for the server to fully start
+    time.sleep(2)
+
 
     print(f"\tPostgreSQL testing server started with PID {postgres_pid}")
+
+    # Create connection to the server (will fail if DB doesn't exist yet)
     conn = psycopg2.connect(
         dbname=TESTING_DATABASE_NAME,
         user=TESTING_DATABASE_USER,
@@ -1230,7 +1259,11 @@ def setup_testing_database():
 
     setup_database(conn)
 
-    os.kill(int(postgres_pid), 15)  # Gracefully stop the PostgreSQL server
+    print("\tStopping PostgreSQL testing server")
+    subprocess.run(
+        ["sudo", "-u", "postgres", "pg_ctl", "-D", TESTING_DATABASE_BASE_DIR, "stop"],
+        check=True
+    )
 
 
 def start_backend():
