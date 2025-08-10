@@ -1,7 +1,16 @@
 import psycopg2
 import testing.postgresql
 from dotenv import load_dotenv
+import tempfile
 import os
+import pwd
+import grp
+import subprocess
+
+import sys
+SETUP_FILES_DIR = "/root/ctf-challenger/setup"
+sys.path.append(SETUP_FILES_DIR)
+from setup import setup_database
 
 load_dotenv()
 
@@ -37,19 +46,33 @@ if not (os.path.exists(INITDB_WRAPPER) and os.path.exists(POSTGRES_WRAPPER)):
     create_wrapper(INITDB_WRAPPER, INITDB_PATH)
     create_wrapper(POSTGRES_WRAPPER, POSTGRES_PATH)
 
+
+def make_pg_temp_dir():
+    tmp_dir = tempfile.mkdtemp(prefix="pg_test_")
+    data_dir = os.path.join(tmp_dir, "data")
+    pg_tmp_dir = os.path.join(tmp_dir, "tmp")
+    subprocess.run(["mkdir", "-p", data_dir], check=True, capture_output=True)
+    subprocess.run(["mkdir", "-p", pg_tmp_dir], check=True, capture_output=True)
+    subprocess.run(["chown", "-R", "postgres:postgres", tmp_dir], check=True, capture_output=True)
+    subprocess.run(["chmod", "777", "-R", tmp_dir], check=True, capture_output=True)
+    return tmp_dir
+
+
 class MockDatabase:
     def __init__(self):
         self.postgresql = None
         self.conn = None
+        self.dir = make_pg_temp_dir()
 
         self.postgresql = testing.postgresql.Postgresql(
-            copy_data_from=TESTING_DATABASE_BASE_DIR,
+            base_dir=self.dir,
             initdb=INITDB_WRAPPER,
-            postgres=POSTGRES_WRAPPER,
+            postgres=POSTGRES_WRAPPER
         )
 
         dsn = self.postgresql.dsn()
         self.conn = psycopg2.connect(**dsn)
+        setup_database(self.conn, create_admin_config=False)
 
     def __enter__(self):
         return self.conn
@@ -60,5 +83,9 @@ class MockDatabase:
         if self.postgresql:
             self.postgresql.stop()
 
+        #if self.dir and os.path.exists(self.dir):
+            #subprocess.run(["rm", "-rf", self.dir], check=True, capture_output=True)
+
     def __del__(self):
         self.__exit__(None, None, None)
+

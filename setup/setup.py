@@ -1115,14 +1115,16 @@ def validate_running_and_reachable(webserver_id, database_id, api_token, timeout
         raise Exception("Database server is not reachable.")
 
 
-def setup_database(conn=None):
+def setup_database(conn=None, create_admin_config=True):
     """
     Setup the database.
     """
 
-    import psycopg2
+    connection_managed_externally = conn is not None
 
     if not conn:
+        import psycopg2
+
         conn = psycopg2.connect(
             dbname=DATABASE_NAME,
             user=DATABASE_USER,
@@ -1189,13 +1191,16 @@ def setup_database(conn=None):
         cursor.execute(f"UPDATE vpn_static_ips SET user_id = %s WHERE vpn_static_ip = %s",
                        (admin_user_id, vpn_static_ip))
 
-    from create_user_config import create_user_config
-    print("\tCreating user config")
-    create_user_config(admin_user_id, conn)
-    print("\tSaved admin vpn config to /etc/openvpn/client-configs/1.ovpn")
+    if create_admin_config:
+        from create_user_config import create_user_config
+        print("\tCreating user config")
+        create_user_config(admin_user_id, conn)
+        print("\tSaved admin vpn config to /etc/openvpn/client-configs/1.ovpn")
 
     conn.commit()
-    conn.close()
+
+    if not connection_managed_externally:
+        conn.close()
 
 
 def setup_testing_database():
