@@ -14,8 +14,6 @@ from setup import setup_database
 
 load_dotenv()
 
-TESTING_DATABASE_BASE_DIR = os.getenv("TESTING_DATABASE_BASE_DIR", "/tmp/pg_test_base")
-
 POSTGRES_BINARIES_PATHS = None
 for path in [
     "/usr/lib/postgresql/16/bin",
