@@ -96,7 +96,7 @@ def test_backend_challenge_handling():
                 print("\tTesting stop_challenge function")
 
                 # Stop the challenge
-                stop_challenge(challenge_id, db_conn)
+                stop_challenge(creator_id, db_conn)
 
                 with db_conn.cursor() as cursor:
                     cursor.execute("SELECT running_challenge FROM users WHERE id = %s", (creator_id,))
