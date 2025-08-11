@@ -132,13 +132,14 @@ def convert_ova_to_machine_template(disk_file_path, machine_template_id):
 
     # Convert the OVF file to a Proxmox template
     try:
-        importovf_command = f"qm importovf {machine_template_id} \"{ovf_file}\" local-lvm"
+        importovf_command = f"qm importovf {machine_template_id} '{ovf_file}' local-lvm"
         if "|" in importovf_command or ";" in importovf_command or "&" in importovf_command:
             raise ValueError("Invalid characters in import command.")
         subprocess.run(importovf_command, shell=True, check=True, capture_output=True)
     except Exception as e1:
         try:
-            subprocess.run(["qm", "delvm", str(machine_template_id)], check=True, capture_output=True)
+            subprocess.run(["qm", "unlock", str(machine_template_id)], check=True, capture_output=True)
+            subprocess.run(["qm", "destroy", str(machine_template_id)], check=True, capture_output=True)
         except Exception:
             pass
 
