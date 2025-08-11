@@ -9,19 +9,18 @@ def run_all_tests():
     """
     Run all unit tests.
     """
-    print("Testing the backend functionality")
-    print("\n========================================")
-    print("\nTesting the creation and deletion of user configurations")
+    print("============== BACKEND UNIT TESTS ==============")
+    print("\nTesting user configuration handling")
     test_backend_user_config_handling()
 
     time.sleep(10)
 
-    print("\nTesting the import and deletion of machine templates")
+    print("\nTesting machine template handling")
     test_backend_machine_template_handling()
 
     time.sleep(10)
 
-    print("\nTesting the launch and stop of challenges")
+    print("\nTesting challenge handling")
     test_backend_challenge_handling()
 
 

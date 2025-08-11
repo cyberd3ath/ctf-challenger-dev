@@ -18,6 +18,7 @@ from launch_challenge import launch_challenge
 from stop_challenge import stop_challenge
 from proxmox_api_calls import vm_exists_api_call, vm_is_stopped_api_call
 from DatabaseClasses import Challenge, Machine, Network, Connection, Domain
+from check import check
 
 
 def test_backend_challenge_handling():
@@ -25,7 +26,6 @@ def test_backend_challenge_handling():
     Test the launch_challenge and stop_challenge functions.
     """
 
-    print("\nTesting launch_challenge function")
     with MockDatabase() as db_conn:
         creator_id, challenge_template = test_plain_ubuntu_setup(db_conn)
 
@@ -35,11 +35,7 @@ def test_backend_challenge_handling():
         # Import machine templates
         import_machine_templates(challenge_template.id, db_conn)
 
-        with db_conn.cursor() as cursor:
-            cursor.execute("SELECT id, name FROM challenge_templates")
-            for row in cursor.fetchall():
-                print(f"\tChallenge Template ID: {row[0]}, Name: {row[1]}")
-
+        print(f"\tTesting challenge launch")
         try:
             # Launch the challenge
             launch_challenge(challenge_template.id, creator_id, db_conn)
@@ -53,16 +49,32 @@ def test_backend_challenge_handling():
             if result:
                 challenge_id = result[0]
 
-            assert challenge_id is not None, "\tChallenge ID is None after launch"
+            check(
+                challenge_id is not None,
+                "\t\tChallenge ID retrieved successfully",
+                "\t\tFailed to retrieve challenge ID from database"
+            )
 
             with db_conn.cursor() as cursor:
                 cursor.execute("SELECT challenge_template_id, subnet FROM challenges WHERE id = %s", (challenge_id,))
                 result = cursor.fetchone()
-                assert result is not None, "\tChallenge not found in database after launch"
+                check(
+                    result is not None,
+                    "\t\tChallenge template ID and subnet retrieved successfully",
+                    "\t\tFailed to retrieve challenge template ID and subnet from database"
+                )
 
             challenge_template_id, subnet = result
-            assert challenge_template_id == challenge_template.id, "\tChallenge template ID does not match after launch"
-            assert subnet is not None, "\tSubnet is None after launch"
+            check(
+                challenge_template_id == challenge_template.id,
+                "\t\tChallenge template ID matches the expected value",
+                "\t\tChallenge template ID does not match the expected value"
+            )
+            check(
+                subnet is not None,
+                "\t\tSubnet retrieved successfully",
+                "\t\tFailed to retrieve subnet from database"
+            )
 
             challenge = Challenge(challenge_id, challenge_template_id, subnet)
 
@@ -72,19 +84,34 @@ def test_backend_challenge_handling():
                     cursor.execute("SELECT id FROM machines WHERE challenge_id = %s AND machine_template_id = %s",
                                    (challenge_id, machine_template.id))
                     result = cursor.fetchall()
-                    assert result, f"\tNo machines found for challenge ID {challenge_id} and machine template ID {machine_template.id}"
+                    check(
+                        result is not None,
+                        "\t\tMachine IDs retrieved successfully",
+                        "\t\tFailed to retrieve machine IDs from database"
+                    )
 
                     for row in result:
                         machines.append(Machine(row[0], machine_template, challenge))
 
 
 
-            assert len(machines) == len(challenge_template.machine_templates), \
-                f"\tExpected {len(challenge_template.machine_templates)} machines, found {len(machines)}"
+            check(
+                len(machines) == len(challenge_template.machine_templates),
+                "\t\tNumber of machines in database matches the number of machine templates",
+                "\t\tNumber of machines in database does not match the number of machine templates"
+            )
 
             for machine in machines:
-                assert vm_exists_api_call(machine), f"\tMachine {machine.id} does not exist after launch"
-                assert not vm_is_stopped_api_call(machine), f"\tMachine {machine.id} is stopped after launch"
+                check(
+                    vm_exists_api_call(machine),
+                    f"\t\tMachine {machine.id} exists after launch",
+                    f"\t\tMachine {machine.id} does not exist after launch"
+                )
+                check(
+                    not vm_is_stopped_api_call(machine),
+                    f"\t\tMachine {machine.id} is running after launch",
+                    f"\t\tMachine {machine.id} is not running after launch"
+                )
 
             print("\tChallenge launched successfully")
 
@@ -93,18 +120,27 @@ def test_backend_challenge_handling():
 
         finally:
             try:
-                print("\tTesting stop_challenge function")
-
+                print("\tTesting challenge stop")
                 # Stop the challenge
                 stop_challenge(creator_id, db_conn)
 
                 with db_conn.cursor() as cursor:
                     cursor.execute("SELECT running_challenge FROM users WHERE id = %s", (creator_id,))
-                    result = cursor.fetchone()
-                assert result is None, "\tUser still has a running challenge after stop"
+                    result = cursor.fetchone()[0]
+
+                check(
+                    result is None,
+                    "\t\tUser's running challenge set to None after stop",
+                    "\t\tUser's running challenge is not None after stop"
+                )
+
 
                 for machine in machines:
-                    assert vm_is_stopped_api_call(machine), f"\tMachine {machine.id} is not stopped after challenge stop"
+                    check(
+                        not vm_exists_api_call(machine),
+                        f"\t\tMachine {machine.id} has been deleted after challenge stop",
+                        f"\t\tMachine {machine.id} still exists after challenge stop"
+                    )
 
                 print("\tChallenge stopped successfully")
 
@@ -114,10 +150,9 @@ def test_backend_challenge_handling():
             finally:
                 delete_machine_templates(challenge_template.id, db_conn)
 
-                delete_user_config(creator_id, db_conn)
+                delete_user_config(creator_id)
 
                 db_conn.close()
-
 
 
 if __name__ == "__main__":

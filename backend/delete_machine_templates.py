@@ -41,7 +41,7 @@ def fetch_challenge_and_machine_templates(challenge_template_id, db_conn):
 
         for machine_template_id in cursor.fetchall():
             machine_template = MachineTemplate(
-                machine_template_id=machine_template_id,
+                machine_template_id=machine_template_id[0],
                 challenge_template=challenge_template
             )
             challenge_template.add_machine_template(machine_template)
@@ -70,7 +70,7 @@ def fetch_running_challenges_and_machines(challenge_template, db_conn):
                                (challenge.id, machine_template.id))
 
                 for machine_id in cursor.fetchall():
-                    machine = Machine(machine_id=machine_id, template=machine_template, challenge=challenge)
+                    machine = Machine(machine_id=machine_id[0], template=machine_template, challenge=challenge)
                     challenge.add_machine(machine)
 
     return challenges
