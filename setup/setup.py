@@ -1139,7 +1139,8 @@ def setup_database(conn=None, create_admin_config=True):
     with open(init_sql_path, "r") as file:
         init_script = file.read()
 
-    print("\tExecuting init.sql script")
+    if not connection_managed_externally:
+        print("\tExecuting init.sql script")
     with conn.cursor() as cursor:
         cursor.execute(init_script)
 

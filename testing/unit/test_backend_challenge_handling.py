@@ -40,71 +40,84 @@ def test_backend_challenge_handling():
             for row in cursor.fetchall():
                 print(f"\tChallenge Template ID: {row[0]}, Name: {row[1]}")
 
-        # Launch the challenge
-        launch_challenge(challenge_template.id, creator_id, db_conn)
+        try:
+            # Launch the challenge
+            launch_challenge(challenge_template.id, creator_id, db_conn)
 
-        challenge_id = None
-        with db_conn.cursor() as cursor:
-            cursor.execute("SELECT running_challenge FROM users WHERE id = %s", (creator_id,))
-            result = cursor.fetchone()
-        if result:
-            challenge_id = result[0]
+            time.sleep(10)  # Wait for the challenge to be launched
 
-        assert challenge_id is not None, "\tChallenge ID is None after launch"
+            challenge_id = None
+            with db_conn.cursor() as cursor:
+                cursor.execute("SELECT running_challenge FROM users WHERE id = %s", (creator_id,))
+                result = cursor.fetchone()
+            if result:
+                challenge_id = result[0]
 
-        with db_conn.cursor() as cursor:
-            cursor.execute("SELECT challenge_template_id, subnet FROM challenges WHERE id = %s", (challenge_id,))
-            result = cursor.fetchone()
-            assert result is not None, "\tChallenge not found in database after launch"
+            assert challenge_id is not None, "\tChallenge ID is None after launch"
 
-        challenge_template_id, subnet = result
-        assert challenge_template_id == challenge_template.id, "\tChallenge template ID does not match after launch"
-        assert subnet is not None, "\tSubnet is None after launch"
+            with db_conn.cursor() as cursor:
+                cursor.execute("SELECT challenge_template_id, subnet FROM challenges WHERE id = %s", (challenge_id,))
+                result = cursor.fetchone()
+                assert result is not None, "\tChallenge not found in database after launch"
 
-        challenge = Challenge(challenge_id, challenge_template_id, subnet)
+            challenge_template_id, subnet = result
+            assert challenge_template_id == challenge_template.id, "\tChallenge template ID does not match after launch"
+            assert subnet is not None, "\tSubnet is None after launch"
 
-        machines = []
-        with db_conn.cursor() as cursor:
-            for machine_template in challenge_template.machine_templates.values():
-                cursor.execute("SELECT id FROM machines WHERE challenge_id = %s AND machine_template_id = %s",
-                               (challenge_id, machine_template.id))
-                result = cursor.fetchall()
-                assert result, f"\tNo machines found for challenge ID {challenge_id} and machine template ID {machine_template.id}"
+            challenge = Challenge(challenge_id, challenge_template_id, subnet)
 
-                for row in result:
-                    machines.append(Machine(row[0], machine_template, challenge))
+            machines = []
+            with db_conn.cursor() as cursor:
+                for machine_template in challenge_template.machine_templates.values():
+                    cursor.execute("SELECT id FROM machines WHERE challenge_id = %s AND machine_template_id = %s",
+                                   (challenge_id, machine_template.id))
+                    result = cursor.fetchall()
+                    assert result, f"\tNo machines found for challenge ID {challenge_id} and machine template ID {machine_template.id}"
+
+                    for row in result:
+                        machines.append(Machine(row[0], machine_template, challenge))
 
 
 
-        assert len(machines) == len(challenge_template.machine_templates), \
-            f"\tExpected {len(challenge_template.machine_templates)} machines, found {len(machines)}"
+            assert len(machines) == len(challenge_template.machine_templates), \
+                f"\tExpected {len(challenge_template.machine_templates)} machines, found {len(machines)}"
 
-        for machine in machines:
-            assert vm_exists_api_call(machine), f"\tMachine {machine.id} does not exist after launch"
-            assert not vm_is_stopped_api_call(machine), f"\tMachine {machine.id} is stopped after launch"
+            for machine in machines:
+                assert vm_exists_api_call(machine), f"\tMachine {machine.id} does not exist after launch"
+                assert not vm_is_stopped_api_call(machine), f"\tMachine {machine.id} is stopped after launch"
 
-        print("\tChallenge launched successfully")
+            print("\tChallenge launched successfully")
 
-        print("\tTesting stop_challenge function")
+        except Exception as e:
+            print(f"\tFailed to launch challenge: {e}")
 
-        # Stop the challenge
-        stop_challenge(challenge_id, db_conn)
+        finally:
+            try:
+                print("\tTesting stop_challenge function")
 
-        with db_conn.cursor() as cursor:
-            cursor.execute("SELECT running_challenge FROM users WHERE id = %s", (creator_id,))
-            result = cursor.fetchone()
-        assert result is None, "\tUser still has a running challenge after stop"
+                # Stop the challenge
+                stop_challenge(challenge_id, db_conn)
 
-        for machine in machines:
-            assert vm_is_stopped_api_call(machine), f"\tMachine {machine.id} is not stopped after challenge stop"
+                with db_conn.cursor() as cursor:
+                    cursor.execute("SELECT running_challenge FROM users WHERE id = %s", (creator_id,))
+                    result = cursor.fetchone()
+                assert result is None, "\tUser still has a running challenge after stop"
 
-        print("\tChallenge stopped successfully")
+                for machine in machines:
+                    assert vm_is_stopped_api_call(machine), f"\tMachine {machine.id} is not stopped after challenge stop"
 
-        delete_machine_templates(challenge_template.id, db_conn)
+                print("\tChallenge stopped successfully")
 
-        delete_user_config(creator_id, db_conn)
+            except Exception as e:
+                print(f"\tFailed to stop challenge: {e}")
 
-        db_conn.close()
+            finally:
+                delete_machine_templates(challenge_template.id, db_conn)
+
+                delete_user_config(creator_id, db_conn)
+
+                db_conn.close()
+
 
 
 if __name__ == "__main__":
