@@ -107,4 +107,6 @@ def test_plain_ubuntu_setup(db_conn, creator_id=None):
     connection_template_object = ConnectionTemplate(machine_template_object, network_template_object)
     challenge_template_object.add_connection_template(connection_template_object)
 
+    db_conn.commit()
+
     return creator_id, challenge_template_object

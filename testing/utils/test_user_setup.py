@@ -15,12 +15,12 @@ def test_user_setup(
             (username, email, password)
         )
         user_id = cursor.fetchone()[0]
-        db_conn.commit()
 
         cursor.execute(
             "UPDATE users SET vpn_static_ip=assign_lowest_vpn_ip(%s) WHERE id = %s",
             (user_id, user_id)
         )
-        db_conn.commit()
+
+    db_conn.commit()
 
     return user_id

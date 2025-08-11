@@ -35,12 +35,17 @@ def test_backend_challenge_handling():
         # Import machine templates
         import_machine_templates(challenge_template.id, db_conn)
 
+        with db_conn.cursor() as cursor:
+            cursor.execute("SELECT id, name FROM challenge_templates")
+            for row in cursor.fetchall():
+                print(f"\tChallenge Template ID: {row[0]}, Name: {row[1]}")
+
         # Launch the challenge
         launch_challenge(challenge_template.id, creator_id, db_conn)
 
         challenge_id = None
         with db_conn.cursor() as cursor:
-            cursor.execute("SELECT running_challenge_id FROM users WHERE id = %s", (creator_id,))
+            cursor.execute("SELECT running_challenge FROM users WHERE id = %s", (creator_id,))
             result = cursor.fetchone()
         if result:
             challenge_id = result[0]
@@ -86,7 +91,7 @@ def test_backend_challenge_handling():
         stop_challenge(challenge_id, db_conn)
 
         with db_conn.cursor() as cursor:
-            cursor.execute("SELECT running_challenge_id FROM users WHERE id = %s", (creator_id,))
+            cursor.execute("SELECT running_challenge FROM users WHERE id = %s", (creator_id,))
             result = cursor.fetchone()
         assert result is None, "\tUser still has a running challenge after stop"
 
