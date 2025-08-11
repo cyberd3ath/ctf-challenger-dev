@@ -40,7 +40,7 @@ def fetch_challenge_and_machine_templates(challenge_template_id, db_conn):
 
         for machine_template_id in cursor.fetchall():
             machine_template = MachineTemplate(
-                machine_template_id=machine_template_id[0],
+                machine_template_id=machine_template_id,
                 challenge_template=challenge_template
             )
             challenge_template.add_machine_template(machine_template)
@@ -59,7 +59,7 @@ def fetch_running_challenges_and_machines(challenge_template, db_conn):
         cursor.execute("SELECT id, subnet FROM challenges WHERE challenge_template_id = %s", (challenge_template.id,))
 
         for challenge_id, subnet in cursor.fetchall():
-            challenge = Challenge(challenge_id=challenge_id[0], template=challenge_template, subnet=subnet)
+            challenge = Challenge(challenge_id=challenge_id, template=challenge_template, subnet=subnet)
             challenges.append(challenge)
 
     for challenge in challenges:
@@ -69,7 +69,7 @@ def fetch_running_challenges_and_machines(challenge_template, db_conn):
                                (challenge.id, machine_template.id))
 
                 for machine_id in cursor.fetchall():
-                    machine = Machine(machine_id=machine_id[0], template=machine_template, challenge=challenge)
+                    machine = Machine(machine_id=machine_id, template=machine_template, challenge=challenge)
                     challenge.add_machine(machine)
 
     return challenges
