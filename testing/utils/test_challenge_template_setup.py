@@ -93,7 +93,7 @@ def test_plain_ubuntu_setup(db_conn, creator_id=None):
     with db_conn.cursor() as cursor:
         cursor.execute("INSERT INTO domain_templates (machine_template_id, domain_name) VALUES (%s, %s)",
                        (domain_template["machine_template_id"], domain_template["domain_name"]))
-    domain_template_object = DomainTemplate(domain_template["machine_template_id"], domain_template["domain_name"])
+    domain_template_object = DomainTemplate(machine_template_object, domain_template["domain_name"])
     challenge_template_object.add_domain_template(domain_template_object)
     machine_template_object.add_domain_template(domain_template_object)
 
@@ -108,29 +108,3 @@ def test_plain_ubuntu_setup(db_conn, creator_id=None):
     challenge_template_object.add_connection_template(connection_template_object)
 
     return creator_id, challenge_template_object
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

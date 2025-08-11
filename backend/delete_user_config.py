@@ -9,7 +9,7 @@ def delete_user_config(user_id):
 
     easy_rsa_dir = "/etc/openvpn/easy-rsa"
     ccd_dir = "/etc/openvpn/ccd"
-    client_config_dir = "/etc/openvpn/client_configs"
+    client_config_dir = "/etc/openvpn/client-configs"
 
     files_to_remove = [
         (os.path.join(client_config_dir, f"{user_id}.ovpn")),

@@ -1122,6 +1122,9 @@ def setup_database(conn=None, create_admin_config=True):
 
     connection_managed_externally = conn is not None
 
+    if connection_managed_externally:
+        print = lambda *args, **kwargs: None
+
     if not conn:
         import psycopg2
 

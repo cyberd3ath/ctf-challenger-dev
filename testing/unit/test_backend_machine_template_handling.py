@@ -25,7 +25,7 @@ def test_backend_machine_template_handling():
         creator_id, challenge_template = test_plain_ubuntu_setup(db_conn)
 
         assert len(challenge_template.machine_templates) == 1, "\tTest Challenge Template modified, expected 1 machine template"
-        machine_template = challenge_template.machine_templates.values()[0]
+        machine_template = list(challenge_template.machine_templates.values())[0]
 
         try:
             # Import machine templates
