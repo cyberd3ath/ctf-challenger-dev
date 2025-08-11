@@ -1122,9 +1122,6 @@ def setup_database(conn=None, create_admin_config=True):
 
     connection_managed_externally = conn is not None
 
-    if connection_managed_externally:
-        print = lambda *args, **kwargs: None
-
     if not conn:
         import psycopg2
 
@@ -1136,7 +1133,8 @@ def setup_database(conn=None, create_admin_config=True):
             port=DATABASE_PORT
         )
 
-    print("\tReading init.sql file")
+    if not connection_managed_externally:
+        print("\tReading init.sql file")
     init_sql_path = os.path.join(DATABASE_FILES_DIR, "init.sql")
     if not os.path.exists(init_sql_path):
         raise FileNotFoundError(f"SQL file not found: {init_sql_path}")
@@ -1151,7 +1149,8 @@ def setup_database(conn=None, create_admin_config=True):
     conn.commit()
 
     # Setup the website admin user
-    print("\tSetting up website admin user")
+    if not connection_managed_externally:
+        print("\tSetting up website admin user")
     with conn.cursor() as cursor:
         cursor.execute(
             f"INSERT INTO users (username, email, password_hash, is_admin) VALUES (%s, %s, crypt(%s, gen_salt('bf')), %s)",
@@ -1162,14 +1161,16 @@ def setup_database(conn=None, create_admin_config=True):
     # Setup the challenge subnets and VPN static IPs
     from subnet_calculations import nth_challenge_subnet, nth_vpn_static_ip
 
-    print("\tGenerating challenge subnets")
+    if not connection_managed_externally:
+        print("\tGenerating challenge subnets")
     challenge_subnet_base = "10.128.0.0"
     challenge_subnets_sql = "INSERT INTO challenge_subnets (subnet, available) VALUES "
     for i in range(2 ** (32 - 9 - 8)):
         subnet = f"{nth_challenge_subnet(challenge_subnet_base, i)}"
         challenge_subnets_sql += f"('{subnet}', true)" + ("," if i < 2 ** (32 - 9 - 8) - 1 else ";")
 
-    print("\tGenerating VPN static IPs")
+    if not connection_managed_externally:
+        print("\tGenerating VPN static IPs")
     vpn_server_subnet = OPENVPN_SUBNET[:-3]
     vpn_static_ips_sql = "INSERT INTO vpn_static_ips (vpn_static_ip) VALUES "
     for i in range(2, 2 ** (32 - 16) - 1):
@@ -1177,15 +1178,18 @@ def setup_database(conn=None, create_admin_config=True):
         vpn_static_ips_sql += f"('{vpn_static_ip}')" + ("," if i < 2 ** (32 - 16) - 2 else ";")
 
     with conn.cursor() as cursor:
-        print("\tSetting up challenge subnets table")
+        if not connection_managed_externally:
+            print("\tSetting up challenge subnets table")
         cursor.execute(challenge_subnets_sql)
-        print("\tSetting up VPN static IPs table")
+        if not connection_managed_externally:
+            print("\tSetting up VPN static IPs table")
         cursor.execute(vpn_static_ips_sql)
 
     conn.commit()
 
     # Give vpn ip to admin user
-    print("\tGiving VPN IP to admin user")
+    if not connection_managed_externally:
+        print("\tGiving VPN IP to admin user")
     vpn_static_ip = nth_vpn_static_ip(OPENVPN_SUBNET[:-3], 2)
     with conn.cursor() as cursor:
         cursor.execute(f"UPDATE users SET vpn_static_ip = %s WHERE username = %s RETURNING id",
@@ -1196,9 +1200,11 @@ def setup_database(conn=None, create_admin_config=True):
 
     if create_admin_config:
         from create_user_config import create_user_config
-        print("\tCreating user config")
+        if not connection_managed_externally:
+            print("\tCreating user config")
         create_user_config(admin_user_id, conn)
-        print("\tSaved admin vpn config to /etc/openvpn/client-configs/1.ovpn")
+        if not connection_managed_externally:
+            print("\tSaved admin vpn config to /etc/openvpn/client-configs/1.ovpn")
 
     conn.commit()
 
