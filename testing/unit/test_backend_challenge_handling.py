@@ -10,6 +10,8 @@ sys.path.append(BACKEND_DIR)
 
 from mock_db import MockDatabase
 from test_challenge_template_setup import test_plain_ubuntu_setup
+from create_user_config import create_user_config
+from delete_user_config import delete_user_config
 from import_machine_templates import import_machine_templates
 from delete_machine_templates import delete_machine_templates
 from launch_challenge import launch_challenge
@@ -28,6 +30,9 @@ def test_backend_challenge_handling():
         creator_id, challenge_template = test_plain_ubuntu_setup(db_conn)
 
         try:
+            # Create the user config
+            create_user_config(creator_id, db_conn)
+
             # Import machine templates
             import_machine_templates(challenge_template.id, db_conn)
 
@@ -94,6 +99,10 @@ def test_backend_challenge_handling():
                     assert vm_is_stopped_api_call(machine), f"\tMachine {machine.id} is not stopped after challenge stop"
 
                 print("\tChallenge stopped successfully")
+
+                delete_machine_templates(challenge_template.id, db_conn)
+
+                delete_user_config(creator_id, db_conn)
 
             except Exception as e:
                 print(f"\tFailed to stop challenge: {e}")

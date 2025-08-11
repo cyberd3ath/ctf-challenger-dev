@@ -41,7 +41,6 @@ def test_backend_user_config_handling():
             assert not os.path.exists(f"/etc/openvpn/client-configs/{user_id}.ovpn"), "\tClient config file not deleted"
             assert not os.path.exists(f"/etc/openvpn/easy-rsa/pki/issued/{user_id}.crt"), "\tClient certificate not deleted"
             assert not os.path.exists(f"/etc/openvpn/easy-rsa/pki/private/{user_id}.key"), "\tClient key not deleted"
-            assert time.time() - os.path.getmtime(f"/etc/openvpn/easy-rsa/pki/issued/{user_id}.crt") < 5, "\tClient certificate not updated"
 
             print("\tUser configuration deleted successfully")
 
