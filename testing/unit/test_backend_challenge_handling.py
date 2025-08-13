@@ -178,11 +178,11 @@ def test_backend_challenge_handling():
 
                 for packet in test_packets:
                     verdict, logs = dry_run.send_packet_and_get_verdict(packet)
-                    was_allowed = verdict is not "DROP"
+                    was_allowed = verdict != "DROP"
 
                     check(
                         was_allowed == packet["allowed"],
-                        f"\t\t\tsrc: {packet['src']}, dst: {packet['dst']}, sport: {packet['sport']}, dport: {packet['dport']}"
+                        f"\t\t\tsrc: {packet['src']}, dst: {packet['dst']}, sport: {packet['sport']}, dport: {packet['dport']}",
                         f"\t\t\tsrc: {packet['src']}, dst: {packet['dst']}, sport: {packet['sport']}, dport: {packet['dport']}, expected: {packet['allowed']}, got: {was_allowed}"
                     )
 
