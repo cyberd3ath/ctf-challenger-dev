@@ -20,6 +20,8 @@ def test_backend_user_config_handling():
     Test the create_user_config function.
     """
 
+    print("\nTesting user configuration handling")
+
     with MockDatabase() as db_conn:
         user_id = test_user_setup(db_conn, "testuser", "testpassword")
 

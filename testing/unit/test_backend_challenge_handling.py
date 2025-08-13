@@ -28,6 +28,8 @@ def test_backend_challenge_handling():
     Test the launch_challenge and stop_challenge functions.
     """
 
+    print("\nTesting challenge handling")
+
     with MockDatabase() as db_conn:
         creator_id, challenge_template = test_plain_ubuntu_setup(db_conn)
 

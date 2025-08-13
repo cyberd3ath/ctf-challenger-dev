@@ -10,17 +10,10 @@ def run_all_tests():
     Run all unit tests.
     """
     print("============== BACKEND UNIT TESTS ==============")
-    print("\nTesting user configuration handling")
     test_backend_user_config_handling()
-
     time.sleep(10)
-
-    print("\nTesting machine template handling")
     test_backend_machine_template_handling()
-
     time.sleep(10)
-
-    print("\nTesting challenge handling")
     test_backend_challenge_handling()
 
 

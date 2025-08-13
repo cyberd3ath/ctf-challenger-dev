@@ -20,6 +20,9 @@ def test_backend_machine_template_handling():
     """
     Test the import_machine_templates function.
     """
+
+    print("\nTesting machine template handling")
+
     with MockDatabase() as db_conn:
         creator_id, challenge_template = test_plain_ubuntu_setup(db_conn)
 
