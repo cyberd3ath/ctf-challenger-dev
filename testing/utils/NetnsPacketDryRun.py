@@ -204,120 +204,98 @@ class NetnsPacketDryRun:
         except Exception:
             pass
 
-    def send_packet_and_get_verdict(self, src: str, dst: str, proto: str = 'tcp', sport: Optional[int] = None,
-                                     dport: Optional[int] = None, count: int = 1, timeout: int = 3) -> Tuple[Dict[str, Any], str]:
-        """Send a crafted packet from inside the namespace and gather verdict info.
+    import subprocess
+    import time
+    import json
+    import os
+    from typing import Dict, Any, Tuple
 
-        This does three things:
-          1. inserts a temporary TRACE rule in the FORWARD chain.
-          2. runs a short tcpdump inside the namespace capturing a single packet
-             (or more) so we can see if the packet traverses.
-          3. executes Scapy inside the namespace to send the packet.
-
-        Returns a tuple (verdict_dict, combined_text_logs)
+    def send_packet_and_get_verdict(self, packet: dict, count: int = 1, timeout: int = 3) -> Tuple[Dict[str, Any], str]:
         """
-        # prepare scapy python program
-        scapy_prog = [
-            "from scapy.all import *",
-            f"p=IP(src=\"{src}\",dst=\"{dst}\")",
+        Send a crafted packet between two namespaces using dedicated sender/receiver scripts.
+
+        Returns:
+            (verdict_dict, logs_as_json_string)
+        """
+
+        src = packet.get("src")
+        dst = packet.get("dst")
+        proto = packet.get("proto", "tcp").lower()
+        sport = packet.get("sport", 8000)
+        dport = packet.get("dport", 8000)
+
+        # Determine destination namespace
+        dst_ns = self._find_namespace_for_ip(dst)
+        if not dst_ns:
+            raise RuntimeError(f"Could not determine namespace for destination IP {dst}")
+
+        sender_script = os.path.join(self._scripts_dir, "packet_sender.py")
+        receiver_script = os.path.join(self._scripts_dir, "packet_receiver.py")
+
+        # Start receiver in destination namespace
+        recv_args = [
+            "ip", "netns", "exec", dst_ns,
+            "python3", receiver_script,
+            "--listen", dst,
+            "--proto", proto,
+            "--timeout", str(timeout)
         ]
-        if proto.lower() == 'tcp':
-            sport_arg = f",{sport}" if sport else ""
-            dport_arg = f",dport={dport}" if dport else ""
-            scapy_prog.append(f"p = p/TCP(sport={sport if sport else 'RandShort()'},{'dport='+str(dport) if dport else 'dport=RandShort()'})")
-        elif proto.lower() == 'udp':
-            scapy_prog.append(f"p = p/UDP(sport={sport if sport else 'RandShort()'},{'dport='+str(dport) if dport else 'dport=RandShort()'})")
-        elif proto.lower() == 'icmp':
-            scapy_prog.append("p = p/ICMP()")
-        else:
-            scapy_prog.append(f"p = p")
-        scapy_prog.append(f"send(p, count={count}, verbose=0)")
-        scapy_src = "\n".join(scapy_prog)
+        if proto in ("tcp", "udp"):
+            recv_args.extend(["--port", str(dport)])
 
-        # enable iptables TRACE if iptables exist
-        used_iptables = False
+        recv_proc = subprocess.Popen(
+            recv_args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
+        # Give the receiver a moment to bind
+        time.sleep(0.5)
+
+        # Run sender in source namespace
+        send_args = [
+            "ip", "netns", "exec", self.name,
+            "python3", sender_script,
+            "--src", src,
+            "--dst", dst,
+            "--proto", proto
+        ]
+        if proto in ("tcp", "udp"):
+            send_args.extend(["--port", str(dport)])
+
+        send_proc = subprocess.Popen(send_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        send_out, send_err = send_proc.communicate(timeout=timeout + 1)
+
+        # Wait for receiver to finish
         try:
-            # check iptables
-            res = self._run("command -v iptables >/dev/null && echo OK || true", capture_output=True)
-            if res.stdout.strip() == 'OK':
-                used_iptables = True
-                # add TRACE rule to FORWARD chain
-                try:
-                    self._run_netns("iptables -I FORWARD 1 -j TRACE")
-                    self._trace_marker_chain_added = True
-                except Exception:
-                    pass
-        except Exception:
-            pass
+            recv_out, recv_err = recv_proc.communicate(timeout=timeout + 1)
+        except subprocess.TimeoutExpired:
+            recv_proc.kill()
+            recv_out, recv_err = recv_proc.communicate()
 
-        # start tcpdump inside namespace capturing on `any` interface
-        pcap_file = f"{self._tmpdir}/capture.pcap"
-        tcpdump_cmd = f"timeout {timeout} tcpdump -i any -w {shlex.quote(pcap_file)} -c {count}"
-        tcpdump_proc = None
-        try:
-            tcpdump_full = f"ip netns exec {shlex.quote(self.name)} {tcpdump_cmd}"
-            print(f"Starting tcpdump: {tcpdump_full}")
-            if not self.dry_run:
-                tcpdump_proc = subprocess.Popen(tcpdump_full, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
-            else:
-                print("[dry_run] would start tcpdump")
+        # Build verdict
+        packet_received = (recv_proc.returncode == 0)
+        verdict_info = {
+            "src_namespace": self.name,
+            "dst_namespace": dst_ns,
+            "proto": proto,
+            "src_ip": src,
+            "dst_ip": dst,
+            "src_port": sport if proto in ("tcp", "udp") else None,
+            "dst_port": dport if proto in ("tcp", "udp") else None,
+            "receiver_output": recv_out.decode().strip(),
+            "receiver_error": recv_err.decode().strip(),
+            "sender_output": send_out.decode().strip(),
+            "sender_error": send_err.decode().strip(),
+            "forwarded": packet_received
+        }
 
-            # small pause to ensure tcpdump is listening
-            time.sleep(0.3)
+        final_verdict = {
+            "verdict": "FORWARDED" if packet_received else "DROPPED",
+            "details": verdict_info
+        }
 
-            # send packet(s)
-            scapy_cmd = f"python3 - <<'PY'\n{scapy_src}\nPY"
-            self._run_netns(scapy_cmd)
-
-            # wait for tcpdump to finish or timeout
-            if tcpdump_proc:
-                try:
-                    out, err = tcpdump_proc.communicate(timeout=timeout + 1)
-                except subprocess.TimeoutExpired:
-                    os.killpg(os.getpgid(tcpdump_proc.pid), signal.SIGTERM)
-                    out, err = tcpdump_proc.communicate()
-
-            # read pcap to know if any packets captured
-            verdict = {"forwarded": False, "trace": []}
-            if not self.dry_run and os.path.exists(pcap_file):
-                # use tcpdump -r to get a human-readable summary
-                r = subprocess.run(f"tcpdump -nn -r {shlex.quote(pcap_file)}", shell=True, capture_output=True, text=True)
-                cap_text = r.stdout
-                verdict['pcap_summary'] = cap_text
-                verdict['forwarded'] = bool(cap_text.strip())
-            else:
-                verdict['pcap_summary'] = ""
-
-            # check kernel trace logs (dmesg) for iptables TRACE output
-            try:
-                d = subprocess.run("dmesg --clear; sleep 0.1; dmesg", shell=True, capture_output=True, text=True)
-                dmsg = d.stdout
-                # pull lines mentioning TRACE or netfilter
-                trace_lines = [l for l in dmsg.splitlines() if 'TRACE' in l or 'netfilter' in l or 'iptables' in l]
-                verdict['trace'] = trace_lines
-            except Exception:
-                verdict['trace'] = []
-
-            # decide final verdict
-            # heuristics: if pcap captured packet -> packet existed in namespace
-            # if trace contains 'DROP' or 'REJECT' entries -> dropped
-            text_logs = json.dumps(verdict, indent=2)
-            if any('DROP' in l or 'REJECT' in l for l in verdict.get('trace', [])):
-                final = {'verdict': 'DROP', 'details': verdict}
-            elif verdict.get('forwarded'):
-                final = {'verdict': 'FORWARDED/SEEN', 'details': verdict}
-            else:
-                final = {'verdict': 'UNKNOWN', 'details': verdict}
-
-            return final, text_logs
-        finally:
-            # remove trace rule we added
-            if self._trace_marker_chain_added:
-                try:
-                    self._run_netns("iptables -D FORWARD -j TRACE || true")
-                except Exception:
-                    pass
-                self._trace_marker_chain_added = False
+        return final_verdict, json.dumps(verdict_info, indent=2)
 
     # -------------------- cleanup --------------------
     def close(self):

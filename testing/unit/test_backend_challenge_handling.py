@@ -172,15 +172,20 @@ def test_backend_challenge_handling():
             if result:
                 vpn_ip = result[0]
 
+            print("\t\tTesting firewall rules")
             with NetnsPacketDryRun() as dry_run:
                 test_packets = generate_test_packets(challenge, vpn_ip)
 
-                for packet, expected in test_packets:
-                    verdict, logs = dry_run.send_packet_and_get_verdict(**packet)
-                    actual = verdict is not "DROP"
+                for packet in test_packets:
+                    verdict, logs = dry_run.send_packet_and_get_verdict(packet)
+                    was_allowed = verdict is not "DROP"
 
-                    if actual != expected:
-                        print(f"\t\tPacket test failed: {packet}, expected: {expected}, actual: {actual}, logs: {logs}")
+                    check(
+                        was_allowed == packet["allowed"],
+                        f"\t\t\tsrc: {packet['src']}, dst: {packet['dst']}, sport: {packet['sport']}, dport: {packet['dport']}"
+                        f"\t\t\tsrc: {packet['src']}, dst: {packet['dst']}, sport: {packet['sport']}, dport: {packet['dport']}, expected: {packet['allowed']}, got: {was_allowed}"
+                    )
+
 
 
             print("\tChallenge launched successfully")
@@ -205,7 +210,7 @@ def test_backend_challenge_handling():
                 )
 
 
-                for machine in machines:
+                for machine in challenge.machines.values():
                     check(
                         not vm_exists_api_call(machine),
                         f"\t\tMachine {machine.id} has been deleted after challenge stop",
