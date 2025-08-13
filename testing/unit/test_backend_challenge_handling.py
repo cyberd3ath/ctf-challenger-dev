@@ -16,9 +16,11 @@ from import_machine_templates import import_machine_templates
 from delete_machine_templates import delete_machine_templates
 from launch_challenge import launch_challenge
 from stop_challenge import stop_challenge
-from proxmox_api_calls import vm_exists_api_call, vm_is_stopped_api_call
+from proxmox_api_calls import vm_exists_api_call, vm_is_stopped_api_call, network_device_exists_api_call
 from DatabaseClasses import Challenge, Machine, Network, Connection, Domain
 from check import check
+from NetnsPacketDryRun import NetnsPacketDryRun
+from generate_test_packets import generate_test_packets
 
 
 def test_backend_challenge_handling():
@@ -76,9 +78,8 @@ def test_backend_challenge_handling():
                 "\t\tFailed to retrieve subnet from database"
             )
 
-            challenge = Challenge(challenge_id, challenge_template_id, subnet)
+            challenge = Challenge(challenge_id, challenge_template, subnet)
 
-            machines = []
             with db_conn.cursor() as cursor:
                 for machine_template in challenge_template.machine_templates.values():
                     cursor.execute("SELECT id FROM machines WHERE challenge_id = %s AND machine_template_id = %s",
@@ -91,17 +92,19 @@ def test_backend_challenge_handling():
                     )
 
                     for row in result:
-                        machines.append(Machine(row[0], machine_template, challenge))
+                        machine_id = row[0]
+                        machine = Machine(machine_id, machine_template, challenge)
+                        challenge.add_machine(machine)
 
 
 
             check(
-                len(machines) == len(challenge_template.machine_templates),
+                len(challenge.machines) == len(challenge_template.machine_templates),
                 "\t\tNumber of machines in database matches the number of machine templates",
                 "\t\tNumber of machines in database does not match the number of machine templates"
             )
 
-            for machine in machines:
+            for machine in challenge.machines.values():
                 check(
                     vm_exists_api_call(machine),
                     f"\t\tMachine {machine.id} exists after launch",
@@ -112,6 +115,73 @@ def test_backend_challenge_handling():
                     f"\t\tMachine {machine.id} is running after launch",
                     f"\t\tMachine {machine.id} is not running after launch"
                 )
+
+            for network_template in challenge_template.network_templates.values():
+                with db_conn.cursor() as cursor:
+                    cursor.execute("SELECT n.id, n.subnet, n.host_device, nt.accessible FROM networks n, "
+                                   "network_templates nt WHERE nt.id = n.network_template_id AND nt.id = %s",
+                                   (network_template.id,))
+                    result = cursor.fetchall()
+
+                    for id, subnet, host_device, accessible in result:
+                        network = Network(id, network_template, subnet, host_device, accessible)
+                        challenge.add_network(network)
+
+            check(
+                len(challenge.networks) == len(challenge_template.network_templates),
+                "\t\tNumber of networks in database matches the number of network templates",
+                "\t\tNumber of networks in database does not match the number of network templates"
+            )
+
+            for network in challenge.networks.values():
+                check(
+                    network_device_exists_api_call(network),
+                    f"\t\tNetwork {network.host_device} exists after launch",
+                    f"\t\tNetwork {network.host_device} does not exist after launch"
+                )
+                check(
+                    os.path.exists(f"/etc/dnsmasq-instances/{network.host_device}.conf"),
+                    f"\t\tNetwork {network.id} configuration file exists",
+                    f"\t\tNetwork {network.id} configuration file does not exist"
+                )
+                check(
+                    os.path.exists(f"/etc/dnsmasq-instances/{network.host_device}.pid"),
+                    f"\t\tNetwork {network.id} dnsmasq instance is running",
+                    f"\t\tNetwork {network.id} dnsmasq instance is not running"
+                )
+
+            connections = {}
+            with db_conn.cursor() as cursor:
+                cursor.execute("SELECT machine_id, network_id, client_mac, client_ip FROM network_connections")
+                result = cursor.fetchall()
+
+                for machine_id, network_id, client_mac, client_ip in result:
+                    machine = challenge.machines.get(machine_id)
+                    network = challenge.networks.get(network_id)
+
+                    if machine and network:
+                        connection = Connection(machine, network, client_mac, client_ip)
+                        challenge.add_connection(connection)
+                        machine.add_connection(connection)
+                        network.add_connection(connection)
+
+            vpn_ip = None
+            with db_conn.cursor() as cursor:
+                cursor.execute("SELECT vpn_static_ip FROM users WHERE id = %s", (creator_id,))
+                result = cursor.fetchone()
+            if result:
+                vpn_ip = result[0]
+
+            with NetnsPacketDryRun() as dry_run:
+                test_packets = generate_test_packets(challenge, vpn_ip)
+
+                for packet, expected in test_packets:
+                    verdict, logs = dry_run.send_packet_and_get_verdict(**packet)
+                    actual = verdict is not "DROP"
+
+                    if actual != expected:
+                        print(f"\t\tPacket test failed: {packet}, expected: {expected}, actual: {actual}, logs: {logs}")
+
 
             print("\tChallenge launched successfully")
 

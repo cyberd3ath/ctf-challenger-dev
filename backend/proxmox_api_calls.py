@@ -158,3 +158,45 @@ def vm_exists_api_call(machine):
         return True
     except Exception:
         return False
+
+
+def vm_is_template_api_call(machine_template):
+    """
+    Check if a virtual machine is a template in Proxmox.
+    """
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine_template.id}/config"
+    response = make_api_call("GET", endpoint)
+
+    return response["data"]["template"] == 0 if "template" in response["data"] else False
+
+
+def get_sockets_api_call(machine_template):
+    """
+    Get the number of sockets for a virtual machine in Proxmox.
+    """
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine_template.id}/config"
+    response = make_api_call("GET", endpoint)
+
+    return response["data"]["sockets"] if "sockets" in response["data"] else 1
+
+
+def get_memory_api_call(machine_template):
+    """
+    Get the memory size for a virtual machine in Proxmox.
+    """
+    endpoint = f"api2/json/nodes/{node}/qemu/{machine_template.id}/config"
+    response = make_api_call("GET", endpoint)
+
+    return response["data"]["memory"]
+
+
+def network_device_exists_api_call(network):
+    """
+    Check if a network device exists in Proxmox.
+    """
+    endpoint = f"api2/json/nodes/{node}/network/{network.host_device}"
+    try:
+        make_api_call("GET", endpoint)
+        return True
+    except Exception:
+        return False

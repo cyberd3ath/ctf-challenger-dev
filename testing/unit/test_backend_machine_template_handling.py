@@ -12,7 +12,7 @@ from mock_db import MockDatabase
 from test_challenge_template_setup import test_plain_ubuntu_setup
 from import_machine_templates import import_machine_templates
 from delete_machine_templates import delete_machine_templates
-from proxmox_api_calls import vm_exists_api_call
+from proxmox_api_calls import vm_exists_api_call, vm_is_template_api_call, get_sockets_api_call, get_memory_api_call
 from check import check
 
 
@@ -39,6 +39,28 @@ def test_backend_machine_template_handling():
                 vm_exists_api_call(machine_template),
                 "\t\tMachine template VM exists after import",
                 "\t\tMachine template VM does not exist after import"
+            )
+
+            import_dirs = os.listdir(f"/tmp/")
+            check(
+                len([d for d in import_dirs if d.startswith(f"proxmox_import")]) == 0,
+                "\t\tAll temporary import directories cleaned up",
+                "\t\tTemporary import directories not cleaned up"
+            )
+            check(
+                vm_is_template_api_call(machine_template),
+                "\t\tMachine template VM is a template",
+                "\t\tMachine template VM is not a template"
+            )
+            check(
+                machine_template.sockets == get_sockets_api_call(machine_template),
+                "\t\tMachine template VM has correct number of sockets",
+                "\t\tMachine template VM does not have correct number of sockets"
+            )
+            check(
+                machine_template.ram == get_memory_api_call(machine_template),
+                "\t\tMachine template VM has correct RAM size",
+                "\t\tMachine template VM does not have correct RAM size"
             )
 
             print("\tMachine templates imported successfully")
