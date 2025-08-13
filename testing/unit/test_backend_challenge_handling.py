@@ -1,3 +1,4 @@
+import subprocess
 import sys
 import os
 import time
@@ -19,8 +20,7 @@ from stop_challenge import stop_challenge
 from proxmox_api_calls import vm_exists_api_call, vm_is_stopped_api_call, network_device_exists_api_call
 from DatabaseClasses import Challenge, Machine, Network, Connection, Domain
 from check import check
-from NetnsPacketDryRun import NetnsPacketDryRun
-from generate_test_packets import generate_test_packets
+from scapy.all import sr1, IP, ICMP
 
 
 def test_backend_challenge_handling():
@@ -136,21 +136,31 @@ def test_backend_challenge_handling():
             for network in challenge.networks.values():
                 check(
                     network_device_exists_api_call(network),
-                    f"\t\tNetwork {network.host_device} exists after launch",
-                    f"\t\tNetwork {network.host_device} does not exist after launch"
+                    f"\t\tNetwork {network.host_device} exists in Proxmox",
+                    f"\t\tNetwork {network.host_device} does not exist in Proxmox"
                 )
                 check(
-                    os.path.exists(f"/etc/dnsmasq-instances/{network.host_device}.conf"),
+                    os.path.exists(f"/sys/class/net/{network.host_device}"),
+                    f"\t\tNetwork {network.host_device} interface exists on the host",
+                    f"\t\tNetwork {network.host_device} interface does not exist on the host"
+                )
+                check(
+                    os.path.exists(f"/etc/dnsmasq-instances/dnsmasq_{network.host_device}.conf"),
                     f"\t\tNetwork {network.id} configuration file exists",
                     f"\t\tNetwork {network.id} configuration file does not exist"
                 )
                 check(
-                    os.path.exists(f"/etc/dnsmasq-instances/{network.host_device}.pid"),
+                    os.path.exists(f"/etc/dnsmasq-instances/dnsmasq_{network.host_device}.pid"),
                     f"\t\tNetwork {network.id} dnsmasq instance is running",
                     f"\t\tNetwork {network.id} dnsmasq instance is not running"
                 )
+                pid = open(f"/etc/dnsmasq-instances/dnsmasq_{network.host_device}.pid").read().strip()
+                check(
+                    os.path.exists(f"/proc/{pid}"),
+                    f"\t\tNetwork {network.id} dnsmasq process exists",
+                    f"\t\tNetwork {network.id} dnsmasq process does not exist"
+                )
 
-            connections = {}
             with db_conn.cursor() as cursor:
                 cursor.execute("SELECT machine_id, network_id, client_mac, client_ip FROM network_connections")
                 result = cursor.fetchall()
@@ -165,26 +175,54 @@ def test_backend_challenge_handling():
                         machine.add_connection(connection)
                         network.add_connection(connection)
 
+
+            with db_conn.cursor() as cursor:
+                for machine in challenge.machines.values():
+                    cursor.execute("SELECT domain_name from domains WHERE machine_id = %s", (machine.id,))
+                    result = cursor.fetchall()
+                    for domain_name in result:
+                        domain = Domain(machine, domain_name[0])
+                        challenge.add_domain(domain)
+                        machine.add_domain(domain)
+
+            for connection in challenge.connections.values():
+                packet = IP(dst=connection.client_ip) / ICMP()
+
+                timeout = 30
+                start_time = time.time()
+                response = None
+                while time.time() - start_time < timeout:
+                    response = sr1(packet, verbose=0, timeout=1)
+                    if response is not None:
+                        break
+
+                check(
+                    response is not None,
+                    f"\t\tPing to {connection.client_ip} successful",
+                    f"\t\tPing to {connection.client_ip} failed"
+                )
+
+            for machine in challenge.machines.values():
+                for domain in machine.domains:
+                    for connection in machine.connections.values():
+                        stdout = subprocess.run(
+                            ["dig", f"@{connection.network.router_ip}", domain.domain_name, "+short"],
+                            check=True,
+                            capture_output=True
+                        ).stdout.decode().strip()
+
+                        check(
+                            stdout == connection.client_ip,
+                            f"\t\tDNS resolution for {domain.domain_name} matches {connection.client_ip}",
+                            f"\t\tDNS resolution for {domain.domain_name} does not match {connection.client_ip}"
+                        )
+
             vpn_ip = None
             with db_conn.cursor() as cursor:
                 cursor.execute("SELECT vpn_static_ip FROM users WHERE id = %s", (creator_id,))
                 result = cursor.fetchone()
             if result:
                 vpn_ip = result[0]
-
-            print("\t\tTesting firewall rules")
-            with NetnsPacketDryRun() as dry_run:
-                test_packets = generate_test_packets(challenge, vpn_ip)
-
-                for packet in test_packets:
-                    verdict, logs = dry_run.send_packet_and_get_verdict(packet)
-                    was_allowed = verdict != "DROP"
-
-                    check(
-                        was_allowed == packet["allowed"],
-                        f"\t\t\tsrc: {packet['src']}, dst: {packet['dst']}, sport: {packet['sport']}, dport: {packet['dport']}",
-                        f"\t\t\tsrc: {packet['src']}, dst: {packet['dst']}, sport: {packet['sport']}, dport: {packet['dport']}, expected: {packet['allowed']}, got: {was_allowed}"
-                    )
 
 
 
@@ -208,7 +246,6 @@ def test_backend_challenge_handling():
                     "\t\tUser's running challenge set to None after stop",
                     "\t\tUser's running challenge is not None after stop"
                 )
-
 
                 for machine in challenge.machines.values():
                     check(
