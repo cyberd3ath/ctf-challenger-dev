@@ -166,7 +166,8 @@ def convert_iso_to_machine_template(disk_file_path, machine_template_id):
         subprocess.run(importdisk_command, shell=True, check=True, capture_output=True)
     except Exception as e1:
         try:
-            subprocess.run(["qm", "delvm", str(machine_template_id)], check=True, capture_output=True)
+            subprocess.run(["qm", "unlock", str(machine_template_id)], check=True, capture_output=True)
+            subprocess.run(["qm", "destroy", str(machine_template_id)], check=True, capture_output=True)
         except Exception as e2:
             pass
 
@@ -206,4 +207,5 @@ def undo_import_machine_templates(challenge_template):
         try:
             delete_vm_api_call(machine_template)
         except Exception:
-            pass
+            subprocess.run(["qm", "unlock", str(machine_template.id)], check=True, capture_output=True)
+            subprocess.run(["qm", "destroy", str(machine_template.id)], check=True, capture_output=True)
