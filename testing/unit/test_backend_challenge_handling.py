@@ -187,19 +187,33 @@ def test_backend_challenge_handling():
                         challenge.add_domain(domain)
                         machine.add_domain(domain)
 
-            for connection in challenge.connections.values():
-                packet = IP(dst=connection.client_ip) / ICMP()
+            subprocess.run(["ip", "netns", "add", "vpnspace"],
+                           check=True, capture_output=True)
+            subprocess.run(["ip", "netns", "exec", "vpnspace", "ip", "link", "set", "lo", "up"],
+                           check=True, capture_output=True)
+            subprocess.Popen(["ip", "netns", "exec", "vpnspace", "openvpn", "--config",
+                                            f"/etc/openvpn/client-configs/{creator_id}.conf", "--daemon"],
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+            time.sleep(5)  # Wait for OpenVPN to start
+
+            for connection in challenge.connections.values():
                 timeout = 30
                 start_time = time.time()
-                response = None
+                success = False
+
                 while time.time() - start_time < timeout:
-                    response = sr1(packet, verbose=0, timeout=1)
-                    if response is not None:
+                    result = subprocess.run(
+                        ["ip", "netns", "exec", "vpnspace", "ping", "-c", "1", "-W", "1", connection.client_ip],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+
+                    if result.returncode == 0:
+                        success = True
                         break
 
                 check(
-                    response is not None,
+                    success,
                     f"\t\tPing to {connection.client_ip} successful",
                     f"\t\tPing to {connection.client_ip} failed"
                 )
@@ -208,15 +222,15 @@ def test_backend_challenge_handling():
                 for domain in machine.domains:
                     for connection in machine.connections.values():
                         stdout = subprocess.run(
-                            ["dig", f"@{connection.network.router_ip}", domain.domain_name, "+short"],
+                            ["dig", f"@{connection.network.router_ip}", domain, "+short"],
                             check=True,
                             capture_output=True
                         ).stdout.decode().strip()
 
                         check(
                             stdout == connection.client_ip,
-                            f"\t\tDNS resolution for {domain.domain_name} matches {connection.client_ip}",
-                            f"\t\tDNS resolution for {domain.domain_name} does not match {connection.client_ip}"
+                            f"\t\tDNS resolution for {domain} matches {connection.client_ip}",
+                            f"\t\tDNS resolution for {domain} does not match {connection.client_ip}"
                         )
 
             vpn_ip = None
