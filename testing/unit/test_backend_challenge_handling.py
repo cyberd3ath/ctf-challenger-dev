@@ -205,9 +205,17 @@ def test_backend_challenge_handling():
                 while time.time() - start_time < timeout:
                     result = subprocess.run(
                         ["ip", "netns", "exec", "vpnspace", "ping", "-c", "1", "-W", "1", connection.client_ip],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE
                     )
 
+                    print()
+                    print(f"\t\tPinging {connection.client_ip} from VPN namespace")
+                    print(f"\t\tReturn code: {result.returncode}")
+                    print(f"\t\tOutput:")
+                    print(result.stdout.decode().strip())
+                    print(f"\t\tError:")
+                    print(result.stderr.decode().strip())
+                    print()
                     if result.returncode == 0:
                         success = True
                         break
