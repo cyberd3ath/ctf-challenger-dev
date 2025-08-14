@@ -192,7 +192,7 @@ def test_backend_challenge_handling():
             subprocess.run(["ip", "netns", "exec", "vpnspace", "ip", "link", "set", "lo", "up"],
                            check=True, capture_output=True)
             subprocess.Popen(["ip", "netns", "exec", "vpnspace", "openvpn", "--config",
-                                            f"/etc/openvpn/client-configs/{creator_id}.conf", "--daemon"],
+                                            f"/etc/openvpn/client-configs/{creator_id}.conf"],
                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             time.sleep(5)  # Wait for OpenVPN to start
