@@ -194,6 +194,9 @@ def install_dependencies():
     print("\tInstalling sudo (used in testing)")
     subprocess.run(["apt", "install", "-y", "sudo"], check=True, capture_output=True)
 
+    print("\tInstalling scapy (used in testing)")
+    subprocess.run(["apt", "install", "-y", "python3-scapy"], check=True, capture_output=True)
+
 
 def setup_backend_certificate():
     """

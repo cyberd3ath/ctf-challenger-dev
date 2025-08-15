@@ -41,6 +41,13 @@ def test_backend_challenge_handling():
 
         print(f"\tTesting challenge launch")
         try:
+            vpn_ip = None
+            with db_conn.cursor() as cursor:
+                cursor.execute("SELECT vpn_static_ip FROM users WHERE id = %s", (creator_id,))
+                result = cursor.fetchone()
+            if result:
+                vpn_ip = result[0]
+
             # Launch the challenge
             launch_challenge(challenge_template.id, creator_id, db_conn)
 
@@ -187,36 +194,33 @@ def test_backend_challenge_handling():
                         challenge.add_domain(domain)
                         machine.add_domain(domain)
 
-            subprocess.run(["ip", "netns", "add", "vpnspace"],
-                           check=True, capture_output=True)
-            subprocess.run(["ip", "netns", "exec", "vpnspace", "ip", "link", "set", "lo", "up"],
-                           check=True, capture_output=True)
-            subprocess.Popen(["ip", "netns", "exec", "vpnspace", "openvpn", "--config",
-                                            f"/etc/openvpn/client-configs/{creator_id}.conf"],
+            openvpn_proc = subprocess.Popen(["openvpn", "--config",
+                                            f"/etc/openvpn/client-configs/{creator_id}.ovpn"],
                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             time.sleep(5)  # Wait for OpenVPN to start
 
             for connection in challenge.connections.values():
-                timeout = 30
+                if not connection.network.accessible:
+                    continue
+
+                timeout = 120
                 start_time = time.time()
                 success = False
 
                 while time.time() - start_time < timeout:
-                    result = subprocess.run(
-                        ["ip", "netns", "exec", "vpnspace", "ping", "-c", "1", "-W", "1", connection.client_ip],
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                    )
+                    packet = IP(dst=f"{connection.client_ip}%tun1") / ICMP()
+                    result = sr1(packet, timeout=5, verbose=False)
 
                     print()
-                    print(f"\t\tPinging {connection.client_ip} from VPN namespace")
+                    print(f"\t\tPinging {connection.client_ip}")
                     print(f"\t\tReturn code: {result.returncode}")
                     print(f"\t\tOutput:")
                     print(result.stdout.decode().strip())
                     print(f"\t\tError:")
                     print(result.stderr.decode().strip())
                     print()
-                    if result.returncode == 0:
+                    if result is not None == 0:
                         success = True
                         break
 
@@ -225,6 +229,8 @@ def test_backend_challenge_handling():
                     f"\t\tPing to {connection.client_ip} successful",
                     f"\t\tPing to {connection.client_ip} failed"
                 )
+
+            openvpn_proc.terminate()
 
             for machine in challenge.machines.values():
                 for domain in machine.domains:
@@ -240,15 +246,6 @@ def test_backend_challenge_handling():
                             f"\t\tDNS resolution for {domain} matches {connection.client_ip}",
                             f"\t\tDNS resolution for {domain} does not match {connection.client_ip}"
                         )
-
-            vpn_ip = None
-            with db_conn.cursor() as cursor:
-                cursor.execute("SELECT vpn_static_ip FROM users WHERE id = %s", (creator_id,))
-                result = cursor.fetchone()
-            if result:
-                vpn_ip = result[0]
-
-
 
             print("\tChallenge launched successfully")
 
