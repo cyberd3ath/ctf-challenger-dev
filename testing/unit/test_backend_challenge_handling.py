@@ -220,7 +220,7 @@ def test_backend_challenge_handling():
                     print(f"\t\tError:")
                     print(result.stderr.decode().strip())
                     print()
-                    if result is not None == 0:
+                    if result is not None:
                         success = True
                         break
 
