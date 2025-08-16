@@ -198,37 +198,50 @@ def test_backend_challenge_handling():
                                             f"/etc/openvpn/client-configs/{creator_id}.ovpn"],
                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-            time.sleep(5)  # Wait for OpenVPN to start
+            time.sleep(5)  # Wait
 
-            for connection in challenge.connections.values():
-                if not connection.network.accessible:
-                    continue
+            ping_mode = None
 
-                timeout = 120
-                start_time = time.time()
-                success = False
+            if ping_mode is not None:
+                for connection in challenge.connections.values():
+                    if not connection.network.accessible:
+                        continue
 
-                while time.time() - start_time < timeout:
-                    packet = IP(dst=f"{connection.client_ip}%tun1") / ICMP()
-                    result = sr1(packet, timeout=5, verbose=False)
+                    timeout = 120
+                    start_time = time.time()
+                    success = False
 
-                    print()
-                    print(f"\t\tPinging {connection.client_ip}")
-                    print(f"\t\tReturn code: {result.returncode}")
-                    print(f"\t\tOutput:")
-                    print(result.stdout.decode().strip())
-                    print(f"\t\tError:")
-                    print(result.stderr.decode().strip())
-                    print()
-                    if result is not None:
-                        success = True
-                        break
+                    while time.time() - start_time < timeout:
+                        if ping_mode == "scapy":
+                            packet = IP(dst=f"{connection.client_ip}%tun1") / ICMP()
+                            result = sr1(packet, timeout=5, verbose=False)
 
-                check(
-                    success,
-                    f"\t\tPing to {connection.client_ip} successful",
-                    f"\t\tPing to {connection.client_ip} failed"
-                )
+                            if result is not None:
+                                success = True
+                                break
+
+                        if ping_mode == "normal":
+                            ping_proc = subprocess.run(["ping", "-c", "1", "-S", "tun1", "-W", "5", connection.client_ip], capture_output=True)
+
+                            if ping_proc.returncode == 0:
+                                success = True
+                                break
+
+                        print()
+                        print(f"\t\tPinging {connection.client_ip}")
+                        print(f"\t\tReturn code: {result.returncode}")
+                        print(f"\t\tOutput:")
+                        print(result.stdout.decode().strip())
+                        print(f"\t\tError:")
+                        print(result.stderr.decode().strip())
+                        print()
+
+
+                    check(
+                        success,
+                        f"\t\tPing to {connection.client_ip} successful",
+                        f"\t\tPing to {connection.client_ip} failed"
+                    )
 
             openvpn_proc.terminate()
 
