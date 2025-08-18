@@ -393,7 +393,7 @@ class RegistrationHandler
 }
 
 try {
-    $handler = new RegistrationHandler($generalConfig);
+    $handler = new RegistrationHandler(generalConfig: $generalConfig, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

@@ -365,7 +365,7 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
 }
 
 try {
-    $handler = new ExploreHandler($config);
+    $handler = new ExploreHandler(config: $config, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

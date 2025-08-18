@@ -346,7 +346,7 @@ class BadgesHandler
 }
 
 try {
-    $handler = new BadgesHandler($config);
+    $handler = new BadgesHandler(config: $config, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

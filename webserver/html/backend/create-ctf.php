@@ -855,7 +855,7 @@ class CtfCreationHandler
 }
 
 try {
-    $handler = new CtfCreationHandler($config, $generalConfig);
+    $handler = new CtfCreationHandler(config: $config, generalConfig: $generalConfig, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

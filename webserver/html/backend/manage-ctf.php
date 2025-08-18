@@ -899,7 +899,7 @@ class CTFManagementHandler
 }
 
 try {
-    $handler = new CTFManagementHandler($config, $generalConfig);
+    $handler = new CTFManagementHandler(config: $config, generalConfig: $generalConfig, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

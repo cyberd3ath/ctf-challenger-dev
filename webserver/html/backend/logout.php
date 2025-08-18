@@ -155,7 +155,7 @@ class LogoutHandler
 }
 
 try {
-    $handler = new LogoutHandler();
+    $handler = new LogoutHandler(session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

@@ -765,7 +765,7 @@ class OvaUploadHandler
 }
 
 try {
-    $handler = new OvaUploadHandler($config, $generalConfig);
+    $handler = new OvaUploadHandler(config: $config, generalConfig: $generalConfig, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

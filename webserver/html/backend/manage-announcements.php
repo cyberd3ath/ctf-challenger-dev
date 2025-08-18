@@ -396,7 +396,7 @@ class AdminAnnouncementsHandler
 }
 
 try {
-    $handler = new AdminAnnouncementsHandler($config, $generalConfig);
+    $handler = new AdminAnnouncementsHandler(config: $config, generalConfig: $generalConfig, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

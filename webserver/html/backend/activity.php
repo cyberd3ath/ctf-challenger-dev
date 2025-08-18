@@ -434,7 +434,7 @@ class ActivitiesHandler
 }
 
 try {
-    $handler = new ActivitiesHandler($config);
+    $handler = new ActivitiesHandler(config: $config, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

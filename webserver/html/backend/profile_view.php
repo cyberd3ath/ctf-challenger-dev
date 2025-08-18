@@ -443,7 +443,7 @@ class ProfileHandlerPublic
 }
 
 try {
-    $handler = new ProfileHandlerPublic($generalConfig);
+    $handler = new ProfileHandlerPublic(generalConfig: $generalConfig, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

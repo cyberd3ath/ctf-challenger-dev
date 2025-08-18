@@ -238,7 +238,7 @@ class AnnouncementsHandler
 }
 
 try {
-    $handler = new AnnouncementsHandler($config);
+    $handler = new AnnouncementsHandler(config: $config, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

@@ -981,7 +981,7 @@ class DashboardHandler
 }
 
 try {
-    $handler = new DashboardHandler($config);
+    $handler = new DashboardHandler(config: $config, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

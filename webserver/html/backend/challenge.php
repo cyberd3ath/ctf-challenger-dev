@@ -1279,7 +1279,7 @@ class ChallengeHandler
 }
 
 try {
-    $api = new ChallengeHandler($config);
+    $api = new ChallengeHandler(config: $config, session: $_SESSION);
     $api->handleRequest();
 } catch (Exception $e) {
     $errorCode = (int)($e->getCode() ?: 500);

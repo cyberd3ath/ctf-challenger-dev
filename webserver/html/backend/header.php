@@ -144,7 +144,7 @@ class ProfileStatusHandler
 }
 
 try {
-    $handler = new ProfileStatusHandler();
+    $handler = new ProfileStatusHandler(session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

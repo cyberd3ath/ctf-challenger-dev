@@ -1455,7 +1455,7 @@ class ProfileHandler
 }
 
 try {
-    $handler = new ProfileHandler($config, $generalConfig);
+    $handler = new ProfileHandler(generalConfig: $generalConfig, session: $_SESSION);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

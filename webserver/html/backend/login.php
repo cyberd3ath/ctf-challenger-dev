@@ -260,7 +260,7 @@ class LoginHandler
 }
 
 try {
-    $handler = new LoginHandler();
+    $handler = new LoginHandler(session: $_SESSION);
     $handler->handleRequest();
 } catch (Throwable $e) {
     $errorCode = $e->getCode() ?: 500;
