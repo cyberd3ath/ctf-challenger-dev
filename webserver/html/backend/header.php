@@ -149,7 +149,8 @@ try {
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
-    $this->logger->logError("Error in header endpoint: " . $e->getMessage() . " (Code: $errorCode)");
+    $logger = new Logger();
+    $logger->logError("Error in header endpoint: " . $e->getMessage() . " (Code: $errorCode)");
     $response = [
         'success' => false,
         'message' => $e->getMessage()

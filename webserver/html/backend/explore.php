@@ -370,18 +370,19 @@ try {
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;
     $errorMessage = $e->getMessage();
+    $logger = new Logger();
 
     if ($errorCode === 401) {
         session_unset();
         session_destroy();
-        $this->logger->logWarning("Session destroyed due to unauthorized access");
+        $logger->logWarning("Session destroyed due to unauthorized access");
     }
 
     if ($errorCode >= 500) {
         $errorMessage = 'An internal server error occurred';
-        $this->logger->logError("Internal error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+        $logger->logError("Internal error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
     } else {
-        $this->logger->logError("Explore endpoint error: " . $e->getMessage());
+        $logger->logError("Explore endpoint error: " . $e->getMessage());
     }
 
     http_response_code($errorCode);

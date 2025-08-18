@@ -1284,7 +1284,8 @@ try {
 } catch (Exception $e) {
     $errorCode = (int)($e->getCode() ?: 500);
     http_response_code($errorCode);
-    $this->logger->logError("Error in challenge endpoint: " . $e->getMessage() . " (Code: $errorCode)");
+    $logger = new Logger();
+    $logger->logError("Error in challenge endpoint: " . $e->getMessage() . " (Code: $errorCode)");
     $response = [
         'success' => false,
         'message' => $e->getMessage()
