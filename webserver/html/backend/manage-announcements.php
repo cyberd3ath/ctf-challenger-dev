@@ -25,9 +25,6 @@ class AdminAnnouncementsHandler
     private array $session;
     private array $server;
     private array $get;
-    private array $post;
-    private array $files;
-    private array $env;
 
     public function __construct(
         array $config,
@@ -37,10 +34,7 @@ class AdminAnnouncementsHandler
         ILogger $logger = new Logger(),
         array $session = null,
         array $server = null,
-        array $get = null,
-        array $post = null,
-        array $files = null,
-        array $env = null
+        array $get = null
     )
     {
         if($session)
@@ -50,9 +44,6 @@ class AdminAnnouncementsHandler
 
         $this->server = $server ?? $_SERVER;
         $this->get = $get ?? $_GET;
-        $this->post = $post ?? $_POST;
-        $this->files = $files ?? $_FILES;
-        $this->env = $env ?? $_ENV;
 
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
