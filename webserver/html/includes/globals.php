@@ -1,6 +1,10 @@
 <?php
 
-interface IGlobal extends ArrayAccess, IteratorAggregate, Countable {}
+interface IGlobal extends ArrayAccess, IteratorAggregate, Countable
+{
+    public function all(): array;
+    public function clear(): void;
+}
 
 interface ISession extends IGlobal {}
 class Session implements ISession
@@ -27,6 +31,14 @@ class Session implements ISession
 
     public function count(): int {
         return count($_SESSION);
+    }
+
+    public function all(): array {
+        return $_SESSION;
+    }
+
+    public function clear(): void {
+        $_SESSION = [];
     }
 }
 
@@ -56,6 +68,14 @@ class Get implements IGet
     public function count(): int {
         return count($_GET);
     }
+
+    public function all(): array {
+        return $_GET;
+    }
+
+    public function clear(): void {
+        $_GET = [];
+    }
 }
 
 interface IPost extends IGlobal {}
@@ -83,6 +103,14 @@ class Post implements IPost
 
     public function count(): int {
         return count($_POST);
+    }
+
+    public function all(): array {
+        return $_POST;
+    }
+
+    public function clear(): void {
+        $_POST = [];
     }
 }
 
@@ -112,6 +140,14 @@ class Server implements IServer
     public function count(): int {
         return count($_SERVER);
     }
+
+    public function all(): array {
+        return $_SERVER;
+    }
+
+    public function clear(): void {
+        $_SERVER = [];
+    }
 }
 
 interface IEnv extends IGlobal {}
@@ -140,6 +176,14 @@ class Env implements IEnv
     public function count(): int {
         return count($_ENV);
     }
+
+    public function all(): array {
+        return $_ENV;
+    }
+
+    public function clear(): void {
+        $_ENV = [];
+    }
 }
 
 interface IFiles extends IGlobal {}
@@ -167,6 +211,14 @@ class Files implements IFiles
 
     public function count(): int {
         return count($_FILES);
+    }
+
+    public function all(): array {
+        return $_FILES;
+    }
+
+    public function clear(): void {
+        $_FILES = [];
     }
 }
 

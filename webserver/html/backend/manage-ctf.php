@@ -112,7 +112,7 @@ class CTFManagementHandler
     private function parseInputData(): array
     {
         if ($this->method === 'GET') {
-            return $this->get;
+            return $this->get->all();
         }
 
         if ($this->method === 'DELETE') {
@@ -124,7 +124,7 @@ class CTFManagementHandler
             return $data;
         }
 
-        return $this->post;
+        return $this->post->all();
     }
 
     public function handleRequest(): void

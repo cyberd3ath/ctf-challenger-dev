@@ -170,7 +170,7 @@ class ProfileHandler
                 throw new Exception('Invalid JSON data', 400);
             }
         } else {
-            $data = $this->post;
+            $data = $this->post->all();
         }
 
         $action = $data['action'] ?? '';
@@ -1371,7 +1371,7 @@ class ProfileHandler
     {
         try {
             session_regenerate_id(true);
-            $this->session = [];
+            $this->session->clear();
 
             if (session_status() === PHP_SESSION_ACTIVE) {
                 session_destroy();

@@ -120,7 +120,7 @@ class CtfCreationHandler
             return array_merge($this->post, $jsonInput);
         }
 
-        return $this->post;
+        return $this->post->all();
     }
 
     public function handleRequest(): void

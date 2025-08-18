@@ -131,10 +131,10 @@ class OvaUploadHandler
 
         $jsonInput = json_decode(file_get_contents('php://input'), true);
         if ($jsonInput !== null) {
-            return array_merge($this->post, $jsonInput);
+            return array_merge($this->post->all(), $jsonInput);
         }
 
-        return $this->post;
+        return $this->post->all();
     }
 
     public function handleRequest(): void
