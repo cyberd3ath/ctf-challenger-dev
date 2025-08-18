@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use JetBrains\PhpStorm\NoReturn;
+
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
@@ -33,6 +35,9 @@ class OvaUploadHandler
     private array $files;
     private array $env;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
         array $config,
         array $generalConfig,
@@ -77,7 +82,7 @@ class OvaUploadHandler
         $this->action = $this->get['action'] ?? '';
         $this->inputData = $this->parseInputData();
 
-        $this->logger->logDebug("Initialized OvaUploadHandler for User ID: {$this->userId}, Action: {$this->action}");
+        $this->logger->logDebug("Initialized OvaUploadHandler for User ID: $this->userId, Action: $this->action");
     }
 
     private function initSession(): void
@@ -90,6 +95,9 @@ class OvaUploadHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateAccess(): void
     {
         if (!$this->securityHelper->validateSession()) {
@@ -118,7 +126,7 @@ class OvaUploadHandler
         if ($this->server['REQUEST_METHOD'] === 'DELETE') {
             $data = json_decode(file_get_contents('php://input'), true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->logger->logError("Invalid JSON in OVA deletion - User ID: {$this->userId}");
+                $this->logger->logError("Invalid JSON in OVA deletion - User ID: $this->userId");
                 throw new RuntimeException('Invalid JSON data', 400);
             }
             return $data;
@@ -161,10 +169,13 @@ class OvaUploadHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function handlePostRequest(): void
     {
         $uploadType = isset($this->inputData['uploadId']) ? 'chunked' : 'direct';
-        $this->logger->logDebug("Upload initiated by user {$this->userId}, type: {$uploadType}");
+        $this->logger->logDebug("Upload initiated by user $this->userId, type: $uploadType");
 
         if ($uploadType === 'chunked') {
             $this->handleChunkedUpload();
@@ -173,6 +184,9 @@ class OvaUploadHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function handleChunkedUpload(): void
     {
         $phase = $this->inputData['phase'] ??
@@ -197,13 +211,13 @@ class OvaUploadHandler
         }
     }
 
-    private function handleChunkedInit(): void
+    #[NoReturn] private function handleChunkedInit(): void
     {
         $fileName = $this->sanitizeFilename($this->inputData['fileName']);
         $fileSize = (int)($this->inputData['fileSize'] ?? 0);
         $totalChunks = (int)($this->inputData['totalChunks'] ?? 0);
 
-        $this->logger->logDebug("Chunked upload init for user {$this->userId}: {$fileName} ({$fileSize} bytes)");
+        $this->logger->logDebug("Chunked upload init for user $this->userId: $fileName ($fileSize bytes)");
 
         $this->validateFileSize($fileSize);
         $this->validateFileType($fileName);
@@ -219,7 +233,7 @@ class OvaUploadHandler
             'uploadId' => $uploadId,
             'chunkSize' => $this->generalConfig['upload']['CHUNK_SIZE']
         ]);
-        exit;
+        defined('PHPUNIT_RUNNING') || exit;
     }
 
     private function handleChunkUpload(): void
@@ -234,27 +248,27 @@ class OvaUploadHandler
         $chunkTmpName = $this->files['chunk']['tmp_name'];
         $chunkData = file_get_contents($chunkTmpName);
         if ($chunkData === false) {
-            $this->logger->logError("Failed to read uploaded chunk {$chunkIndex} for upload {$uploadId}");
+            $this->logger->logError("Failed to read uploaded chunk $chunkIndex for upload $uploadId");
             throw new RuntimeException('File read failed', 500);
         }
 
         $combinedFile = $tempFile . '.combined';
         $out = fopen($combinedFile, 'c+b');
         if (!$out) {
-            $this->logger->logError("Failed to open combined file for writing chunk {$chunkIndex} of upload {$uploadId}");
+            $this->logger->logError("Failed to open combined file for writing chunk $chunkIndex of upload $uploadId");
             throw new RuntimeException('File open failed', 500);
         }
 
         $offset = $chunkIndex * $chunkSize;
         if (fseek($out, $offset) !== 0) {
             fclose($out);
-            $this->logger->logError("fseek failed for chunk {$chunkIndex} at offset {$offset} in upload {$uploadId}");
+            $this->logger->logError("fseek failed for chunk $chunkIndex at offset $offset in upload $uploadId");
             throw new RuntimeException('File seek failed', 500);
         }
 
         if (fwrite($out, $chunkData) === false) {
             fclose($out);
-            $this->logger->logError("Failed to write chunk {$chunkIndex} at offset {$offset} for upload {$uploadId}");
+            $this->logger->logError("Failed to write chunk $chunkIndex at offset $offset for upload $uploadId");
             throw new RuntimeException('File write failed', 500);
         }
 
@@ -263,9 +277,12 @@ class OvaUploadHandler
         $this->updateUploadMetadata($uploadId, $meta);
 
         echo json_encode(['success' => true]);
-        exit;
+        defined('PHPUNIT_RUNNING') || exit;
     }
 
+    /**
+     * @throws Exception
+     */
     private function handleChunkedFinalize(): void
     {
         $uploadId = $this->inputData['uploadId'];
@@ -279,7 +296,7 @@ class OvaUploadHandler
             $combinedFile = $tempFile . '.combined';
 
             if (!file_exists($combinedFile)) {
-                $this->logger->logError("Combined file missing for upload {$uploadId}");
+                $this->logger->logError("Combined file missing for upload $uploadId");
                 throw new RuntimeException('Combined file missing', 500);
             }
 
@@ -296,7 +313,7 @@ class OvaUploadHandler
 
             $this->cleanupUploadFiles($uploadId, $combinedFile);
 
-            $this->logger->logInfo("Chunked upload {$uploadId} completed successfully");
+            $this->logger->logInfo("Chunked upload $uploadId completed successfully");
 
             echo json_encode([
                 'success' => true,
@@ -327,12 +344,12 @@ class OvaUploadHandler
         $metaFile = $this->config['upload']['UPLOAD_TEMP_DIR'] . $uploadId . '.meta';
         if (!file_exists($metaFile)) {
             echo json_encode(['success' => true]);
-            exit;
+            defined('PHPUNIT_RUNNING') || exit;
         }
 
         $meta = json_decode(file_get_contents($metaFile), true);
         if ($meta['userId'] !== $this->userId) {
-            $this->logger->logWarning("User {$this->userId} attempted to cancel another user's upload");
+            $this->logger->logWarning("User $this->userId attempted to cancel another user's upload");
             throw new RuntimeException('Unauthorized cancellation', 403);
         }
 
@@ -348,7 +365,7 @@ class OvaUploadHandler
         }
 
         echo json_encode(['success' => true]);
-        exit;
+        defined('PHPUNIT_RUNNING') || exit;
     }
 
     private function cleanupPartialUpload(string $uploadId): void
@@ -364,23 +381,26 @@ class OvaUploadHandler
                 try {
                     unlink($file);
                 } catch (Exception $e) {
-                    $this->logger->logError("Failed to delete {$file}: " . $e->getMessage());
+                    $this->logger->logError("Failed to delete $file: " . $e->getMessage());
                 }
             }
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function handleDirectUpload(): void
     {
         if (!isset($this->files['ova_file']) || $this->files['ova_file']['error'] !== UPLOAD_ERR_OK) {
             $errorCode = $this->files['ova_file']['error'] ?? 'unknown';
 
             if ($errorCode === UPLOAD_ERR_PARTIAL) {
-                $this->logger->logWarning("Upload cancelled/timed out for user {$this->userId}");
+                $this->logger->logWarning("Upload cancelled/timed out for user $this->userId");
                 throw new RuntimeException('Upload was cancelled or timed out', 400);
             }
 
-            $this->logger->logError("File upload error {$errorCode} for user {$this->userId}");
+            $this->logger->logError("File upload error $errorCode for user $this->userId");
             throw new RuntimeException('File upload failed', 400);
         }
 
@@ -417,7 +437,7 @@ class OvaUploadHandler
                 throw new RuntimeException('Upload cancelled', 400);
             }
 
-            $this->logger->logInfo("OVA upload completed successfully for user {$this->userId}");
+            $this->logger->logInfo("OVA upload completed successfully for user $this->userId");
             echo json_encode([
                 'success' => true,
                 'message' => 'File uploaded successfully'
@@ -427,7 +447,7 @@ class OvaUploadHandler
                 try {
                     $this->deleteFromProxmox($uniqueName);
                 } catch (Exception $deleteEx) {
-                    $this->logger->logError("Failed to clean up Proxmox file {$uniqueName}: " . $deleteEx->getMessage());
+                    $this->logger->logError("Failed to clean up Proxmox file $uniqueName: " . $deleteEx->getMessage());
                 }
             }
 
@@ -472,7 +492,7 @@ class OvaUploadHandler
             $stmt->execute(['user_id' => $this->userId]);
             $ovas = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            $this->logger->logError("Database error listing files for user {$this->userId}: " . $e->getMessage());
+            $this->logger->logError("Database error listing files for user $this->userId: " . $e->getMessage());
             throw new RuntimeException('Could not retrieve file list', 500);
         }
         echo json_encode([
@@ -493,7 +513,7 @@ class OvaUploadHandler
         $this->deleteFromProxmox($ova['proxmox_filename']);
         $this->deleteFromDatabase($ovaId);
 
-        $this->logger->logDebug("Successfully deleted OVA {$ovaId} for user {$this->userId}");
+        $this->logger->logDebug("Successfully deleted OVA $ovaId for user $this->userId");
         echo json_encode([
             'success' => true,
             'message' => 'File deleted successfully'
@@ -511,7 +531,7 @@ class OvaUploadHandler
     {
         $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
         if (!in_array("." . $fileExt, $this->generalConfig['upload']['VALID_FILE_TYPES'])) {
-            $this->logger->logError("Invalid file type attempt by user {$this->userId}: {$fileExt}");
+            $this->logger->logError("Invalid file type attempt by user $this->userId: $fileExt");
             throw new RuntimeException('Invalid file type', 400);
         }
     }
@@ -535,7 +555,7 @@ class OvaUploadHandler
         }
 
         if ($result['count'] > 0) {
-            $this->logger->logError("Duplicate file name attempt by user {$this->userId}: {$displayName}");
+            $this->logger->logError("Duplicate file name attempt by user $this->userId: $displayName");
             throw new RuntimeException('File name already exists', 400);
         }
     }
@@ -552,7 +572,7 @@ class OvaUploadHandler
         ];
 
         if (file_put_contents($this->config['upload']['UPLOAD_TEMP_DIR'] . $uploadId . '.meta', json_encode($metadata)) === false) {
-            $this->logger->logError("Failed to create upload metadata file for upload {$uploadId}");
+            $this->logger->logError("Failed to create upload metadata file for upload $uploadId");
             throw new RuntimeException('Could not initialize upload', 500);
         }
     }
@@ -566,7 +586,7 @@ class OvaUploadHandler
 
         $meta = json_decode(file_get_contents($metaFile), true);
         if ($meta['userId'] !== $this->userId) {
-            $this->logger->logError("User ID mismatch in chunk upload: {$this->userId} vs {$meta['userId']}");
+            $this->logger->logError("User ID mismatch in chunk upload: $this->userId vs {$meta['userId']}");
             throw new RuntimeException('Upload session mismatch', 403);
         }
 
@@ -577,7 +597,7 @@ class OvaUploadHandler
     {
         $meta['receivedChunks']++;
         if (file_put_contents($this->config['upload']['UPLOAD_TEMP_DIR'] . $uploadId . '.meta', json_encode($meta)) === false) {
-            $this->logger->logError("Failed to update metadata for upload {$uploadId}");
+            $this->logger->logError("Failed to update metadata for upload $uploadId");
             throw new RuntimeException('Could not update upload status', 500);
         }
     }
@@ -585,11 +605,14 @@ class OvaUploadHandler
     private function verifyAllChunksReceived(string $uploadId, array $meta): void
     {
         if ($meta['receivedChunks'] !== $meta['totalChunks']) {
-            $this->logger->logError("Missing chunks in upload {$uploadId}: received {$meta['receivedChunks']} of {$meta['totalChunks']}");
+            $this->logger->logError("Missing chunks in upload $uploadId: received {$meta['receivedChunks']} of {$meta['totalChunks']}");
             throw new RuntimeException('Upload incomplete', 400);
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateOvaFile(string $filePath): void
     {
         try {
@@ -626,7 +649,7 @@ class OvaUploadHandler
         $result = $this->curlHelper->makeCurlRequest($endpoint, 'POST', $authHeaders, $postParams);
 
         if (!$result) {
-            $this->logger->logError("Proxmox API connection failed for user {$this->userId}");
+            $this->logger->logError("Proxmox API connection failed for user $this->userId");
             throw new RuntimeException('Server connection failed', 500);
         }
 
@@ -635,7 +658,7 @@ class OvaUploadHandler
 
         if ($httpCode !== 200) {
             $error = $responseData['errors'] ?? 'Unknown error';
-            $this->logger->logError("Proxmox upload failed for user {$this->userId}: HTTP {$httpCode} - " . json_encode($error));
+            $this->logger->logError("Proxmox upload failed for user $this->userId: HTTP $httpCode - " . json_encode($error));
             throw new RuntimeException('File processing failed', 500);
         }
 
@@ -681,12 +704,12 @@ class OvaUploadHandler
             $stmt->execute(['ova_id' => $ovaId, 'user_id' => $this->userId]);
             $ova = $stmt->fetch();
         } catch (PDOException $e) {
-            $this->logger->logError("Database error fetching OVA {$ovaId} for deletion: " . $e->getMessage());
+            $this->logger->logError("Database error fetching OVA $ovaId for deletion: " . $e->getMessage());
             throw new RuntimeException('Could not retrieve file information', 500);
         }
 
         if (!$ova) {
-            $this->logger->logError("Delete attempt for non-existent OVA {$ovaId} by user {$this->userId}");
+            $this->logger->logError("Delete attempt for non-existent OVA $ovaId by user $this->userId");
             throw new RuntimeException('File not found', 404);
         }
 
@@ -700,7 +723,7 @@ class OvaUploadHandler
         $result = $this->curlHelper->makeCurlRequest($endpoint, 'DELETE', $authHeaders);
 
         if (!$result || $result['http_code'] !== 200) {
-            $this->logger->logError("Proxmox delete failed for file {$proxmoxFilename} by user {$this->userId}");
+            $this->logger->logError("Proxmox delete failed for file $proxmoxFilename by user $this->userId");
             throw new RuntimeException('File deletion failed', 500);
         }
     }
@@ -714,7 +737,7 @@ class OvaUploadHandler
             ");
             $stmt->execute(['ova_id' => $ovaId, 'user_id' => $this->userId]);
         } catch (PDOException $e) {
-            $this->logger->logError("Database error deleting OVA {$ovaId}: " . $e->getMessage());
+            $this->logger->logError("Database error deleting OVA $ovaId: " . $e->getMessage());
             throw new RuntimeException('Could not complete file deletion', 500);
         }
     }
@@ -724,12 +747,12 @@ class OvaUploadHandler
         return preg_replace('/[^a-zA-Z0-9\-_\.]/', '', $filename);
     }
 
-    private function handleError(Exception $e): void
+    #[NoReturn] private function handleError(Exception $e): void
     {
         $code = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 500;
         http_response_code($code);
 
-        $this->logger->logError("OVA route error [{$code}]: " . $e->getMessage() . " | User: {$this->userId} | Action: {$this->action}");
+        $this->logger->logError("OVA route error [$code]: " . $e->getMessage() . " | User: $this->userId | Action: $this->action");
 
         echo json_encode([
             'success' => false,
@@ -737,7 +760,7 @@ class OvaUploadHandler
             'error_code' => $code,
             'redirect' => $code === 401 ? '/login' : null
         ]);
-        exit;
+        defined('PHPUNIT_RUNNING') || exit;
     }
 }
 

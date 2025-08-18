@@ -25,6 +25,9 @@ class AnnouncementsHandler
     private array $server;
     private array $get;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
@@ -55,7 +58,10 @@ class AnnouncementsHandler
         $this->logger->logDebug("Initialized AnnouncementsHandler");
     }
 
-    private function initSession()
+    /**
+     * @throws Exception
+     */
+    private function initSession(): void
     {
         $this->securityHelper->initSecureSession();
 
@@ -65,7 +71,10 @@ class AnnouncementsHandler
         }
     }
 
-    private function validateRequest()
+    /**
+     * @throws Exception
+     */
+    private function validateRequest(): void
     {
         $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
@@ -74,7 +83,10 @@ class AnnouncementsHandler
         }
     }
 
-    private function parseInputParameters()
+    /**
+     * @throws Exception
+     */
+    private function parseInputParameters(): void
     {
         $this->page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
             'options' => ['default' => 1, 'min_range' => 1]
@@ -93,7 +105,10 @@ class AnnouncementsHandler
         }
     }
 
-    public function handleRequest()
+    /**
+     * @throws Exception
+     */
+    public function handleRequest(): void
     {
         try {
             $dateRange = $this->getDateRange();
@@ -110,7 +125,7 @@ class AnnouncementsHandler
             }
 
             $total = $this->getTotalCount($countQuery, $params);
-            $announcements = $this->getPaginatedResults($baseQuery, $params, $total);
+            $announcements = $this->getPaginatedResults($baseQuery, $params);
 
             $this->sendResponse($announcements, $total);
         } catch (PDOException $e) {
@@ -119,7 +134,7 @@ class AnnouncementsHandler
         }
     }
 
-    private function getDateRange()
+    private function getDateRange(): ?string
     {
         if ($this->rangeFilter === 'all') {
             return null;
@@ -128,7 +143,7 @@ class AnnouncementsHandler
         $date = new DateTime();
         switch ($this->rangeFilter) {
             case 'today':
-                $date->setTime(0, 0, 0);
+                $date->setTime(0, 0);
                 break;
             case 'week':
                 $date->modify('-1 week');
@@ -143,7 +158,7 @@ class AnnouncementsHandler
         return $date->format('Y-m-d H:i:s');
     }
 
-    private function buildWhereConditions($dateRange, &$params)
+    private function buildWhereConditions($dateRange, &$params): array
     {
         $conditions = [];
 
@@ -172,7 +187,7 @@ class AnnouncementsHandler
         return $stmt->fetchColumn();
     }
 
-    private function getPaginatedResults($query, $params, $total)
+    private function getPaginatedResults($query, $params): array
     {
         $offset = ($this->page - 1) * $this->perPage;
         $query .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
@@ -194,7 +209,7 @@ class AnnouncementsHandler
         return $announcements;
     }
 
-    private function formatAnnouncement($row)
+    private function formatAnnouncement($row): array
     {
         return [
             'id' => $row['id'],
@@ -207,7 +222,7 @@ class AnnouncementsHandler
         ];
     }
 
-    private function sendResponse($announcements, $total)
+    private function sendResponse($announcements, $total): void
     {
         echo json_encode([
             'success' => true,

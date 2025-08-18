@@ -23,6 +23,9 @@ class ProfileHandlerPublic
     private array $server;
     private array $get;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
         array $generalConfig,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
@@ -51,10 +54,13 @@ class ProfileHandlerPublic
         $this->initSession();
         $this->validateRequest();
         $this->initializeUserData();
-        $this->logger->logDebug("Initialized ProfileHandlerPublic for username: {$this->requestedUsername}");
+        $this->logger->logDebug("Initialized ProfileHandlerPublic for username: $this->requestedUsername");
     }
 
-    private function initSession()
+    /**
+     * @throws Exception
+     */
+    private function initSession(): void
     {
         $this->securityHelper->initSecureSession();
 
@@ -64,7 +70,10 @@ class ProfileHandlerPublic
         }
     }
 
-    private function validateRequest()
+    /**
+     * @throws Exception
+     */
+    private function validateRequest(): void
     {
         if (empty($this->requestedUsername)) {
             $this->logger->logError("Empty username requested - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
@@ -74,7 +83,7 @@ class ProfileHandlerPublic
         if (strlen($this->requestedUsername) > $this->generalConfig['user']['MAX_USERNAME_LENGTH'] ||
             strlen($this->requestedUsername) < $this->generalConfig['user']['MIN_USERNAME_LENGTH'] ||
             !preg_match('/' . $this->generalConfig['user']['USERNAME_REGEX'] . '/', $this->requestedUsername)) {
-            $this->logger->logError("Invalid username format requested: {$this->requestedUsername}");
+            $this->logger->logError("Invalid username format requested: $this->requestedUsername");
             throw new Exception('Invalid username format', 400);
         }
 
@@ -87,7 +96,10 @@ class ProfileHandlerPublic
         }
     }
 
-    private function initializeUserData()
+    /**
+     * @throws Exception
+     */
+    private function initializeUserData(): void
     {
         try {
             $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = :username");
@@ -95,7 +107,7 @@ class ProfileHandlerPublic
             $user = $stmt->fetch();
 
             if (!$user) {
-                $this->logger->logError("User not found in profile view: {$this->requestedUsername}");
+                $this->logger->logError("User not found in profile view: $this->requestedUsername");
                 throw new Exception('Profile not found', 404);
             }
 
@@ -106,7 +118,7 @@ class ProfileHandlerPublic
         }
     }
 
-    public function handleRequest()
+    public function handleRequest(): void
     {
         try {
             $profileData = $this->getBasicProfileData();
@@ -174,7 +186,7 @@ class ProfileHandlerPublic
             $profileData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$profileData) {
-                $this->logger->logError("Profile data not found for user ID: {$this->userId}");
+                $this->logger->logError("Profile data not found for user ID: $this->userId");
                 throw new RuntimeException('Profile data not found', 404);
             }
 
@@ -253,7 +265,7 @@ class ProfileHandlerPublic
             $successData = $successStmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$successData) {
-                $this->logger->logError("Failed to retrieve stats for user ID: {$this->userId}");
+                $this->logger->logError("Failed to retrieve stats for user ID: $this->userId");
                 throw new RuntimeException('Failed to retrieve profile statistics', 500);
             }
 
@@ -398,12 +410,12 @@ class ProfileHandlerPublic
         ];
     }
 
-    private function sendResponse(array $response)
+    private function sendResponse(array $response): void
     {
         echo json_encode($response);
     }
 
-    private function handleError(Exception $e)
+    private function handleError(Exception $e): void
     {
         $errorCode = $e->getCode() ?: 500;
         $errorMessage = $e->getMessage();

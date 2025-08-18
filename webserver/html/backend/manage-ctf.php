@@ -184,7 +184,7 @@ class CTFManagementHandler
    {
        if (!isset($this->inputData['id'])) {
            echo json_encode(['success' => false, 'message' => 'Challenge ID is required']);
-           exit;
+           defined('PHPUNIT_RUNNING') || exit;
        }
 
        $challengeId = (int)$this->inputData['id'];
@@ -203,7 +203,7 @@ class CTFManagementHandler
 
            if ($creatorId !== $this->userId) {
                echo json_encode(['success' => false, 'message' => 'You are not authorized to view this leaderboard']);
-               exit;
+               defined('PHPUNIT_RUNNING') || exit;
            }
 
            $leaderboard = $this->challengeHelper->getChallengeLeaderboard($this->pdo, $challengeId, $limit, $offset);
@@ -251,7 +251,7 @@ class CTFManagementHandler
             $this->logger->logWarning("Validation failed in CTF update - User ID: $this->userId, Errors: " . implode(', ', $errors['errors']));
             http_response_code(400);
             echo json_encode($errors);
-            exit;
+            defined('PHPUNIT_RUNNING') || exit;
         }
 
         $challenge = $this->verifyChallengeOwnershipAndStatus((int)$this->inputData['id']);
@@ -264,7 +264,7 @@ class CTFManagementHandler
                 'message' => 'Cannot activate a challenge marked for deletion. Restore it first.',
                 'fields' => ['edit-active']
             ]);
-            exit;
+            defined('PHPUNIT_RUNNING') || exit;
         }
 
         $this->updateChallenge();
@@ -894,7 +894,7 @@ class CTFManagementHandler
             'message' => $errorMessage,
             'redirect' => $errorCode === 401 ? '/login' : null
         ]);
-        exit;
+        defined('PHPUNIT_RUNNING') || exit;
     }
 }
 

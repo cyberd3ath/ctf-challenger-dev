@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use JetBrains\PhpStorm\NoReturn;
+
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../includes/logger.php';
@@ -12,15 +14,16 @@ class LogoutHandler
     private ?int $userId;
     private string $csrfToken;
 
-    private IDatabaseHelper $databaseHelper;
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
     private array $session;
     private array $server;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
         array $session = null,
@@ -34,22 +37,24 @@ class LogoutHandler
 
         $this->server = $server ?? $_SERVER;
 
-        $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
 
         $this->initSession();
         $this->validateSession();
         $this->parseRequest();
-        $this->logger->logDebug("Initialized LogoutHandler for user ID: {$this->userId}");
+        $this->logger->logDebug("Initialized LogoutHandler for user ID: $this->userId");
     }
 
-    private function initSession()
+    private function initSession(): void
     {
         $this->securityHelper->initSecureSession();
     }
 
-    private function validateSession()
+    /**
+     * @throws Exception
+     */
+    private function validateSession(): void
     {
         if (!$this->securityHelper->validateSession() || empty($this->session['authenticated'])) {
             $this->logger->logWarning("Unauthorized logout attempt - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
@@ -59,12 +64,12 @@ class LogoutHandler
         $this->userId = $this->session['user_id'] ?? 'unknown';
     }
 
-    private function parseRequest()
+    private function parseRequest(): void
     {
         $this->csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
     }
 
-    public function handleRequest()
+    public function handleRequest(): void
     {
         try {
             $this->validateCsrfToken();
@@ -75,15 +80,18 @@ class LogoutHandler
         }
     }
 
-    private function validateCsrfToken()
+    /**
+     * @throws Exception
+     */
+    private function validateCsrfToken(): void
     {
         if (!$this->securityHelper->validateCsrfToken($this->csrfToken)) {
-            $this->logger->logError("Invalid CSRF token during logout - User ID: {$this->userId}, Token: {$this->csrfToken}, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logError("Invalid CSRF token during logout - User ID: $this->userId, Token: $this->csrfToken, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Invalid security token', 403);
         }
     }
 
-    private function destroySession()
+    private function destroySession(): void
     {
         session_unset();
         session_destroy();
@@ -91,7 +99,7 @@ class LogoutHandler
         $this->expireSessionCookies();
     }
 
-    private function expireSessionCookies()
+    private function expireSessionCookies(): void
     {
         $params = session_get_cookie_params();
         setcookie(
@@ -120,29 +128,29 @@ class LogoutHandler
         );
     }
 
-    private function sendSuccessResponse()
+    #[NoReturn] private function sendSuccessResponse(): void
     {
         echo json_encode([
             'success' => true,
             'message' => 'Logged out successfully'
         ]);
-        exit;
+        defined('PHPUNIT_RUNNING') || exit;
     }
 
-    private function handleError(Exception $e)
+    #[NoReturn] private function handleError(Exception $e): void
     {
         $code = $e->getCode() ?: 500;
         http_response_code($code);
 
-        $this->logger->logError("Logout failed - Code: {$code}, Message: " . $e->getMessage() .
-            ", User ID: {$this->userId}" .
+        $this->logger->logError("Logout failed - Code: $code, Message: " . $e->getMessage() .
+            ", User ID: $this->userId" .
             ", IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
 
         echo json_encode([
             'success' => false,
             'message' => $e->getMessage()
         ]);
-        exit;
+        defined('PHPUNIT_RUNNING') || exit;
     }
 }
 

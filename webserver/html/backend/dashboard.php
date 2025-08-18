@@ -27,6 +27,9 @@ class DashboardHandler
     private array $server;
     private array $get;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
@@ -59,10 +62,13 @@ class DashboardHandler
         $this->initSession();
         $this->userId = $this->session['user_id'];
         $this->validateRequest();
-        $this->logger->logDebug("Initialized DashboardHandler for user ID: {$this->userId}, Data type: {$this->dataType}");
+        $this->logger->logDebug("Initialized DashboardHandler for user ID: $this->userId, Data type: $this->dataType");
     }
 
-    private function initSession()
+    /**
+     * @throws Exception
+     */
+    private function initSession(): void
     {
         $this->securityHelper->initSecureSession();
 
@@ -72,21 +78,24 @@ class DashboardHandler
         }
     }
 
-    private function validateRequest()
+    /**
+     * @throws Exception
+     */
+    private function validateRequest(): void
     {
         $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning("Invalid CSRF token in dashboard - User ID: {$this->userId}, Token: {$csrfToken}");
+            $this->logger->logWarning("Invalid CSRF token in dashboard - User ID: $this->userId, Token: $csrfToken");
             throw new Exception('Invalid CSRF token', 403);
         }
 
         if (!in_array($this->dataType, $this->config['dashboard']['VALID_DATA_TYPES'])) {
-            $this->logger->logWarning("Invalid data type requested - User ID: {$this->userId}, Type: {$this->dataType}");
+            $this->logger->logWarning("Invalid data type requested - User ID: $this->userId, Type: $this->dataType");
             throw new Exception('Invalid data type requested', 400);
         }
     }
 
-    public function handleRequest()
+    public function handleRequest(): void
     {
         try {
             $response = $this->getDashboardData();
@@ -96,47 +105,50 @@ class DashboardHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function getDashboardData(): array
     {
         switch ($this->dataType) {
             case 'user':
                 $data = $this->getUserData();
-                $this->logger->logDebug("Retrieved user data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved user data for user $this->userId");
                 break;
 
             case 'progress':
                 $data = $this->getProgressData();
-                $this->logger->logDebug("Retrieved progress data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved progress data for user $this->userId");
                 break;
 
             case 'category':
                 $data = $this->getCategoryData();
-                $this->logger->logDebug("Retrieved category data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved category data for user $this->userId");
                 break;
 
             case 'activity':
                 $data = $this->getActivityData();
-                $this->logger->logDebug("Retrieved activity data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved activity data for user $this->userId");
                 break;
 
             case 'badges':
                 $data = $this->getBadgesData();
-                $this->logger->logDebug("Retrieved badges data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved badges data for user $this->userId");
                 break;
 
             case 'active_challenge':
                 $data = $this->getActiveChallengeData();
-                $this->logger->logDebug("Retrieved active challenge data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved active challenge data for user $this->userId");
                 break;
 
             case 'challenges':
                 $data = $this->getChallengesData();
-                $this->logger->logDebug("Retrieved challenges data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved challenges data for user $this->userId");
                 break;
 
             case 'timeline':
                 $data = $this->getTimelineData($this->range, $this->view);
-                $this->logger->logDebug("Retrieved timeline data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved timeline data for user $this->userId");
                 break;
 
             case 'news':
@@ -156,12 +168,15 @@ class DashboardHandler
                     'timeline' => $this->getTimelineData('week', 'daily'),
                     'news' => $this->getLatestNews()
                 ];
-                $this->logger->logDebug("Retrieved complete dashboard data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved complete dashboard data for user $this->userId");
         }
 
         return ['success' => true, 'data' => $data];
     }
 
+    /**
+     * @throws Exception
+     */
     private function getUserData(): array
     {
         try {
@@ -207,7 +222,7 @@ class DashboardHandler
             $userData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$userData) {
-                $this->logger->logError("User not found in getUserData: {$this->userId}");
+                $this->logger->logError("User not found in getUserData: $this->userId");
                 throw new Exception('User not found', 404);
             }
 
@@ -222,6 +237,9 @@ class DashboardHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function getProgressData(): array
     {
         try {
@@ -303,6 +321,9 @@ class DashboardHandler
         return round($seconds / 86400, 1) . 'd';
     }
 
+    /**
+     * @throws Exception
+     */
     private function getCategoryData(): array
     {
         try {
@@ -358,6 +379,9 @@ class DashboardHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function getActivityData(int $limit = 5): array
     {
         try {
@@ -477,6 +501,9 @@ class DashboardHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function getBadgesData(): array
     {
         try {
@@ -556,6 +583,9 @@ class DashboardHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function getChallengesData(): array
     {
         try {
@@ -643,6 +673,9 @@ class DashboardHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function getTimelineData(string $range = 'week', string $viewType = 'daily'): array
     {
         try {
@@ -790,6 +823,9 @@ class DashboardHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function getLatestNews(): array
     {
         try {
@@ -828,6 +864,9 @@ class DashboardHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function getActiveChallengeData(): ?array
     {
         try {
@@ -909,12 +948,12 @@ class DashboardHandler
         return $output;
     }
 
-    private function sendResponse(array $response)
+    private function sendResponse(array $response): void
     {
         echo json_encode($response);
     }
 
-    private function handleError(Exception $e)
+    private function handleError(Exception $e): void
     {
         $errorCode = $e->getCode() ?: 500;
         $errorMessage = $e->getMessage();

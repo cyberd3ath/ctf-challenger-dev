@@ -21,6 +21,9 @@ class BadgesHandler
     private array $session;
     private array $server;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
@@ -46,10 +49,13 @@ class BadgesHandler
         $this->validateRequest();
         $this->pdo = $this->databaseHelper->getPDO();
         $this->userId = $this->session['user_id'];
-        $this->logger->logDebug("Initialized BadgesHandler for user ID: {$this->userId}");
+        $this->logger->logDebug("Initialized BadgesHandler for user ID: $this->userId");
     }
 
-    private function initSession()
+    /**
+     * @throws Exception
+     */
+    private function initSession(): void
     {
         $this->securityHelper->initSecureSession();
 
@@ -59,7 +65,10 @@ class BadgesHandler
         }
     }
 
-    private function validateRequest()
+    /**
+     * @throws Exception
+     */
+    private function validateRequest(): void
     {
         $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
@@ -73,7 +82,10 @@ class BadgesHandler
         }
     }
 
-    public function handleRequest()
+    /**
+     * @throws Exception
+     */
+    public function handleRequest(): void
     {
         try {
             $badges = $this->fetchBadges();
@@ -86,7 +98,10 @@ class BadgesHandler
         }
     }
 
-    private function fetchBadges()
+    /**
+     * @throws Exception
+     */
+    private function fetchBadges(): array
     {
         $query = "SELECT 
             b.id,
@@ -105,7 +120,7 @@ class BadgesHandler
         $stmt->bindValue(':user_id', $this->userId, PDO::PARAM_INT);
 
         if (!$stmt->execute()) {
-            $this->logger->logError("Failed to execute badges query for user ID: {$this->userId}");
+            $this->logger->logError("Failed to execute badges query for user ID: $this->userId");
             throw new Exception('Failed to fetch badges', 500);
         }
 
@@ -121,18 +136,18 @@ class BadgesHandler
         return $badges;
     }
 
-    private function validateBadgeFields($row)
+    private function validateBadgeFields($row): bool
     {
         foreach ($this->config['badge']['REQUIRED_FIELDS'] as $field) {
             if (!array_key_exists($field, $row)) {
-                $this->logger->logWarning("Missing badge field '$field' in result for user ID: {$this->userId}");
+                $this->logger->logWarning("Missing badge field '$field' in result for user ID: $this->userId");
                 return false;
             }
         }
         return true;
     }
 
-    private function formatBadge($row)
+    private function formatBadge($row): array
     {
         return [
             'id' => (int)$row['id'],
@@ -147,7 +162,7 @@ class BadgesHandler
         ];
     }
 
-    private function calculateProgress($badge)
+    private function calculateProgress($badge): ?array
     {
         try {
             $requirements = $badge['requirements'];
@@ -175,7 +190,7 @@ class BadgesHandler
         }
     }
 
-    private function calculateChallengeProgress($required)
+    private function calculateChallengeProgress($required): array
     {
         $query = "
             WITH user_completed_flags AS (
@@ -213,7 +228,7 @@ class BadgesHandler
         return ['current' => (int)$current, 'max' => $required];
     }
 
-    private function calculateCategoryProgress($required, $category)
+    private function calculateCategoryProgress($required, $category): array
     {
         $query = "
             WITH user_completed_flags AS (
@@ -253,7 +268,7 @@ class BadgesHandler
         return ['current' => (int)$current, 'max' => $required];
     }
 
-    private function calculatePointsProgress($required)
+    private function calculatePointsProgress($required): array
     {
         $query = "
             SELECT COALESCE(SUM(cf.points), 0) 
@@ -268,7 +283,7 @@ class BadgesHandler
         return ['current' => (int)$current, 'max' => $required];
     }
 
-    private function calculateAllBadgesProgress($badgeId)
+    private function calculateAllBadgesProgress($badgeId): array
     {
         $totalQuery = "SELECT COUNT(*) FROM badges WHERE id != ?";
         $totalStmt = $this->pdo->prepare($totalQuery);
@@ -288,7 +303,10 @@ class BadgesHandler
         return ['current' => (int)$earned, 'max' => (int)$total];
     }
 
-    private function fetchBadgeStats()
+    /**
+     * @throws Exception
+     */
+    private function fetchBadgeStats(): array
     {
         $query = "
             SELECT 
@@ -300,7 +318,7 @@ class BadgesHandler
         $stats = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$stats || !isset($stats['total_badges'])) {
-            $this->logger->logError("Failed to fetch badge stats for user ID: {$this->userId}");
+            $this->logger->logError("Failed to fetch badge stats for user ID: $this->userId");
             throw new Exception('Failed to fetch badge statistics', 500);
         }
 
@@ -314,7 +332,7 @@ class BadgesHandler
         ];
     }
 
-    private function sendResponse($badges, $stats)
+    private function sendResponse($badges, $stats): void
     {
         $response = [
             'success' => true,

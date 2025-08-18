@@ -44,7 +44,7 @@ class ProfileStatusHandler
         $this->isLoggedIn = $this->securityHelper->validateSession();
         $this->userId = $this->session['user_id'] ?? null;
 
-        $this->logger->logDebug("Initialized ProfileStatusHandler for " . ($this->isLoggedIn ? "user ID: {$this->userId}" : "guest"));
+        $this->logger->logDebug("Initialized ProfileStatusHandler for " . ($this->isLoggedIn ? "user ID: $this->userId" : "guest"));
     }
 
     private function initSession(): void
@@ -95,7 +95,7 @@ class ProfileStatusHandler
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$result) {
-                $this->logger->logError("User not found in database: {$this->userId}");
+                $this->logger->logError("User not found in database: $this->userId");
                 throw new RuntimeException('User not found', 400);
             }
 
@@ -104,7 +104,7 @@ class ProfileStatusHandler
                 'is_admin' => (bool)$result['is_admin']
             ];
         } catch (PDOException $e) {
-            $this->logger->logError("Database error for user {$this->userId}: " . $e->getMessage());
+            $this->logger->logError("Database error for user $this->userId: " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve profile data', 500);
         }
     }

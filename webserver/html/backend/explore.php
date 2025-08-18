@@ -24,6 +24,9 @@ class ExploreHandler
     private array $server;
     private array $get;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
@@ -50,11 +53,14 @@ class ExploreHandler
         $this->initSession();
         $this->validateRequest();
         $this->pdo = $this->databaseHelper->getPDO();
-        $this->userId = isset($this->session['user_id']) ? $this->session['user_id'] : null;
+        $this->userId = $this->session['user_id'] ?? null;
         $this->logger->logDebug("Initialized ExploreHandler for user ID: " . ($this->userId ?? 'guest'));
     }
 
-    private function initSession()
+    /**
+     * @throws Exception
+     */
+    private function initSession(): void
     {
         $this->securityHelper->initSecureSession();
 
@@ -64,7 +70,10 @@ class ExploreHandler
         }
     }
 
-    private function validateRequest()
+    /**
+     * @throws Exception
+     */
+    private function validateRequest(): void
     {
         if (!$this->isPublic) {
             $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
@@ -75,7 +84,10 @@ class ExploreHandler
         }
     }
 
-    public function handleRequest()
+    /**
+     * @throws Exception
+     */
+    public function handleRequest(): void
     {
         try {
             $params = $this->parseInputParameters();
@@ -89,7 +101,7 @@ class ExploreHandler
         }
     }
 
-    private function parseInputParameters()
+    private function parseInputParameters(): array
     {
         $search = $this->get['search'] ?? '';
         $category = $this->get['category'] ?? 'all';
@@ -117,7 +129,7 @@ class ExploreHandler
             $page = 1;
         }
 
-        $search_param = !empty($search) ? "%{$search}%" : '';
+        $search_param = !empty($search) ? "%$search%" : '';
 
         return [
             'search' => $search,
@@ -129,7 +141,7 @@ class ExploreHandler
         ];
     }
 
-    private function fetchChallenges($params)
+    private function fetchChallenges($params): array
     {
         $query = $this->buildBaseQuery();
         $whereConditions = $this->buildWhereConditions($params);
@@ -166,7 +178,7 @@ class ExploreHandler
         ];
     }
 
-    private function buildBaseQuery()
+    private function buildBaseQuery(): string
     {
         return "
 WITH user_completed_flags AS (
@@ -208,7 +220,7 @@ LEFT JOIN user_solved_challenges usc ON usc.challenge_template_id = ct.id
 LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
     }
 
-    private function buildWhereConditions($params)
+    private function buildWhereConditions($params): array
     {
         $conditions = [];
 
@@ -227,31 +239,27 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
         return $conditions;
     }
 
-    private function buildGroupBy()
+    private function buildGroupBy(): string
     {
         return " GROUP BY ct.id, ct.name, ct.description, ct.category, ct.difficulty, ct.created_at, ct.image_path";
     }
 
-    private function buildOrderBy($sort)
+    private function buildOrderBy($sort): string
     {
-        switch ($sort) {
-            case 'date':
-                return " ORDER BY ct.created_at DESC";
-            case 'difficulty':
-                return " ORDER BY 
+        return match ($sort) {
+            'date' => " ORDER BY ct.created_at DESC",
+            'difficulty' => " ORDER BY 
                     CASE ct.difficulty
                         WHEN 'easy' THEN 1
                         WHEN 'medium' THEN 2
                         WHEN 'hard' THEN 3
                         ELSE 0
-                    END";
-            case 'popularity':
-            default:
-                return " ORDER BY solved_count DESC, attempted_count DESC";
-        }
+                    END",
+            default => " ORDER BY solved_count DESC, attempted_count DESC",
+        };
     }
 
-    private function bindCommonParams($stmt, $params)
+    private function bindCommonParams($stmt, $params): void
     {
         if ($params['category'] !== 'all') {
             $stmt->bindValue(':category', $params['category']);
@@ -266,7 +274,7 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
         }
     }
 
-    private function buildResponse($challenges, $params)
+    private function buildResponse($challenges, $params): array
     {
         $formattedChallenges = array_map([$this, 'formatChallenge'], $challenges['data']);
 
@@ -287,7 +295,7 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
         ];
     }
 
-    private function formatChallenge($challenge)
+    private function formatChallenge($challenge): array
     {
         $solvedStatus = $this->userId ? $this->getUserChallengeData($challenge['id']) : null;
 
@@ -345,12 +353,12 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
 
             return $data['solved'];
         } catch (PDOException $e) {
-            $this->logger->logError("Database error in getUserChallengeData for user {$this->userId} and challenge $challengeId: " . $e->getMessage());
+            $this->logger->logError("Database error in getUserChallengeData for user $this->userId and challenge $challengeId: " . $e->getMessage());
             return null;
         }
     }
 
-    private function sendResponse($response)
+    private function sendResponse($response): void
     {
         echo json_encode(['success' => true, 'data' => $response]);
     }

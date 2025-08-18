@@ -28,6 +28,9 @@ class ActivitiesHandler
     private array $get;
 
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
@@ -56,10 +59,13 @@ class ActivitiesHandler
         $this->pdo = $this->databaseHelper->getPDO();
         $this->userId = $this->session['user_id'];
         $this->parseInputParameters();
-        $this->logger->logDebug("Initialized ActivitiesHandler for user ID: {$this->userId}");
+        $this->logger->logDebug("Initialized ActivitiesHandler for user ID: $this->userId");
     }
 
-    private function initSession()
+    /**
+     * @throws Exception
+     */
+    private function initSession(): void
     {
         $this->securityHelper->initSecureSession();
 
@@ -69,7 +75,10 @@ class ActivitiesHandler
         }
     }
 
-    private function validateRequest()
+    /**
+     * @throws Exception
+     */
+    private function validateRequest(): void
     {
         $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
@@ -78,7 +87,10 @@ class ActivitiesHandler
         }
     }
 
-    private function parseInputParameters()
+    /**
+     * @throws Exception
+     */
+    private function parseInputParameters(): void
     {
         $this->page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
             'options' => ['default' => 1, 'min_range' => 1]
@@ -103,7 +115,7 @@ class ActivitiesHandler
         }
     }
 
-    private function getDateRange()
+    private function getDateRange(): ?string
     {
         if ($this->rangeFilter === 'all') {
             return null;
@@ -127,7 +139,10 @@ class ActivitiesHandler
         return $date->format('Y-m-d H:i:s');
     }
 
-    public function handleRequest()
+    /**
+     * @throws Exception
+     */
+    public function handleRequest(): void
     {
         try {
             $dateRange = $this->getDateRange();
@@ -151,7 +166,7 @@ class ActivitiesHandler
         }
     }
 
-    private function buildQueries($dateRange, &$params)
+    private function buildQueries($dateRange, &$params): array
     {
         $queries = [];
 
@@ -166,7 +181,7 @@ class ActivitiesHandler
         return $queries;
     }
 
-    private function buildChallengeQuery($dateRange, &$params)
+    private function buildChallengeQuery($dateRange, &$params): string
     {
         $query = "
         WITH flag_counts AS (
@@ -265,7 +280,7 @@ class ActivitiesHandler
         return $query;
     }
 
-    private function buildBadgeQuery($dateRange, &$params)
+    private function buildBadgeQuery($dateRange, &$params): string
     {
         $query = "SELECT 
             'badge' AS activity_type,
@@ -309,7 +324,7 @@ class ActivitiesHandler
         return $stmt->fetchColumn();
     }
 
-    private function getPaginatedResults($query, $params)
+    private function getPaginatedResults($query, $params): array
     {
         $offset = ($this->page - 1) * $this->perPage;
         $finalQuery = "$query ORDER BY activity_date DESC LIMIT :limit OFFSET :offset";
@@ -332,7 +347,7 @@ class ActivitiesHandler
         return $activities;
     }
 
-    private function formatActivity($row)
+    private function formatActivity($row): array
     {
         $activity = [
             'type' => $row['status'],
@@ -375,7 +390,7 @@ class ActivitiesHandler
         return $activity;
     }
 
-    private function sendResponse($activities, $total)
+    private function sendResponse($activities, $total): void
     {
         echo json_encode([
             'success' => true,
@@ -388,7 +403,7 @@ class ActivitiesHandler
         ]);
     }
 
-    private function formatTimeAgo($datetime)
+    private function formatTimeAgo($datetime): string
     {
         if (!$datetime) return 'Recently';
 
@@ -409,7 +424,7 @@ class ActivitiesHandler
         }
     }
 
-    private function formatDuration($seconds)
+    private function formatDuration($seconds): string
     {
         if ($seconds < 60) return round($seconds) . 's';
         if ($seconds < 3600) return round($seconds / 60) . 'm';

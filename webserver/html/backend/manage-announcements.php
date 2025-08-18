@@ -26,6 +26,9 @@ class AdminAnnouncementsHandler
     private array $server;
     private array $get;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
         array $config,
         array $generalConfig,
@@ -57,9 +60,12 @@ class AdminAnnouncementsHandler
         $this->userId = $this->session['user_id'];
         $this->username = $this->getUsername();
         $this->action = $this->get['action'] ?? '';
-        $this->logger->logDebug("Initialized AdminAnnouncementsHandler for user ID: {$this->userId}, Action: {$this->action}");
+        $this->logger->logDebug("Initialized AdminAnnouncementsHandler for user ID: $this->userId, Action: $this->action");
     }
 
+    /**
+     * @throws Exception
+     */
     private function initSession(): void
     {
         $this->securityHelper->initSecureSession();
@@ -70,11 +76,14 @@ class AdminAnnouncementsHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateRequest(): void
     {
         $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning("Invalid CSRF token in admin announcements - User ID: " . ($this->session['user_id'] ?? 'unknown') . ", Token: {$csrfToken}");
+            $this->logger->logWarning("Invalid CSRF token in admin announcements - User ID: " . ($this->session['user_id'] ?? 'unknown') . ", Token: $csrfToken");
             throw new Exception('Invalid CSRF token', 403);
         }
 
@@ -94,14 +103,17 @@ class AdminAnnouncementsHandler
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
-            $this->logger->logError("User not found during admin announcement access - User ID: {$this->userId}");
+            $this->logger->logError("User not found during admin announcement access - User ID: $this->userId");
             throw new Exception('User not found', 404);
         }
 
         return $user['username'];
     }
 
-    public function handleRequest()
+    /**
+     * @throws Exception
+     */
+    public function handleRequest(): void
     {
         try {
             switch ($this->action) {
@@ -116,18 +128,18 @@ class AdminAnnouncementsHandler
                     $response = $this->handleDeleteAction();
                     break;
                 default:
-                    $this->logger->logError("Invalid action in admin announcements - Action: {$this->action}, User: {$this->username}");
+                    $this->logger->logError("Invalid action in admin announcements - Action: $this->action, User: $this->username");
                     throw new Exception('Invalid action', 400);
             }
 
             $this->sendResponse($response);
         } catch (PDOException $e) {
-            $this->logger->logError("Database error in admin announcements - " . $e->getMessage() . " - User ID: {$this->userId}");
+            $this->logger->logError("Database error in admin announcements - " . $e->getMessage() . " - User ID: $this->userId");
             throw new Exception('Database error occurred', 500);
         }
     }
 
-    private function handleListAction()
+    private function handleListAction(): array
     {
         $page = max(1, intval($this->get['page'] ?? 1));
         $perPage = 10;
@@ -152,7 +164,7 @@ class AdminAnnouncementsHandler
         return $stmt->fetchColumn();
     }
 
-    private function getPaginatedAnnouncements(int $perPage, int $offset)
+    private function getPaginatedAnnouncements(int $perPage, int $offset): array
     {
         $stmt = $this->pdo->prepare("
             SELECT * FROM announcements 
@@ -166,7 +178,10 @@ class AdminAnnouncementsHandler
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    private function handleCreateUpdateAction()
+    /**
+     * @throws Exception
+     */
+    private function handleCreateUpdateAction(): array
     {
         $data = $this->getJsonInput();
         $this->validateAnnouncementData($data);
@@ -178,17 +193,20 @@ class AdminAnnouncementsHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function getJsonInput()
     {
         $data = json_decode(file_get_contents('php://input'), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->logger->logError("Invalid JSON in announcement {$this->action} - User: {$this->username}");
+            $this->logger->logError("Invalid JSON in announcement $this->action - User: $this->username");
             throw new Exception('Invalid JSON data', 400);
         }
         return $data;
     }
 
-    private function validateAnnouncementData(array $data)
+    private function validateAnnouncementData(array $data): void
     {
         $errors = [];
         $errorFields = [];
@@ -230,7 +248,7 @@ class AdminAnnouncementsHandler
         }
 
         if (!empty($errors)) {
-            $this->logger->logError("Validation failed in announcement {$this->action} - User: {$this->username}, Errors: " . implode(', ', $errors));
+            $this->logger->logError("Validation failed in announcement $this->action - User: $this->username, Errors: " . implode(', ', $errors));
             http_response_code(400);
             echo json_encode([
                 'success' => false,
@@ -238,11 +256,11 @@ class AdminAnnouncementsHandler
                 'errors' => $errors,
                 'fields' => array_unique($errorFields)
             ]);
-            exit;
+            defined('PHPUNIT_RUNNING') || exit;
         }
     }
 
-    private function createAnnouncement(array $data)
+    private function createAnnouncement(array $data): array
     {
         $title = trim($data['title']);
         $content = trim($data['content']);
@@ -282,7 +300,7 @@ class AdminAnnouncementsHandler
         ]);
 
         $announcementId = $this->pdo->lastInsertId();
-        $this->logger->logInfo("Announcement created - ID: {$announcementId}, Title: {$title}, Author: {$this->username}");
+        $this->logger->logInfo("Announcement created - ID: $announcementId, Title: $title, Author: $this->username");
 
         return [
             'success' => true,
@@ -291,10 +309,13 @@ class AdminAnnouncementsHandler
         ];
     }
 
-    private function updateAnnouncement(array $data)
+    /**
+     * @throws Exception
+     */
+    private function updateAnnouncement(array $data): array
     {
         if (empty($data['id'])) {
-            $this->logger->logError("Missing announcement ID in update - User: {$this->username}");
+            $this->logger->logError("Missing announcement ID in update - User: $this->username");
             throw new Exception('Missing announcement ID', 400);
         }
 
@@ -327,7 +348,7 @@ class AdminAnnouncementsHandler
             'category' => $category
         ]);
 
-        $this->logger->logInfo("Announcement updated - ID: {$id}, Title: {$title}, User: {$this->username}");
+        $this->logger->logInfo("Announcement updated - ID: $id, Title: $title, User: $this->username");
 
         return [
             'success' => true,
@@ -335,17 +356,23 @@ class AdminAnnouncementsHandler
         ];
     }
 
-    private function verifyAnnouncementExists(int $id)
+    /**
+     * @throws Exception
+     */
+    private function verifyAnnouncementExists(int $id): void
     {
         $stmt = $this->pdo->prepare("SELECT id FROM announcements WHERE id = :id");
         $stmt->execute(['id' => $id]);
         if (!$stmt->fetch()) {
-            $this->logger->logError("Announcement not found for update - ID: {$id}, User: {$this->username}");
+            $this->logger->logError("Announcement not found for update - ID: $id, User: $this->username");
             throw new Exception('Announcement not found', 404);
         }
     }
 
-    private function handleDeleteAction()
+    /**
+     * @throws Exception
+     */
+    private function handleDeleteAction(): array
     {
         $data = $this->getJsonInput();
 
@@ -362,7 +389,7 @@ class AdminAnnouncementsHandler
         ];
     }
 
-    private function sendResponse(array $response)
+    private function sendResponse(array $response): void
     {
         echo json_encode($response);
     }

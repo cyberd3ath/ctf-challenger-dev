@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use Random\RandomException;
+
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../includes/logger.php';
@@ -16,7 +18,6 @@ class ProfileHandler
     private PDO $pdo;
     private ?int $userId;
     private string $requestMethod;
-    private array $config;
     private array $generalConfig;
 
     private IDatabaseHelper $databaseHelper;
@@ -32,8 +33,10 @@ class ProfileHandler
     private array $files;
     private array $env;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
-        array $config,
         array $generalConfig,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
@@ -65,13 +68,12 @@ class ProfileHandler
         $this->authHelper = $authHelper;
         $this->curlHelper = $curlHelper;
 
-        $this->config = $config;
         $this->generalConfig = $generalConfig;
         $this->pdo = $this->databaseHelper->getPDO();
         $this->initSession();
         $this->validateSession();
         $this->requestMethod = $this->server['REQUEST_METHOD'];
-        $this->logger->logDebug("Initialized ProfileHandler for user ID: {$this->userId}");
+        $this->logger->logDebug("Initialized ProfileHandler for user ID: $this->userId");
     }
 
     private function initSession(): void
@@ -79,6 +81,9 @@ class ProfileHandler
         $this->securityHelper->initSecureSession();
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateSession(): void
     {
         if (!$this->securityHelper->validateSession()) {
@@ -88,7 +93,7 @@ class ProfileHandler
         $this->userId = (int)$this->session['user_id'];
         $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning("Invalid CSRF token in profile request - User ID: {$this->userId}, Token: {$csrfToken}");
+            $this->logger->logWarning("Invalid CSRF token in profile request - User ID: $this->userId, Token: $csrfToken");
             throw new Exception('Invalid CSRF token', 403);
         }
     }
@@ -107,7 +112,7 @@ class ProfileHandler
                     $this->handleDeleteRequest();
                     break;
                 default:
-                    $this->logger->logWarning("Invalid method in profile request - Method: {$this->requestMethod}, User ID: {$this->userId}");
+                    $this->logger->logWarning("Invalid method in profile request - Method: $this->requestMethod, User ID: $this->userId");
                     throw new Exception('Method not allowed', 405);
             }
         } catch (Exception $e) {
@@ -115,51 +120,56 @@ class ProfileHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function handleGetRequest(): void
     {
         $dataType = $this->get['type'] ?? 'full';
-        $response = [];
 
         if (!in_array($dataType, ['basic', 'stats', 'badges', 'activity', 'full'])) {
-            $this->logger->logWarning("Invalid data type requested - Type: {$dataType}, User ID: {$this->userId}");
+            $this->logger->logWarning("Invalid data type requested - Type: $dataType, User ID: $this->userId");
             throw new Exception('Invalid data type requested', 400);
         }
 
-        switch ($dataType) {
-            case 'basic':
-                $response = $this->getBasicProfileData();
-                break;
-            case 'stats':
-                $response = $this->getProfileStats();
-                break;
-            case 'badges':
-                $response = $this->getProfileBadges();
-                break;
-            case 'activity':
-                $response = $this->getRecentActivity();
-                break;
-            default:
-                $response = [
-                    'basic' => $this->getBasicProfileData(),
-                    'stats' => $this->getProfileStats(),
-                    'badges' => $this->getProfileBadges(),
-                    'activity' => $this->getRecentActivity()
-                ];
-        }
+        $response = match ($dataType) {
+            'basic' => $this->getBasicProfileData(),
+            'stats' => $this->getProfileStats(),
+            'badges' => $this->getProfileBadges(),
+            'activity' => $this->getRecentActivity(),
+            default => [
+                'basic' => $this->getBasicProfileData(),
+                'stats' => $this->getProfileStats(),
+                'badges' => $this->getProfileBadges(),
+                'activity' => $this->getRecentActivity()
+            ],
+        };
         $this->sendResponse(['success' => true, 'data' => $response]);
     }
 
+    /**
+     * @throws RandomException
+     * @throws Exception
+     * @throws Exception
+     * @throws Exception
+     * @throws Exception
+     * @throws Exception
+     * @throws Exception
+     * @throws Exception
+     * @throws Exception
+     * @throws Exception
+     * @throws Exception
+     */
     private function handlePostRequest(): void
     {
         $contentType = $this->server['CONTENT_TYPE'] ?? '';
-        $isJson = strpos($contentType, 'application/json') !== false;
-        $data = [];
+        $isJson = str_contains($contentType, 'application/json');
 
         if ($isJson) {
             $json = file_get_contents('php://input');
             $data = json_decode($json, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->logger->logWarning("Invalid JSON in profile update - User ID: {$this->userId}");
+                $this->logger->logWarning("Invalid JSON in profile update - User ID: $this->userId");
                 throw new Exception('Invalid JSON data', 400);
             }
         } else {
@@ -214,11 +224,14 @@ class ProfileHandler
                 $this->handleVpnConfigDownload();
                 break;
             default:
-                $this->logger->logWarning("Invalid action in profile update - Action: {$action}, User ID: {$this->userId}");
+                $this->logger->logWarning("Invalid action in profile update - Action: $action, User ID: $this->userId");
                 throw new Exception('Invalid action specified', 400);
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateUsername(string $username): void
     {
         if (empty($username)) {
@@ -233,6 +246,9 @@ class ProfileHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateEmail(string $email): void
     {
         if (empty($email)) {
@@ -246,6 +262,9 @@ class ProfileHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateFullName(string $fullName): void
     {
         if (empty($fullName)) {
@@ -260,6 +279,9 @@ class ProfileHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateBio(string $bio): void
     {
         if (strlen($bio) > $this->generalConfig['user']['MAX_BIO_LENGTH']) {
@@ -267,6 +289,9 @@ class ProfileHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateSocialLinks(array $links): void
     {
         foreach ($links as $type => $url) {
@@ -306,6 +331,9 @@ class ProfileHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validatePasswordChange(string $currentPassword, string $newPassword): void
     {
         if (empty($currentPassword) || empty($newPassword)) {
@@ -319,6 +347,9 @@ class ProfileHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function validateAvatarSelection(string $avatar): void
     {
         $allowedAvatars = ['avatar1', 'avatar2', 'avatar3'];
@@ -376,7 +407,7 @@ class ProfileHandler
             $profileData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$profileData) {
-                $this->logger->logError("Profile not found - User ID: {$this->userId}");
+                $this->logger->logError("Profile not found - User ID: $this->userId");
                 throw new RuntimeException('User profile not available', 404);
             }
 
@@ -402,8 +433,8 @@ class ProfileHandler
             if ($profileData['last_login'] && $profileData['last_login'] !== '0000-00-00 00:00:00') {
                 try {
                     $lastLogin = (new DateTime($profileData['last_login']))->format('F j, Y \a\t g:i A');
-                } catch (Exception $e) {
-                    $this->logger->logError("Invalid last login date format - User ID: {$this->userId}, Date: {$profileData['last_login']}");
+                } catch (Exception) {
+                    $this->logger->logError("Invalid last login date format - User ID: $this->userId, Date: {$profileData['last_login']}");
                     $lastLogin = 'Unknown';
                 }
             }
@@ -427,7 +458,7 @@ class ProfileHandler
             ];
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error in getBasicProfileData - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error in getBasicProfileData - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve profile data', 500);
         }
     }
@@ -470,7 +501,7 @@ class ProfileHandler
             $statsData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$statsData) {
-                $this->logger->logError("Failed to retrieve profile stats - User ID: {$this->userId}");
+                $this->logger->logError("Failed to retrieve profile stats - User ID: $this->userId");
                 throw new RuntimeException('Failed to retrieve profile statistics', 500);
             }
 
@@ -492,7 +523,7 @@ class ProfileHandler
             ];
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error in getProfileStats - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error in getProfileStats - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve profile statistics', 500);
         }
     }
@@ -532,7 +563,7 @@ class ProfileHandler
             ];
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error in getProfileBadges - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error in getProfileBadges - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve badge information', 500);
         }
     }
@@ -634,11 +665,14 @@ class ProfileHandler
             return $activities;
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error in getRecentActivity - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error in getRecentActivity - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve recent activity', 500);
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function updateUsername(string $newUsername): void
     {
         $this->pdo->beginTransaction();
@@ -646,7 +680,7 @@ class ProfileHandler
             $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = :username AND id != :user_id");
             $stmt->execute(['username' => $newUsername, 'user_id' => $this->userId]);
             if ($stmt->fetch()) {
-                $this->logger->logWarning("Username already taken - Username: {$newUsername}, User ID: {$this->userId}");
+                $this->logger->logWarning("Username already taken - Username: $newUsername, User ID: $this->userId");
                 throw new Exception('Username is already taken', 400);
             }
 
@@ -656,7 +690,7 @@ class ProfileHandler
             $this->pdo->commit();
 
             $this->session['username'] = $newUsername;
-            $this->logger->logDebug("Username updated - User ID: {$this->userId}, New Username: {$newUsername}");
+            $this->logger->logDebug("Username updated - User ID: $this->userId, New Username: $newUsername");
 
             $this->sendResponse([
                 'success' => true,
@@ -665,7 +699,7 @@ class ProfileHandler
             ]);
         } catch (PDOException $e) {
             $this->pdo->rollBack();
-            $this->logger->logError("Database error during username update - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during username update - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to update username', 500);
         }
     }
@@ -678,7 +712,7 @@ class ProfileHandler
             $stmt->execute(['email' => $newEmail, 'user_id' => $this->userId]);
 
             if ($stmt->fetch()) {
-                $this->logger->logWarning("Email already registered - User ID: {$this->userId}, Email: {$newEmail}");
+                $this->logger->logWarning("Email already registered - User ID: $this->userId, Email: $newEmail");
                 throw new RuntimeException('Email is already registered', 400);
             }
 
@@ -695,11 +729,11 @@ class ProfileHandler
             $this->pdo->commit();
 
             if ($updateStmt->rowCount() === 0) {
-                $this->logger->logError("Email update failed - User ID: {$this->userId}");
+                $this->logger->logError("Email update failed - User ID: $this->userId");
                 throw new RuntimeException('Failed to update email', 500);
             }
 
-            $this->logger->logDebug("Email updated successfully - User ID: {$this->userId}");
+            $this->logger->logDebug("Email updated successfully - User ID: $this->userId");
 
             $this->sendResponse([
                 'success' => true,
@@ -709,7 +743,7 @@ class ProfileHandler
 
         } catch (PDOException $e) {
             $this->pdo->rollBack();
-            $this->logger->logError("Database error during email update - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during email update - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to update email', 500);
         }
     }
@@ -733,7 +767,7 @@ class ProfileHandler
             ]);
 
             $this->pdo->commit();
-            $this->logger->logDebug("Full name updated - User ID: {$this->userId}");
+            $this->logger->logDebug("Full name updated - User ID: $this->userId");
 
             $this->sendResponse([
                 'success' => true,
@@ -742,7 +776,7 @@ class ProfileHandler
             ]);
         } catch (PDOException $e) {
             $this->pdo->rollBack();
-            $this->logger->logError("Database error during name update - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during name update - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to update name', 500);
         }
     }
@@ -769,7 +803,7 @@ class ProfileHandler
 
             $this->pdo->commit();
 
-            $this->logger->logDebug("Bio updated successfully - User ID: {$this->userId}");
+            $this->logger->logDebug("Bio updated successfully - User ID: $this->userId");
 
             $this->sendResponse([
                 'success' => true,
@@ -779,7 +813,7 @@ class ProfileHandler
 
         } catch (PDOException $e) {
             $this->pdo->rollBack();
-            $this->logger->logError("Database error during bio update - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during bio update - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to update bio', 500);
         }
     }
@@ -795,13 +829,13 @@ class ProfileHandler
 
                 if (!empty($url)) {
                     if (!filter_var($url, FILTER_VALIDATE_URL)) {
-                        $this->logger->logWarning("Invalid {$platform} URL - User ID: {$this->userId}, URL: {$url}");
-                        throw new InvalidArgumentException("Invalid {$platform} URL", 400);
+                        $this->logger->logWarning("Invalid $platform URL - User ID: $this->userId, URL: $url");
+                        throw new InvalidArgumentException("Invalid $platform URL", 400);
                     }
 
                     if (strlen($url) > $this->generalConfig['user']['MAX_SOCIAL_URL_LENGTH']) {
-                        $this->logger->logWarning("{$platform} URL too long - User ID: {$this->userId}");
-                        throw new InvalidArgumentException("{$platform} URL is too long", 400);
+                        $this->logger->logWarning("$platform URL too long - User ID: $this->userId");
+                        throw new InvalidArgumentException("$platform URL is too long", 400);
                     }
 
                     $sanitizedData[$platform] = filter_var($url, FILTER_SANITIZE_URL);
@@ -840,7 +874,7 @@ class ProfileHandler
 
             $this->pdo->commit();
 
-            $this->logger->logDebug("Social links updated - User ID: {$this->userId}");
+            $this->logger->logDebug("Social links updated - User ID: $this->userId");
 
             $this->sendResponse([
                 'success' => true,
@@ -850,28 +884,31 @@ class ProfileHandler
 
         } catch (PDOException $e) {
             $this->pdo->rollBack();
-            $this->logger->logError("Database error during social links update - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during social links update - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to update social links', 500);
         }
     }
 
+    /**
+     * @throws RandomException
+     */
     private function handleAvatarUpload(): void
     {
         try {
             if (!isset($this->files['avatar']) || !is_uploaded_file($this->files['avatar']['tmp_name'])) {
-                $this->logger->logWarning("Invalid file upload attempt - User ID: {$this->userId}");
+                $this->logger->logWarning("Invalid file upload attempt - User ID: $this->userId");
                 throw new InvalidArgumentException('No file uploaded or upload error', 400);
             }
 
             $file = $this->files['avatar'];
 
             if ($file['error'] !== UPLOAD_ERR_OK) {
-                $this->logger->logWarning("File upload error - User ID: {$this->userId}, Error Code: {$file['error']}");
+                $this->logger->logWarning("File upload error - User ID: $this->userId, Error Code: {$file['error']}");
                 throw new RuntimeException('File upload failed', 400);
             }
 
             if ($file['size'] > $this->generalConfig['user']['MAX_AVATAR_SIZE']) {
-                $this->logger->logWarning("Avatar file too large - User ID: {$this->userId}, Size: {$file['size']}");
+                $this->logger->logWarning("Avatar file too large - User ID: $this->userId, Size: {$file['size']}");
                 throw new InvalidArgumentException(sprintf('Image must be less than %dMB', $this->generalConfig['user']['MAX_AVATAR_SIZE'] / 1024 / 1024), 400);
             }
 
@@ -880,7 +917,7 @@ class ProfileHandler
             finfo_close($fileInfo);
 
             if (!in_array($mimeType, $this->generalConfig['user']['ALLOWED_AVATAR_TYPES'])) {
-                $this->logger->logWarning("Invalid avatar file type - User ID: {$this->userId}, Type: {$mimeType}");
+                $this->logger->logWarning("Invalid avatar file type - User ID: $this->userId, Type: $mimeType");
                 throw new InvalidArgumentException(
                     sprintf('Only %s images are allowed', implode(', ', $this->generalConfig['user']['ALLOWED_AVATAR_TYPES'])),
                     400
@@ -892,11 +929,11 @@ class ProfileHandler
             $oldAvatar = $stmt->fetch();
             $oldAvatarUrl = $oldAvatar['avatar_url'] ?? '';
 
-            if ($oldAvatarUrl && strpos($oldAvatarUrl, '/uploads/avatars/') === 0) {
+            if ($oldAvatarUrl && str_starts_with($oldAvatarUrl, '/uploads/avatars/')) {
                 $oldFilePath = $this->server['DOCUMENT_ROOT'] . $oldAvatarUrl;
                 if (file_exists($oldFilePath) && is_writable($oldFilePath)) {
                     if (!unlink($oldFilePath)) {
-                        $this->logger->logError("Failed to delete old avatar - User ID: {$this->userId}, Path: {$oldFilePath}");
+                        $this->logger->logError("Failed to delete old avatar - User ID: $this->userId, Path: $oldFilePath");
                         throw new RuntimeException('Error processing avatar', 500);
                     }
                 }
@@ -914,12 +951,12 @@ class ProfileHandler
             $fullPath = $uploadDir . $filename;
 
             if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true)) {
-                $this->logger->logError("Failed to create avatar directory - Path: {$uploadDir}");
+                $this->logger->logError("Failed to create avatar directory - Path: $uploadDir");
                 throw new RuntimeException('Failed to process avatar', 500);
             }
 
             if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
-                $this->logger->logError("Failed to save avatar - User ID: {$this->userId}, Path: {$fullPath}");
+                $this->logger->logError("Failed to save avatar - User ID: $this->userId, Path: $fullPath");
                 throw new RuntimeException('Error processing request', 500);
             }
 
@@ -931,7 +968,7 @@ class ProfileHandler
                 'user_id' => $this->userId
             ]);
 
-            $this->logger->logDebug("Avatar updated successfully - User ID: {$this->userId}");
+            $this->logger->logDebug("Avatar updated successfully - User ID: $this->userId");
 
             $this->sendResponse([
                 'success' => true,
@@ -940,7 +977,7 @@ class ProfileHandler
             ]);
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error during avatar update - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during avatar update - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to update avatar', 500);
         }
     }
@@ -973,11 +1010,11 @@ class ProfileHandler
             $oldAvatar = $stmt->fetch();
             $oldAvatarUrl = $oldAvatar['avatar_url'] ?? '';
 
-            if ($oldAvatarUrl && strpos($oldAvatarUrl, '/uploads/avatars/') === 0) {
+            if ($oldAvatarUrl && str_starts_with($oldAvatarUrl, '/uploads/avatars/')) {
                 $oldFilePath = $this->server['DOCUMENT_ROOT'] . $oldAvatarUrl;
                 if (file_exists($oldFilePath) && is_writable($oldFilePath)) {
                     if (!unlink($oldFilePath)) {
-                        $this->logger->logError("Failed to delete old avatar file - User ID: {$this->userId}, Path: {$oldFilePath}");
+                        $this->logger->logError("Failed to delete old avatar file - User ID: $this->userId, Path: $oldFilePath");
                         throw new RuntimeException('Could not delete old avatar file', 500);
                     }
                 }
@@ -991,7 +1028,7 @@ class ProfileHandler
                 'user_id' => $this->userId
             ]);
 
-            $this->logger->logDebug("Avatar updated via selection - User ID: {$this->userId}, Avatar: {$avatar}");
+            $this->logger->logDebug("Avatar updated via selection - User ID: $this->userId, Avatar: $avatar");
 
             $this->sendResponse([
                 'success' => true,
@@ -1000,7 +1037,7 @@ class ProfileHandler
             ]);
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error during avatar update - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during avatar update - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to update avatar', 500);
         }
     }
@@ -1026,12 +1063,12 @@ class ProfileHandler
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$user) {
-                $this->logger->logError("User not found during password change - User ID: {$this->userId}");
+                $this->logger->logError("User not found during password change - User ID: $this->userId");
                 throw new RuntimeException('User not found', 404);
             }
 
             if (!password_verify($currentPassword, $user['password_hash'])) {
-                $this->logger->logWarning("Incorrect current password attempt - User ID: {$this->userId}");
+                $this->logger->logWarning("Incorrect current password attempt - User ID: $this->userId");
                 throw new InvalidArgumentException('Current password is incorrect', 400);
             }
 
@@ -1040,7 +1077,7 @@ class ProfileHandler
             }
 
             $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-            if ($newHash === false) {
+            if (!$newHash) {
                 throw new RuntimeException('Error hashing password', 500);
             }
 
@@ -1052,7 +1089,7 @@ class ProfileHandler
 
             $this->pdo->commit();
 
-            $this->logger->logDebug("Password changed successfully - User ID: {$this->userId}");
+            $this->logger->logDebug("Password changed successfully - User ID: $this->userId");
 
             $this->sendResponse([
                 'success' => true,
@@ -1061,7 +1098,7 @@ class ProfileHandler
 
         } catch (PDOException $e) {
             $this->pdo->rollBack();
-            $this->logger->logError("Database error during password change - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during password change - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to change password', 500);
         }
     }
@@ -1122,7 +1159,7 @@ class ProfileHandler
             ];
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error in getCategoryData - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error in getCategoryData - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve category data', 500);
         }
     }
@@ -1134,7 +1171,7 @@ class ProfileHandler
             $configFile = $configDir . 'user_' . $this->userId . '.ovpn';
 
             if (!file_exists($configFile) || !is_readable($configFile)) {
-                $this->logger->logError("VPN config not found or inaccessible - User ID: {$this->userId}, Path: {$configFile}");
+                $this->logger->logError("VPN config not found or inaccessible - User ID: $this->userId, Path: $configFile");
                 throw new RuntimeException('VPN configuration not found. Please contact support.', 404);
             }
 
@@ -1161,20 +1198,23 @@ class ProfileHandler
             header('X-Frame-Options: DENY');
 
             readfile($configFile);
-            exit;
+            defined('PHPUNIT_RUNNING') || exit;
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error during VPN config download - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during VPN config download - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to process VPN configuration', 500);
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function handleDeleteRequest(): void
     {
         try {
             $input = json_decode(file_get_contents('php://input'), true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->logger->logWarning("Invalid JSON in delete request - User ID: {$this->userId}");
+                $this->logger->logWarning("Invalid JSON in delete request - User ID: $this->userId");
                 throw new Exception('Invalid request data', 400);
             }
 
@@ -1186,11 +1226,11 @@ class ProfileHandler
             $this->deleteAllUserData();
             $this->destroyUserSession();
 
-            $this->logger->logInfo("Account deleted successfully - User ID: {$this->userId}");
+            $this->logger->logInfo("Account deleted successfully - User ID: $this->userId");
             $this->sendSuccessResponse();
 
         } catch (Exception $e) {
-            $this->logger->logError("Account deletion failed - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Account deletion failed - User ID: $this->userId - " . $e->getMessage());
             throw $e;
         }
     }
@@ -1207,12 +1247,12 @@ class ProfileHandler
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$user || !password_verify($password, $user['password_hash'])) {
-                $this->logger->logWarning("Incorrect password during verification - User ID: {$this->userId}");
+                $this->logger->logWarning("Incorrect password during verification - User ID: $this->userId");
                 throw new InvalidArgumentException('Incorrect password', 400);
             }
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error during password verification - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during password verification - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to verify password', 500);
         }
     }
@@ -1233,14 +1273,14 @@ class ProfileHandler
                 );
 
                 if (!$response['success'] || $response['http_code'] !== 200) {
-                    $this->logger->logError("Failed to stop running challenge - User ID: {$this->userId}, Response: " . json_encode($response));
+                    $this->logger->logError("Failed to stop running challenge - User ID: $this->userId, Response: " . json_encode($response));
                     throw new RuntimeException("Failed to stop current challenge", 500);
                 }
-                $this->logger->logDebug("Stopped running challenge - User ID: {$this->userId}");
+                $this->logger->logDebug("Stopped running challenge - User ID: $this->userId");
             }
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error during challenge stop - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during challenge stop - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to stop running challenge', 500);
         }
     }
@@ -1256,11 +1296,11 @@ class ProfileHandler
             );
 
             if (!$response['success'] || $response['http_code'] !== 200) {
-                $this->logger->logError("Failed to delete user config - User ID: {$this->userId}, Response: " . json_encode($response));
+                $this->logger->logError("Failed to delete user config - User ID: $this->userId, Response: " . json_encode($response));
                 throw new RuntimeException("Failed to process request", 500);
             }
         } catch (Exception $e) {
-            $this->logger->logError("Error deleting user configurations - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Error deleting user configurations - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to process request', 500);
         }
     }
@@ -1289,12 +1329,12 @@ class ProfileHandler
                     $this->pdo->prepare("DELETE FROM disk_files WHERE id = ? AND user_id = ?")
                         ->execute([$ova['ova_id'], $this->userId]);
                 } catch (Exception $e) {
-                    $this->logger->logError("Failed to delete OVA - User ID: {$this->userId}, OVA ID: {$ova['ova_id']} - " . $e->getMessage());
+                    $this->logger->logError("Failed to delete OVA - User ID: $this->userId, OVA ID: {$ova['ova_id']} - " . $e->getMessage());
                 }
             }
 
         } catch (PDOException $e) {
-            $this->logger->logError("Database error during OVA deletion - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Database error during OVA deletion - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to delete OVA files', 500);
         }
     }
@@ -1325,7 +1365,7 @@ class ProfileHandler
             $this->pdo->commit();
         } catch (Exception $e) {
             $this->pdo->rollBack();
-            $this->logger->logError("Failed to delete all user data - User ID: {$this->userId} - " . $e->getMessage());
+            $this->logger->logError("Failed to delete all user data - User ID: $this->userId - " . $e->getMessage());
             throw new RuntimeException('Failed to delete account data', 500);
         }
     }

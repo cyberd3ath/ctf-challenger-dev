@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use JetBrains\PhpStorm\NoReturn;
+
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../includes/logger.php';
@@ -30,6 +32,9 @@ class RegistrationHandler
     private array $server;
     private array $post;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(
         array $generalConfig,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
@@ -63,19 +68,22 @@ class RegistrationHandler
         $this->logger->logDebug("Initialized RegistrationHandler with Session ID: " . session_id());
     }
 
-    private function initSession()
+    private function initSession(): void
     {
         $this->securityHelper->initSecureSession();
     }
 
-    private function validateRequestMethod()
+    /**
+     * @throws Exception
+     */
+    private function validateRequestMethod(): void
     {
         if ($this->server['REQUEST_METHOD'] !== 'POST') {
             throw new Exception('Invalid request method', 400);
         }
     }
 
-    private function parseInput()
+    private function parseInput(): void
     {
         $this->csrfToken = $this->post['csrf_token'] ?? '';
         $this->username = trim($this->post['username'] ?? '');
@@ -84,7 +92,7 @@ class RegistrationHandler
         $this->confirmPassword = $this->post['confirm-password'] ?? '';
     }
 
-    public function handleRequest()
+    public function handleRequest(): void
     {
         try {
             $this->validateInput();
@@ -101,7 +109,10 @@ class RegistrationHandler
         }
     }
 
-    private function validateInput()
+    /**
+     * @throws Exception
+     */
+    private function validateInput(): void
     {
         if (empty($this->username) || empty($this->email) || empty($this->password) || empty($this->confirmPassword)) {
             throw new Exception('All fields are required', 400);
@@ -130,37 +141,46 @@ class RegistrationHandler
         }
     }
 
-    private function validateCsrfToken()
+    /**
+     * @throws Exception
+     */
+    private function validateCsrfToken(): void
     {
         if (!$this->securityHelper->validateCsrfToken($this->csrfToken)) {
-            $this->logger->logError("CSRF token validation failed from IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown') ." with csrf_token={$this->csrfToken}");
+            $this->logger->logError("CSRF token validation failed from IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown') ." with csrf_token=$this->csrfToken");
             throw new Exception('Invalid CSRF token', 403);
         }
     }
 
-    private function checkCredentialsAvailability()
+    /**
+     * @throws Exception
+     */
+    private function checkCredentialsAvailability(): void
     {
         $this->pdo = $this->databaseHelper->getPDO();
 
         $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = :username");
         $stmt->execute(['username' => $this->username]);
         if ($stmt->fetch()) {
-            $this->logger->logWarning("Registration attempt with existing username: {$this->username}");
+            $this->logger->logWarning("Registration attempt with existing username: $this->username");
             throw new Exception('Username already taken', 400);
         }
 
         $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = :email");
         $stmt->execute(['email' => $this->email]);
         if ($stmt->fetch()) {
-            $this->logger->logWarning("Registration attempt with existing email: {$this->email}");
+            $this->logger->logWarning("Registration attempt with existing email: $this->email");
             throw new Exception('Email already registered', 400);
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function createUserAccount()
     {
         $passwordHash = password_hash($this->password, PASSWORD_DEFAULT);
-        if ($passwordHash === false) {
+        if (!$passwordHash) {
             throw new Exception('Account creation failed', 500);
         }
 
@@ -191,6 +211,9 @@ class RegistrationHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function assignVpnIp($userId)
     {
         try {
@@ -212,18 +235,21 @@ class RegistrationHandler
         }
     }
 
-    private function generateAndSaveVpnConfig($userId)
+    /**
+     * @throws Exception
+     */
+    private function generateAndSaveVpnConfig($userId): void
     {
         $configResponse = $this->generateVpnConfig($userId);
 
         if (!$configResponse['success']) {
-            $this->logger->logError("VPN config generation failed for user {$userId}: " . $configResponse['message']);
+            $this->logger->logError("VPN config generation failed for user $userId: " . $configResponse['message']);
             throw new Exception('VPN setup incomplete', 500);
         }
 
         $configSaved = $this->saveVpnConfig($userId, $configResponse['config_content']);
         if (!$configSaved) {
-            $this->logger->logError("Failed to save VPN config file for user {$userId}");
+            $this->logger->logError("Failed to save VPN config file for user $userId");
             throw new Exception('VPN setup incomplete', 500);
         }
     }
@@ -240,7 +266,7 @@ class RegistrationHandler
 
             if (!$result['success']) {
                 $error = $result['error'] ?? 'HTTP ' . $result['http_code'];
-                $this->logger->logError("VPN config API failed: {$error}");
+                $this->logger->logError("VPN config API failed: $error");
                 return [
                     'success' => false,
                     'message' => 'Backend request failed: ' . ($result['error'] ?? 'HTTP ' . $result['http_code'])
@@ -249,7 +275,7 @@ class RegistrationHandler
 
             $isFileDownload = false;
             if (isset($result['headers']['content-type'])) {
-                $isFileDownload = strpos($result['headers']['content-type'], 'application/octet-stream') !== false;
+                $isFileDownload = str_contains($result['headers']['content-type'], 'application/octet-stream');
             }
 
             if ($isFileDownload) {
@@ -277,7 +303,7 @@ class RegistrationHandler
                 'message' => 'Unexpected response format'
             ];
         } catch (Exception $e) {
-            $this->logger->logError("VPN config generation error for user {$userId}: " . $e->getMessage());
+            $this->logger->logError("VPN config generation error for user $userId: " . $e->getMessage());
             return [
                 'success' => false,
                 'message' => 'Configuration service error'
@@ -285,7 +311,7 @@ class RegistrationHandler
         }
     }
 
-    private function saveVpnConfig($userId, $configContent)
+    private function saveVpnConfig($userId, $configContent): bool
     {
         try {
             $configDir = '/var/lib/ctf-challenger/vpn-configs/';
@@ -307,13 +333,13 @@ class RegistrationHandler
         }
     }
 
-    private function updateLastLogin(int $userId)
+    private function updateLastLogin(int $userId): void
     {
         $update = $this->pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = :id");
         $update->execute(['id' => $userId]);
     }
 
-    private function initializeUserSession($userId)
+    private function initializeUserSession($userId): void
     {
         session_regenerate_id(true);
         $this->session['user_id'] = $userId;
@@ -336,10 +362,10 @@ class RegistrationHandler
             ]
         );
 
-        $this->logger->logInfo("Successful registration for user {$userId}");
+        $this->logger->logInfo("Successful registration for user $userId");
     }
 
-    private function sendSuccessResponse($userId, $vpnIp)
+    #[NoReturn] private function sendSuccessResponse($userId, $vpnIp): void
     {
         echo json_encode([
             'success' => true,
@@ -347,22 +373,22 @@ class RegistrationHandler
             'user_id' => $userId,
             'vpn_ip' => $vpnIp
         ]);
-        exit;
+        defined('PHPUNIT_RUNNING') || exit;
     }
 
-    private function handleError(Exception $e)
+    #[NoReturn] private function handleError(Exception $e): void
     {
         $code = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 400;
         http_response_code($code);
 
-        $this->logger->logError("Registration error: " . $e->getMessage() . " [Code: {$code}]");
+        $this->logger->logError("Registration error: " . $e->getMessage() . " [Code: $code]");
 
         echo json_encode([
             'success' => false,
             'message' => $e->getMessage(),
             'error_code' => $code
         ]);
-        exit;
+        defined('PHPUNIT_RUNNING') || exit;
     }
 }
 
