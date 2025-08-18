@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/../includes/globals.php';
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
@@ -18,8 +19,8 @@ class BadgesHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private ?array $session;
-    private ?array $server;
+    private ISession $session;
+    private IServer $server;
 
     /**
      * @throws Exception
@@ -29,16 +30,13 @@ class BadgesHandler
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        ?array &$session = null,
-        ?array $server = null
+        ISession $session = new Session(),
+        IServer $server = new Server()
     )
     {
-        if($session !== null)
-            $this->session =& $session;
-        else
-            $this->session =& $_SESSION;
+        $this->session = $session;
 
-        $this->server = $server ?? $_SERVER;
+        $this->server = $server;
 
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
@@ -346,7 +344,7 @@ class BadgesHandler
 }
 
 try {
-    $handler = new BadgesHandler(config: $config, session: $_SESSION);
+    $handler = new BadgesHandler(config: $config);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

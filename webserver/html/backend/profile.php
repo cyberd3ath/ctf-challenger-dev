@@ -5,6 +5,7 @@ use Random\RandomException;
 
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/../includes/globals.php';
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
@@ -26,12 +27,12 @@ class ProfileHandler
     private IAuthHelper $authHelper;
     private ICurlHelper $curlHelper;
 
-    private ?array $session;
-    private ?array $server;
-    private ?array $get;
-    private ?array $post;
-    private ?array $files;
-    private ?array $env;
+    private ISession $session;
+    private IServer $server;
+    private IGet $get;
+    private IPost $post;
+    private IFiles $files;
+    private IEnv $env;
 
     /**
      * @throws Exception
@@ -43,24 +44,20 @@ class ProfileHandler
         ILogger $logger = new Logger(),
         IAuthHelper $authHelper = new AuthHelper(),
         ICurlHelper $curlHelper = new CurlHelper(),
-        ?array &$session = null,
-        ?array $server = null,
-        ?array $get = null,
-        ?array $post = null,
-        ?array $files = null,
-        ?array $env = null
+        ISession $session = new Session(),
+        IServer $server = new Server(),
+        IGet $get = new Get(),
+        IPost $post = new Post(),
+        IFiles $files = new Files(),
+        IEnv $env = new Env()
     )
     {
-        if($session !== null)
-            $this->session =& $session;
-        else
-            $this->session =& $_SESSION;
-
-        $this->server = $server ?? $_SERVER;
-        $this->get = $get ?? $_GET;
-        $this->post = $post ?? $_POST;
-        $this->files = $files ?? $_FILES;
-        $this->env = $env ?? $_ENV;
+        $this->session = $session;
+        $this->server = $server;
+        $this->get = $get;
+        $this->post = $post;
+        $this->files = $files;
+        $this->env = $env;
 
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
@@ -1455,7 +1452,7 @@ class ProfileHandler
 }
 
 try {
-    $handler = new ProfileHandler(generalConfig: $generalConfig, session: $_SESSION);
+    $handler = new ProfileHandler(generalConfig: $generalConfig);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

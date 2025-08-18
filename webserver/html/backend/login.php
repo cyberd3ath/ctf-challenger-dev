@@ -5,6 +5,7 @@ use JetBrains\PhpStorm\NoReturn;
 
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/../includes/globals.php';
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
@@ -21,26 +22,22 @@ class LoginHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private ?array $session;
-    private ?array $server;
-    private ?array $post;
+    private ISession $session;
+    private IServer $server;
+    private IPost $post;
 
     public function __construct(
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        ?array &$session = null,
-        ?array $server = null,
-        ?array $post = null
+        ISession $session = new Session(),
+        IServer $server = new Server(),
+        IPost $post = new Post()
     )
     {
-        if($session !== null)
-            $this->session =& $session;
-        else
-            $this->session =& $_SESSION;
-
-        $this->server = $server ?? $_SERVER;
-        $this->post = $post ?? $_POST;
+        $this->session = $session;
+        $this->server = $server;
+        $this->post = $post;
 
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
@@ -260,7 +257,7 @@ class LoginHandler
 }
 
 try {
-    $handler = new LoginHandler(session: $_SESSION);
+    $handler = new LoginHandler();
     $handler->handleRequest();
 } catch (Throwable $e) {
     $errorCode = $e->getCode() ?: 500;

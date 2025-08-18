@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/../includes/globals.php';
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
@@ -20,9 +21,9 @@ class ExploreHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private ?array $session;
-    private ?array $server;
-    private ?array $get;
+    private ISession $session;
+    private IServer $server;
+    private IGet $get;
 
     /**
      * @throws Exception
@@ -32,18 +33,14 @@ class ExploreHandler
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        ?array &$session = null,
-        ?array $server = null,
-        ?array $get = null
+        ISession $session = new Session(),
+        IServer $server = new Server(),
+        IGet $get = new Get()
     )
     {
-        if($session !== null)
-            $this->session =& $session;
-        else
-            $this->session =& $_SESSION;
-
-        $this->server = $server ?? $_SERVER;
-        $this->get = $get ?? $_GET;
+        $this->session = $session;
+        $this->server = $server;
+        $this->get = $get;
 
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
@@ -365,7 +362,7 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
 }
 
 try {
-    $handler = new ExploreHandler(config: $config, session: $_SESSION);
+    $handler = new ExploreHandler(config: $config);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

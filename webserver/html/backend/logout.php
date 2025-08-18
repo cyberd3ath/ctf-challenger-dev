@@ -5,6 +5,7 @@ use JetBrains\PhpStorm\NoReturn;
 
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/../includes/globals.php';
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
@@ -17,8 +18,8 @@ class LogoutHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private ?array $session;
-    private ?array $server;
+    private ISession $session;
+    private IServer $server;
 
     /**
      * @throws Exception
@@ -26,16 +27,12 @@ class LogoutHandler
     public function __construct(
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        ?array &$session = null,
-        ?array $server = null
+        ISession $session = new Session(),
+        IServer $server = new Server()
     )
     {
-        if($session !== null)
-            $this->session =& $session;
-        else
-            $this->session =& $_SESSION;
-
-        $this->server = $server ?? $_SERVER;
+        $this->session = $session;
+        $this->server = $server;
 
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -155,7 +152,7 @@ class LogoutHandler
 }
 
 try {
-    $handler = new LogoutHandler(session: $_SESSION);
+    $handler = new LogoutHandler();
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

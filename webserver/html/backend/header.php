@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/globals.php';
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
@@ -15,23 +16,19 @@ class ProfileStatusHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private ?array $session;
-    private ?array $server;
+    private ISession $session;
+    private IServer $server;
 
     public function __construct(
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        ?array &$session = null,
-        ?array $server = null
+        ISession $session = new Session(),
+        IServer $server = new Server()
     )
     {
-        if($session !== null)
-            $this->session =& $session;
-        else
-            $this->session =& $_SESSION;
-
-        $this->server = $server ?? $_SERVER;
+        $this->session = $session;
+        $this->server = $server;
 
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
@@ -144,7 +141,7 @@ class ProfileStatusHandler
 }
 
 try {
-    $handler = new ProfileStatusHandler(session: $_SESSION);
+    $handler = new ProfileStatusHandler();
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

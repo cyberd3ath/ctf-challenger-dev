@@ -5,6 +5,7 @@ use JetBrains\PhpStorm\NoReturn;
 
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/../includes/globals.php';
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
@@ -28,9 +29,9 @@ class RegistrationHandler
     private IAuthHelper $authHelper;
     private ICurlHelper $curlHelper;
 
-    private ?array $session;
-    private ?array $server;
-    private ?array $post;
+    private ISession $session;
+    private IServer $server;
+    private IPost $post;
 
     /**
      * @throws Exception
@@ -42,18 +43,14 @@ class RegistrationHandler
         ILogger $logger = new Logger(),
         IAuthHelper $authHelper = new AuthHelper(),
         ICurlHelper $curlHelper = new CurlHelper(),
-        ?array &$session = null,
-        ?array $server = null,
-        ?array $post = null
+        ISession $session = new Session(),
+        IServer $server = new Server(),
+        IPost $post = new Post()
     )
     {
-        if($session !== null)
-            $this->session =& $session;
-        else
-            $this->session =& $_SESSION;
-
-        $this->server = $server ?? $_SERVER;
-        $this->post = $post ?? $_POST;
+        $this->session = $session;
+        $this->server = $server;
+        $this->post = $post;
 
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
@@ -393,7 +390,7 @@ class RegistrationHandler
 }
 
 try {
-    $handler = new RegistrationHandler(generalConfig: $generalConfig, session: $_SESSION);
+    $handler = new RegistrationHandler(generalConfig: $generalConfig);
     $handler->handleRequest();
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;

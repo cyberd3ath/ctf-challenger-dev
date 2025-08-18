@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 header('Content-Type: application/json');
 
+require_once __DIR__ . '/../includes/globals.php';
 require_once __DIR__ . '/../includes/logger.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/security.php';
@@ -24,9 +25,9 @@ class ChallengeHandler
     private IChallengeHelper $challengeHelper;
     private ILogger $logger;
 
-    private ?array $session;
-    private ?array $server;
-    private ?array $get;
+    private ISession $session;
+    private IServer $server;
+    private IGet $get;
 
     /**
      * @throws Exception
@@ -39,18 +40,14 @@ class ChallengeHandler
         IAuthHelper $authHelper = new AuthHelper(),
         IChallengeHelper $challengeHelper = new ChallengeHelper(),
         ILogger $logger = new Logger(),
-        ?array &$session = null,
-        ?array $server = null,
-        ?array $get = null
+        ISession $session = new Session(),
+        IServer $server = new Server(),
+        IGet $get = new Get()
     )
     {
-        if($session !== null)
-            $this->session =& $session;
-        else
-            $this->session =& $_SESSION;
-
-        $this->server = $server ?? $_SERVER;
-        $this->get = $get ?? $_GET;
+        $this->session = $session;
+        $this->server = $server;
+        $this->get = $get;
 
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
@@ -1279,7 +1276,7 @@ class ChallengeHandler
 }
 
 try {
-    $api = new ChallengeHandler(config: $config, session: $_SESSION);
+    $api = new ChallengeHandler(config: $config);
     $api->handleRequest();
 } catch (Exception $e) {
     $errorCode = (int)($e->getCode() ?: 500);
