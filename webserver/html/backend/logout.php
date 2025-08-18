@@ -17,8 +17,8 @@ class LogoutHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private array $session;
-    private array $server;
+    private ?array $session;
+    private ?array $server;
 
     /**
      * @throws Exception
@@ -26,8 +26,8 @@ class LogoutHandler
     public function __construct(
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        array $session = null,
-        array $server = null
+        ?array $session = null,
+        ?array $server = null
     )
     {
         if($session)

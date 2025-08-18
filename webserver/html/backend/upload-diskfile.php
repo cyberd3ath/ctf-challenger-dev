@@ -28,12 +28,12 @@ class OvaUploadHandler
     private IAuthHelper $authHelper;
     private IOvaValidator $ovaValidator;
 
-    private array $session;
-    private array $server;
-    private array $get;
-    private array $post;
-    private array $files;
-    private array $env;
+    private ?array $session;
+    private ?array $server;
+    private ?array $get;
+    private ?array $post;
+    private ?array $files;
+    private ?array $env;
 
     /**
      * @throws Exception
@@ -47,12 +47,12 @@ class OvaUploadHandler
         ICurlHelper $curlHelper = new CurlHelper(),
         IAuthHelper $authHelper = new AuthHelper(),
         IOvaValidator $ovaValidator = null,
-        array $session = null,
-        array $server = null,
-        array $get = null,
-        array $post = null,
-        array $files = null,
-        array $env = null
+        ?array $session = null,
+        ?array $server = null,
+        ?array $get = null,
+        ?array $post = null,
+        ?array $files = null,
+        ?array $env = null
     )
     {
         if($session)

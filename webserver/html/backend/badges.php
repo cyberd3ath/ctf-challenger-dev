@@ -18,8 +18,8 @@ class BadgesHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private array $session;
-    private array $server;
+    private ?array $session;
+    private ?array $server;
 
     /**
      * @throws Exception
@@ -29,8 +29,8 @@ class BadgesHandler
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        array $session = null,
-        array $server = null
+        ?array $session = null,
+        ?array $server = null
     )
     {
         if($session)

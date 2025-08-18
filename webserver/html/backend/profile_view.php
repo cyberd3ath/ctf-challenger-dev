@@ -19,9 +19,9 @@ class ProfileHandlerPublic
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private array $session;
-    private array $server;
-    private array $get;
+    private ?array $session;
+    private ?array $server;
+    private ?array $get;
 
     /**
      * @throws Exception
@@ -31,9 +31,9 @@ class ProfileHandlerPublic
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        array $session = null,
-        array $server = null,
-        array $get = null
+        ?array $session = null,
+        ?array $server = null,
+        ?array $get = null
     )
     {
         if($session)

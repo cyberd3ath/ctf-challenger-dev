@@ -26,12 +26,12 @@ class ProfileHandler
     private IAuthHelper $authHelper;
     private ICurlHelper $curlHelper;
 
-    private array $session;
-    private array $server;
-    private array $get;
-    private array $post;
-    private array $files;
-    private array $env;
+    private ?array $session;
+    private ?array $server;
+    private ?array $get;
+    private ?array $post;
+    private ?array $files;
+    private ?array $env;
 
     /**
      * @throws Exception
@@ -43,12 +43,12 @@ class ProfileHandler
         ILogger $logger = new Logger(),
         IAuthHelper $authHelper = new AuthHelper(),
         ICurlHelper $curlHelper = new CurlHelper(),
-        array $session = null,
-        array $server = null,
-        array $get = null,
-        array $post = null,
-        array $files = null,
-        array $env = null
+        ?array $session = null,
+        ?array $server = null,
+        ?array $get = null,
+        ?array $post = null,
+        ?array $files = null,
+        ?array $env = null
     )
     {
         if($session)

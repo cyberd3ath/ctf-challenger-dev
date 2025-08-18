@@ -24,9 +24,9 @@ class ChallengeHandler
     private IChallengeHelper $challengeHelper;
     private ILogger $logger;
 
-    private array $session;
-    private array $server;
-    private array $get;
+    private ?array $session;
+    private ?array $server;
+    private ?array $get;
 
     /**
      * @throws Exception
@@ -39,9 +39,9 @@ class ChallengeHandler
         IAuthHelper $authHelper = new AuthHelper(),
         IChallengeHelper $challengeHelper = new ChallengeHelper(),
         ILogger $logger = new Logger(),
-        array $session = null,
-        array $server = null,
-        array $get = null
+        ?array $session = null,
+        ?array $server = null,
+        ?array $get = null
     )
     {
         if($session)

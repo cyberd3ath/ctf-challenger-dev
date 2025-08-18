@@ -23,9 +23,9 @@ class DashboardHandler
     private ILogger $logger;
     private IChallengeHelper $challengeHelper;
 
-    private array $session;
-    private array $server;
-    private array $get;
+    private ?array $session;
+    private ?array $server;
+    private ?array $get;
 
     /**
      * @throws Exception
@@ -36,9 +36,9 @@ class DashboardHandler
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
         IChallengeHelper $challengeHelper = new ChallengeHelper(),
-        array $session = null,
-        array $server = null,
-        array $get = null
+        ?array $session = null,
+        ?array $server = null,
+        ?array $get = null
     )
     {
         if($session)

@@ -28,10 +28,10 @@ class CTFManagementHandler
     private ICurlHelper $curlHelper;
     private IChallengeHelper $challengeHelper;
 
-    private array $session;
-    private array $server;
-    private array $get;
-    private array $post;
+    private ?array $session;
+    private ?array $server;
+    private ?array $get;
+    private ?array $post;
 
     /**
      * @throws Exception
@@ -45,10 +45,10 @@ class CTFManagementHandler
         IAuthHelper $authHelper = new AuthHelper(),
         ICurlHelper $curlHelper = new CurlHelper(),
         IChallengeHelper $challengeHelper = new ChallengeHelper(),
-        array $session = null,
-        array $server = null,
-        array $get = null,
-        array $post = null
+        ?array $session = null,
+        ?array $server = null,
+        ?array $get = null,
+        ?array $post = null
     )
     {
         if($session)

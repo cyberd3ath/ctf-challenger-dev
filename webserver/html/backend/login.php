@@ -21,17 +21,17 @@ class LoginHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private array $session;
-    private array $server;
-    private array $post;
+    private ?array $session;
+    private ?array $server;
+    private ?array $post;
 
     public function __construct(
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        array $session = null,
-        array $server = null,
-        array $post = null
+        ?array $session = null,
+        ?array $server = null,
+        ?array $post = null
     )
     {
         if($session)

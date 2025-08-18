@@ -27,11 +27,11 @@ class CtfCreationHandler
     private IAuthHelper $authHelper;
     private ILogger $logger;
 
-    private array $session;
-    private array $server;
-    private array $get;
-    private array $post;
-    private array $files;
+    private ?array $session;
+    private ?array $server;
+    private ?array $get;
+    private ?array $post;
+    private ?array $files;
 
     /**
      * @throws Exception
@@ -44,11 +44,11 @@ class CtfCreationHandler
         ICurlHelper $curlHelper = new CurlHelper(),
         IAuthHelper $authHelper = new AuthHelper(),
         ILogger $logger = new Logger(),
-        array $session = null,
-        array $server = null,
-        array $get = null,
-        array $post = null,
-        array $files = null
+        ?array $session = null,
+        ?array $server = null,
+        ?array $get = null,
+        ?array $post = null,
+        ?array $files = null
     )
     {
         if($session)

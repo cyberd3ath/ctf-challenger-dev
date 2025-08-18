@@ -20,9 +20,9 @@ class ExploreHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private array $session;
-    private array $server;
-    private array $get;
+    private ?array $session;
+    private ?array $server;
+    private ?array $get;
 
     /**
      * @throws Exception

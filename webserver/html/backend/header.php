@@ -15,15 +15,15 @@ class ProfileStatusHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
-    private array $session;
-    private array $server;
+    private ?array $session;
+    private ?array $server;
 
     public function __construct(
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        array $session = null,
-        array $server = null
+        ?array $session = null,
+        ?array $server = null
     )
     {
         if($session)
