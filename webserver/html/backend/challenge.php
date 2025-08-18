@@ -17,22 +17,44 @@ class ChallengeHandler
     private ?int $userId;
     private array $config;
 
-    public function __construct(array $config)
+    private IDatabaseHelper $databaseHelper;
+    private ISecurityHelper $securityHelper;
+    private ICurlHelper $curlHelper;
+    private IAuthHelper $authHelper;
+    private IChallengeHelper $challengeHelper;
+    private ILogger $logger;
+
+    public function __construct(
+        array $config,
+        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
+        ISecurityHelper $securityHelper = new SecurityHelper(),
+        ICurlHelper $curlHelper = new CurlHelper(),
+        IAuthHelper $authHelper = new AuthHelper(),
+        IChallengeHelper $challengeHelper = new ChallengeHelper(),
+        ILogger $logger = new Logger()
+    )
     {
+        $this->databaseHelper = $databaseHelper;
+        $this->securityHelper = $securityHelper;
+        $this->curlHelper = $curlHelper;
+        $this->authHelper = $authHelper;
+        $this->challengeHelper = $challengeHelper;
+        $this->logger = $logger;
+
         $this->config = $config;
         $this->initSession();
         $this->validateCSRF();
-        $this->pdo = getPDO();
+        $this->pdo = $this->databaseHelper->getPDO();
         $this->userId = $_SESSION['user_id'];
-        logDebug("Initialized ChallengeHandler for user ID: {$this->userId}");
+        $this->logger->logDebug("Initialized ChallengeHandler for user ID: {$this->userId}");
     }
 
     private function initSession()
     {
-        init_secure_session();
+        $this->securityHelper->initSecureSession();
 
-        if (!validate_session()) {
-            logWarning("Unauthorized access attempt to challenge route - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        if (!$this->securityHelper->validateSession()) {
+            $this->logger->logWarning("Unauthorized access attempt to challenge route - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized - Please login', 401);
         }
     }
@@ -40,8 +62,8 @@ class ChallengeHandler
     private function validateCSRF()
     {
         $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-        if (!validate_csrf_token($csrfToken)) {
-            logWarning("Invalid CSRF token in challenge route - User ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+        if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
+            $this->logger->logWarning("Invalid CSRF token in challenge route - User ID: " . ($_SESSION['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);
         }
     }
@@ -59,7 +81,7 @@ class ChallengeHandler
                     $this->handleGetRequest();
                     break;
                 default:
-                    logWarning("Invalid request method in challenge route - Method: {$method}");
+                    $this->logger->logWarning("Invalid request method in challenge route - Method: {$method}");
                     throw new Exception('Method not allowed', 405);
             }
         } catch (Exception $e) {
@@ -95,7 +117,7 @@ class ChallengeHandler
     {
         $input = json_decode(file_get_contents('php://input'), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            logWarning("Invalid JSON input in challenge route - User ID: {$this->userId}");
+            $this->logger->logWarning("Invalid JSON input in challenge route - User ID: {$this->userId}");
             throw new Exception('Invalid JSON input', 400);
         }
         return $input;
@@ -106,13 +128,13 @@ class ChallengeHandler
         $requiredFields = ['action', 'challenge_id'];
         foreach ($requiredFields as $field) {
             if (!isset($input[$field])) {
-                logWarning("Missing required field in challenge route - Field: {$field}, User ID: {$this->userId}");
+                $this->logger->logWarning("Missing required field in challenge route - Field: {$field}, User ID: {$this->userId}");
                 throw new Exception("Missing required parameter: {$field}", 400);
             }
         }
 
         if (!in_array($input['action'], $this->config['challenge']['ALLOWED_ACTIONS'])) {
-            logWarning("Invalid action in challenge route - Action: {$input['action']}, User ID: {$this->userId}");
+            $this->logger->logWarning("Invalid action in challenge route - Action: {$input['action']}, User ID: {$this->userId}");
             throw new Exception('Invalid action', 400);
         }
     }
@@ -121,7 +143,7 @@ class ChallengeHandler
     {
         $id = filter_var($challengeId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         if ($id === false) {
-            logWarning("Invalid challenge ID - ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logWarning("Invalid challenge ID - ID: {$challengeId}, User ID: {$this->userId}");
             throw new Exception('Invalid challenge ID', 400);
         }
         return $id;
@@ -132,10 +154,10 @@ class ChallengeHandler
         $this->checkRunningChallenge();
         $this->validateChallengeStatus($challengeId);
 
-        $result = makeBackendRequest(
+        $result = $this->curlHelper->makeBackendRequest(
             '/launch-challenge',
             'POST',
-            getBackendHeaders(),
+            $this->authHelper->getBackendHeaders(),
             [
                 'user_id' => $this->userId,
                 'challenge_template_id' => $challengeId
@@ -144,7 +166,7 @@ class ChallengeHandler
 
         if (!$result['success'] || $result['http_code'] !== 200) {
             $errorMsg = $result['error'] ?? "HTTP {$result['http_code']}";
-            logError("Failed to launch challenge - Error: {$errorMsg}, User ID: {$this->userId}");
+            $this->logger->logError("Failed to launch challenge - Error: {$errorMsg}, User ID: {$this->userId}");
             throw new Exception("Failed to launch challenge: {$errorMsg}", 500);
         }
 
@@ -153,13 +175,13 @@ class ChallengeHandler
 
         $this->startNewAttempt($challengeId);
 
-        logDebug("Challenge deployed successfully - ID: {$challengeId}, User ID: {$this->userId}");
+        $this->logger->logDebug("Challenge deployed successfully - ID: {$challengeId}, User ID: {$this->userId}");
 
         $this->sendResponse([
             'success' => true,
             'message' => 'Challenge deployment initiated',
             'entrypoints' => $entrypoints,
-            'elapsed_seconds' => getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId),
+            'elapsed_seconds' => $this->challengeHelper->getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId),
             'remaining_seconds' => $this->getRemainingSecondsForChallenge($challengeId),
             'remaining_extensions' => $this->getRemainingExtensionsForChallenge($challengeId)
         ]);
@@ -172,7 +194,7 @@ class ChallengeHandler
         $user = $stmt->fetch();
 
         if ($user['running_challenge']) {
-            logWarning("User already has a running challenge - User ID: {$this->userId}");
+            $this->logger->logWarning("User already has a running challenge - User ID: {$this->userId}");
             throw new Exception("You already have a running challenge", 400);
         }
     }
@@ -188,17 +210,17 @@ class ChallengeHandler
         $template = $stmt->fetch();
 
         if (!$template) {
-            logWarning("Challenge not found - ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logWarning("Challenge not found - ID: {$challengeId}, User ID: {$this->userId}");
             throw new Exception("Challenge not found", 404);
         }
 
         if ($template['marked_for_deletion']) {
-            logWarning("Attempt to deploy challenge marked for deletion - ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logWarning("Attempt to deploy challenge marked for deletion - ID: {$challengeId}, User ID: {$this->userId}");
             throw new Exception("This challenge has been marked for deletion and cannot be deployed", 400);
         }
 
         if (!$template['is_active'] && !$this->isCreator($challengeId)) {
-            logWarning("Attempt to deploy inactive challenge - ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logWarning("Attempt to deploy inactive challenge - ID: {$challengeId}, User ID: {$this->userId}");
             throw new Exception("This challenge is currently inactive and cannot be deployed", 400);
         }
     }
@@ -218,7 +240,7 @@ class ChallengeHandler
             }
             return false;
         }catch (PDOException $e){
-            logError("Failed to check Creator - Challenge ID: {$challengeId}, Error: {$e->getMessage()}");
+            $this->logger->logError("Failed to check Creator - Challenge ID: {$challengeId}, Error: {$e->getMessage()}");
             throw new Exception("Failed to start Challenge", 500);
         }
     }
@@ -241,9 +263,9 @@ class ChallengeHandler
                 'user_id' => $this->userId,
                 'challenge_template_id' => $challengeId
             ]);
-            logDebug("New attempt started - Challenge ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logDebug("New attempt started - Challenge ID: {$challengeId}, User ID: {$this->userId}");
         } catch (PDOException $e) {
-            logError("Failed to start new attempt - Challenge ID: {$challengeId}, Error: " . $e->getMessage());
+            $this->logger->logError("Failed to start new attempt - Challenge ID: {$challengeId}, Error: " . $e->getMessage());
             throw new Exception("Failed to start challenge attempt", 500);
         }
     }
@@ -265,16 +287,16 @@ class ChallengeHandler
 
     private function stopRunningChallenge()
     {
-        $result = makeBackendRequest(
+        $result = $this->curlHelper->makeBackendRequest(
             '/stop-challenge',
             'POST',
-            getBackendHeaders(),
+            $this->authHelper->getBackendHeaders(),
             ['user_id' => $this->userId]
         );
 
         if (!$result['success'] || $result['http_code'] !== 200) {
             $errorMsg = $result['error'] ?? "HTTP {$result['http_code']}";
-            logError("Failed to stop challenge - Error: {$errorMsg}, User ID: {$this->userId}");
+            $this->logger->logError("Failed to stop challenge - Error: {$errorMsg}, User ID: {$this->userId}");
             throw new Exception("Failed to stop challenge: {$errorMsg}", 500);
         }
     }
@@ -293,9 +315,9 @@ class ChallengeHandler
                 'user_id' => $this->userId,
                 'challenge_id' => $challengeId
             ]);
-            logDebug("Marked attempt as completed - Challenge ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logDebug("Marked attempt as completed - Challenge ID: {$challengeId}, User ID: {$this->userId}");
         } catch (PDOException $e) {
-            logError("Failed to mark attempt as completed - Challenge ID: {$challengeId}, Error: " . $e->getMessage());
+            $this->logger->logError("Failed to mark attempt as completed - Challenge ID: {$challengeId}, Error: " . $e->getMessage());
             throw new Exception("Failed to complete challenge attempt", 500);
         }
     }
@@ -321,7 +343,7 @@ class ChallengeHandler
 
             return $markedForDeletion && $remainingInstances === 0;
         } catch (PDOException $e) {
-            logError("Failed to check template deletion status - Challenge ID: {$challengeId}, Error: " . $e->getMessage());
+            $this->logger->logError("Failed to check template deletion status - Challenge ID: {$challengeId}, Error: " . $e->getMessage());
             return false;
         }
     }
@@ -337,10 +359,10 @@ class ChallengeHandler
             ");
             $stmt->execute(['challenge_id' => $challengeId]);
 
-            $result = makeBackendRequest(
+            $result = $this->curlHelper->makeBackendRequest(
                 '/delete-machine-templates',
                 'POST',
-                getBackendHeaders(),
+                $this->authHelper->getBackendHeaders(),
                 ['challenge_id' => $challengeId]
             );
 
@@ -413,7 +435,7 @@ class ChallengeHandler
             $this->pdo->commit();
         } catch (Exception $e) {
             $this->pdo->rollBack();
-            logError("Failed to delete challenge template - ID: {$challengeId}, Error: " . $e->getMessage());
+            $this->logger->logError("Failed to delete challenge template - ID: {$challengeId}, Error: " . $e->getMessage());
             throw new Exception("Failed to delete challenge template", 500);
         }
     }
@@ -421,13 +443,13 @@ class ChallengeHandler
     private function handleFlagSubmission(int $challengeId, array $input)
     {
         if (!isset($input['flag'])) {
-            logWarning("Flag submission attempt without flag - User ID: {$this->userId}");
+            $this->logger->logWarning("Flag submission attempt without flag - User ID: {$this->userId}");
             throw new Exception("Flag missing", 400);
         }
 
         $flag = trim($input['flag']);
         if (empty($flag)) {
-            logWarning("Empty flag submission attempt - User ID: {$this->userId}");
+            $this->logger->logWarning("Empty flag submission attempt - User ID: {$this->userId}");
             throw new Exception("Flag cannot be empty", 400);
         }
 
@@ -447,10 +469,10 @@ class ChallengeHandler
             $newBadges = [];
             if ($isLastFlag) {
                 $newBadges = $this->checkBadgeUnlocks($challengeId);
-                logDebug("User completed all flags - Challenge ID: {$challengeId}, User ID: {$this->userId}");
+                $this->logger->logDebug("User completed all flags - Challenge ID: {$challengeId}, User ID: {$this->userId}");
             }
 
-            logDebug("Flag accepted - Challenge ID: {$challengeId}, Points: {$flagData['points']}, User ID: {$this->userId}");
+            $this->logger->logDebug("Flag accepted - Challenge ID: {$challengeId}, Points: {$flagData['points']}, User ID: {$this->userId}");
 
             $this->sendResponse([
                 'success' => true,
@@ -460,7 +482,7 @@ class ChallengeHandler
             ]);
         } catch (Exception $e) {
             $this->pdo->rollBack();
-            logError("Flag submission failed - Challenge ID: {$challengeId}, Error: " . $e->getMessage());
+            $this->logger->logError("Flag submission failed - Challenge ID: {$challengeId}, Error: " . $e->getMessage());
             throw $e;
         }
     }
@@ -480,7 +502,7 @@ class ChallengeHandler
         $flagData = $stmt->fetch();
 
         if (!$flagData) {
-            logWarning("Invalid flag submitted - Challenge ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logWarning("Invalid flag submitted - Challenge ID: {$challengeId}, User ID: {$this->userId}");
             throw new Exception("Invalid flag", 400);
         }
 
@@ -503,7 +525,7 @@ class ChallengeHandler
         ]);
 
         if ($stmt->fetch()) {
-            logWarning("Duplicate flag submission - Flag ID: {$flagId}, User ID: {$this->userId}");
+            $this->logger->logWarning("Duplicate flag submission - Flag ID: {$flagId}, User ID: {$this->userId}");
             throw new Exception("You already submitted this flag", 400);
         }
     }
@@ -653,7 +675,7 @@ class ChallengeHandler
         try {
             $challenge = $this->getChallengeDetails($challengeId);
             $challengeStatus = $this->getChallengeStatus($challengeId);
-            $isSolved = isChallengeSolved($this->pdo, $this->userId, $challengeId);
+            $isSolved = $this->challengeHelper->isChallengeSolved($this->pdo, $this->userId, $challengeId);
             $solution = $this->getChallengeSolution($challengeId, $isSolved);
             $flags = $this->getChallengeFlags($challengeId);
             $completedFlagIds = $this->getCompletedFlagIds($challengeId);
@@ -661,10 +683,10 @@ class ChallengeHandler
             $challengePoints = $this->calculateChallengePoints($flags);
             $hints = $this->getChallengeHints($challengeId, $userPoints);
             $entrypoints = $this->getEntrypointsIfRunning($challengeStatus);
-            $elapsedSeconds = getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId);
+            $elapsedSeconds = $this->challengeHelper->getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId);
             $remainingSeconds = $this->getRemainingSecondsForChallenge($challengeId);
             $remainingExtensions = $this->getRemainingExtensionsForChallenge($challengeId);
-            $leaderboard = getSolvedLeaderboard($this->pdo,$challengeId);
+            $leaderboard = $this->challengeHelper->getSolvedLeaderboard($this->pdo,$challengeId);
 
             $this->sendResponse([
                 'success' => true,
@@ -683,7 +705,7 @@ class ChallengeHandler
                 ])
             ]);
         } catch (Exception $e) {
-            logError("Failed to fetch challenge details - ID: {$challengeId}, Error: " . $e->getMessage());
+            $this->logger->logError("Failed to fetch challenge details - ID: {$challengeId}, Error: " . $e->getMessage());
             throw $e;
         }
     }
@@ -731,12 +753,12 @@ class ChallengeHandler
         $challenge = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$challenge) {
-            logWarning("Challenge not found - ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logWarning("Challenge not found - ID: {$challengeId}, User ID: {$this->userId}");
             throw new Exception("Challenge not found", 404);
         }
 
-        logError($challenge['creator_id']);
-        logError($this->userId);
+        $this->logger->logError($challenge['creator_id']);
+        $this->logger->logError($this->userId);
 
         $challenge['isCreator'] = ($challenge['creator_id'] == $this->userId);
         unset($challenge['creator_id']);
@@ -939,28 +961,28 @@ class ChallengeHandler
 
             if ($this->isFirstBlood($challengeId) && $this->grantBadge(7)) {
                 $unlockedBadges[] = 'First Blood';
-                logDebug("First Blood badge unlocked - Challenge ID: {$challengeId}, User ID: {$this->userId}");
+                $this->logger->logDebug("First Blood badge unlocked - Challenge ID: {$challengeId}, User ID: {$this->userId}");
             }
 
             if ($this->isSpeedRunner($challengeId) && $this->grantBadge(8)) {
                 $unlockedBadges[] = 'Speed Runner';
-                logDebug("Speed Runner badge unlocked - Challenge ID: {$challengeId}, User ID: {$this->userId}");
+                $this->logger->logDebug("Speed Runner badge unlocked - Challenge ID: {$challengeId}, User ID: {$this->userId}");
             }
 
             $categoryBadge = $this->checkCategoryBadge($challengeCategory);
             if ($categoryBadge) {
                 $unlockedBadges[] = $categoryBadge;
-                logDebug("Category badge unlocked - Challenge ID: {$challengeId}, User ID: {$this->userId}, Badge: {$categoryBadge}");
+                $this->logger->logDebug("Category badge unlocked - Challenge ID: {$challengeId}, User ID: {$this->userId}, Badge: {$categoryBadge}");
             }
 
             if ($this->isMasterHacker() && $this->grantBadge(9)) {
                 $unlockedBadges[] = 'Master Hacker';
-                logDebug("Master Hacker badge unlocked - User ID: {$this->userId}");
+                $this->logger->logDebug("Master Hacker badge unlocked - User ID: {$this->userId}");
             }
 
             return $unlockedBadges;
         } catch (Exception $e) {
-            logError("Error checking badge unlocks - Challenge ID: {$challengeId}, User ID: {$this->userId}, Error: " . $e->getMessage());
+            $this->logger->logError("Error checking badge unlocks - Challenge ID: {$challengeId}, User ID: {$this->userId}, Error: " . $e->getMessage());
             throw new Exception('Failed to check badge unlocks', 500);
         }
     }
@@ -974,7 +996,7 @@ class ChallengeHandler
         $category = $stmt->fetchColumn();
 
         if ($category === false) {
-            logWarning("Challenge category not found - ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logWarning("Challenge category not found - ID: {$challengeId}, User ID: {$this->userId}");
             throw new Exception("Challenge not found", 404);
         }
 
@@ -1007,7 +1029,7 @@ class ChallengeHandler
 
     private function isSpeedRunner(int $challengeId)
     {
-        $elapsedSeconds = getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId);
+        $elapsedSeconds = $this->challengeHelper->getElapsedSecondsForChallenge($this->pdo,$this->userId,$challengeId);
         return $elapsedSeconds <= 300;
     }
 
@@ -1065,7 +1087,7 @@ class ChallengeHandler
         $stmt = $this->pdo->prepare("SELECT 1 FROM badges WHERE id = :badge_id");
         $stmt->execute(['badge_id' => $badgeId]);
         if (!$stmt->fetch()) {
-            logWarning("Attempt to grant non-existent badge - Badge ID: {$badgeId}, User ID: {$this->userId}");
+            $this->logger->logWarning("Attempt to grant non-existent badge - Badge ID: {$badgeId}, User ID: {$this->userId}");
             return false;
         }
 
@@ -1081,7 +1103,7 @@ class ChallengeHandler
                 VALUES (:user_id, :badge_id, NOW())
             ");
             $stmt->execute(['user_id' => $this->userId, 'badge_id' => $badgeId]);
-            logDebug("Badge granted - Badge ID: {$badgeId}, User ID: {$this->userId}");
+            $this->logger->logDebug("Badge granted - Badge ID: {$badgeId}, User ID: {$this->userId}");
             return true;
         } else {
             return false;
@@ -1112,12 +1134,12 @@ class ChallengeHandler
             $challenge = $stmt->fetch();
 
             if (!$challenge) {
-                logWarning("Attempt to extend non-running challenge - ID: {$challengeId}, User ID: {$this->userId}");
+                $this->logger->logWarning("Attempt to extend non-running challenge - ID: {$challengeId}, User ID: {$this->userId}");
                 throw new Exception("You don't have this challenge running", 400);
             }
 
             if ($challenge['used_extensions'] >= $this->config['challenge']['MAX_TIME_EXTENSIONS']) {
-                logWarning("Attempt to extend challenge without used_extensions left - ID: {$challengeId}, User ID: {$this->userId}");
+                $this->logger->logWarning("Attempt to extend challenge without used_extensions left - ID: {$challengeId}, User ID: {$this->userId}");
                 throw new Exception("You cannot extend this challenge any longer", 400);
             }
 
@@ -1137,7 +1159,7 @@ class ChallengeHandler
             $remainingExtensions = $this->getRemainingExtensionsForChallenge($challengeId);
 
             $this->pdo->commit();
-            logDebug("Challenge time extended - ID: {$challengeId}, User ID: {$this->userId}");
+            $this->logger->logDebug("Challenge time extended - ID: {$challengeId}, User ID: {$this->userId}");
 
             $this->sendResponse([
                 'success' => true,
@@ -1147,7 +1169,7 @@ class ChallengeHandler
             ]);
         } catch (Exception $e) {
             $this->pdo->rollBack();
-            logError("Failed to extend challenge time - ID: {$challengeId}, Error: " . $e->getMessage());
+            $this->logger->logError("Failed to extend challenge time - ID: {$challengeId}, Error: " . $e->getMessage());
             throw $e;
         }
     }
@@ -1169,7 +1191,7 @@ class ChallengeHandler
             ];
         }
 
-        logError("ChallengeAPI error [{$errorCode}]: " . $e->getMessage());
+        $this->logger->logError("ChallengeAPI error [{$errorCode}]: " . $e->getMessage());
         $this->sendResponse($response);
     }
 
@@ -1185,7 +1207,7 @@ try {
 } catch (Exception $e) {
     $errorCode = (int)($e->getCode() ?: 500);
     http_response_code($errorCode);
-    logError("Error in challenge endpoint: " . $e->getMessage() . " (Code: $errorCode)");
+    $this->logger->logError("Error in challenge endpoint: " . $e->getMessage() . " (Code: $errorCode)");
     $response = [
         'success' => false,
         'message' => $e->getMessage()

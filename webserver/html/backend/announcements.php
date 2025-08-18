@@ -17,22 +17,36 @@ class AnnouncementsHandler
     private string $rangeFilter;
     private array $config;
 
-    public function __construct(array $config)
+    private IDatabaseHelper $databaseHelper;
+    private ISecurityHelper $securityHelper;
+    private ILogger $logger;
+
+
+    public function __construct(
+        array $config,
+        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
+        ISecurityHelper $securityHelper = new SecurityHelper(),
+        ILogger $logger = new Logger()
+    )
     {
+        $this->databaseHelper = $databaseHelper;
+        $this->securityHelper = $securityHelper;
+        $this->logger = $logger;
+
         $this->config = $config;
         $this->initSession();
         $this->validateRequest();
-        $this->pdo = getPDO();
+        $this->pdo = $this->databaseHelper->getPDO();
         $this->parseInputParameters();
-        logDebug("Initialized AnnouncementsHandler");
+        $this->logger->logDebug("Initialized AnnouncementsHandler");
     }
 
     private function initSession()
     {
-        init_secure_session();
+        $this->securityHelper->initSecureSession();
 
-        if (!validate_session()) {
-            logWarning('Unauthorized access attempt to announcements route');
+        if (!$this->securityHelper->validateSession()) {
+            $this->logger->logWarning('Unauthorized access attempt to announcements route');
             throw new Exception('Unauthorized', 401);
         }
     }
@@ -40,8 +54,8 @@ class AnnouncementsHandler
     private function validateRequest()
     {
         $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-        if (!validate_csrf_token($csrfToken)) {
-            logWarning('Invalid CSRF token attempt from user ID: ' . ($_SESSION['user_id'] ?? 'unknown'));
+        if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
+            $this->logger->logWarning('Invalid CSRF token attempt from user ID: ' . ($_SESSION['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);
         }
     }
@@ -54,13 +68,13 @@ class AnnouncementsHandler
 
         $this->importanceFilter = $_GET['importance'] ?? 'all';
         if (!in_array($this->importanceFilter, $this->config['filters']['IMPORTANCE_LEVELS'])) {
-            logWarning('Invalid importance filter provided: ' . $this->importanceFilter);
+            $this->logger->logWarning('Invalid importance filter provided: ' . $this->importanceFilter);
             throw new Exception('Invalid importance value', 400);
         }
 
         $this->rangeFilter = $_GET['range'] ?? 'all';
         if (!in_array($this->rangeFilter, $this->config['filters']['ACTIVITY_RANGES'])) {
-            logWarning('Invalid range filter provided: ' . $this->rangeFilter);
+            $this->logger->logWarning('Invalid range filter provided: ' . $this->rangeFilter);
             throw new Exception('Invalid date range value', 400);
         }
     }
@@ -86,7 +100,7 @@ class AnnouncementsHandler
 
             $this->sendResponse($announcements, $total);
         } catch (PDOException $e) {
-            logError("Database error in announcements route: " . $e->getMessage());
+            $this->logger->logError("Database error in announcements route: " . $e->getMessage());
             throw new Exception('Database error occurred', 500);
         }
     }
@@ -200,7 +214,7 @@ try {
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
-    logError("Error in announcements endpoint: " . $e->getMessage() . " (Code: $errorCode)");
+    $this->logger->logError("Error in announcements endpoint: " . $e->getMessage() . " (Code: $errorCode)");
     $response = [
         'success' => false,
         'message' => $e->getMessage()

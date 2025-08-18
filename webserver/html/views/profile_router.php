@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/security.php';
-init_secure_session();
+$securityHelper = new SecurityHelper();
+$securityHelper->initSecureSession();
 
 $loggedInUser = $_SESSION['username'] ?? null;
 $requestedUser = $_GET['username'] ?? null;

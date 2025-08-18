@@ -14,22 +14,35 @@ class BadgesHandler
     private ?int $userId;
     private array $config;
 
-    public function __construct(array $config)
+    private IDatabaseHelper $databaseHelper;
+    private ISecurityHelper $securityHelper;
+    private ILogger $logger;
+
+    public function __construct(
+        array $config,
+        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
+        ISecurityHelper $securityHelper = new SecurityHelper(),
+        ILogger $logger = new Logger()
+    )
     {
+        $this->databaseHelper = $databaseHelper;
+        $this->securityHelper = $securityHelper;
+        $this->logger = $logger;
+
         $this->config = $config;
         $this->initSession();
         $this->validateRequest();
-        $this->pdo = getPDO();
+        $this->pdo = $this->databaseHelper->getPDO();
         $this->userId = $_SESSION['user_id'];
-        logDebug("Initialized BadgesHandler for user ID: {$this->userId}");
+        $this->logger->logDebug("Initialized BadgesHandler for user ID: {$this->userId}");
     }
 
     private function initSession()
     {
-        init_secure_session();
+        $this->securityHelper->initSecureSession();
 
-        if (!validate_session()) {
-            logWarning("Unauthorized access attempt to badges route");
+        if (!$this->securityHelper->validateSession()) {
+            $this->logger->logWarning("Unauthorized access attempt to badges route");
             throw new Exception('Unauthorized', 401);
         }
     }
@@ -37,13 +50,13 @@ class BadgesHandler
     private function validateRequest()
     {
         $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-        if (!validate_csrf_token($csrfToken)) {
-            logWarning("Invalid CSRF token attempt from user ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+        if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
+            $this->logger->logWarning("Invalid CSRF token attempt from user ID: " . ($_SESSION['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);
         }
 
         if (!isset($_SESSION['user_id'])) {
-            logError("Session user_id not set after validation");
+            $this->logger->logError("Session user_id not set after validation");
             throw new Exception('User identification failed', 500);
         }
     }
@@ -56,7 +69,7 @@ class BadgesHandler
 
             $this->sendResponse($badges, $stats);
         } catch (PDOException $e) {
-            logError("Database error in badges route: " . $e->getMessage());
+            $this->logger->logError("Database error in badges route: " . $e->getMessage());
             throw new Exception('Database error occurred', 500);
         }
     }
@@ -80,7 +93,7 @@ class BadgesHandler
         $stmt->bindValue(':user_id', $this->userId, PDO::PARAM_INT);
 
         if (!$stmt->execute()) {
-            logError("Failed to execute badges query for user ID: {$this->userId}");
+            $this->logger->logError("Failed to execute badges query for user ID: {$this->userId}");
             throw new Exception('Failed to fetch badges', 500);
         }
 
@@ -100,7 +113,7 @@ class BadgesHandler
     {
         foreach ($this->config['badge']['REQUIRED_FIELDS'] as $field) {
             if (!array_key_exists($field, $row)) {
-                logWarning("Missing badge field '$field' in result for user ID: {$this->userId}");
+                $this->logger->logWarning("Missing badge field '$field' in result for user ID: {$this->userId}");
                 return false;
             }
         }
@@ -145,7 +158,7 @@ class BadgesHandler
 
             return null;
         } catch (Exception $e) {
-            logError("Error calculating progress for badge ID {$badge['id']}: " . $e->getMessage());
+            $this->logger->logError("Error calculating progress for badge ID {$badge['id']}: " . $e->getMessage());
             return null;
         }
     }
@@ -275,7 +288,7 @@ class BadgesHandler
         $stats = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$stats || !isset($stats['total_badges'])) {
-            logError("Failed to fetch badge stats for user ID: {$this->userId}");
+            $this->logger->logError("Failed to fetch badge stats for user ID: {$this->userId}");
             throw new Exception('Failed to fetch badge statistics', 500);
         }
 
@@ -308,7 +321,7 @@ try {
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
-    logError("Error in badges endpoint: " . $e->getMessage() . " (Code: $errorCode)");
+    $this->logger->logError("Error in badges endpoint: " . $e->getMessage() . " (Code: $errorCode)");
     $response = [
         'success' => false,
         'message' => $e->getMessage()

@@ -19,46 +19,66 @@ class CtfCreationHandler
     private array $config;
     private array $generalConfig;
 
-    public function __construct(array $config, array $generalConfig)
+    private IDatabaseHelper $databaseHelper;
+    private ISecurityHelper $securityHelper;
+    private ICurlHelper $curlHelper;
+    private IAuthHelper $authHelper;
+    private ILogger $logger;
+
+    public function __construct(
+        array $config,
+        array $generalConfig,
+        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
+        ISecurityHelper $securityHelper = new SecurityHelper(),
+        ICurlHelper $curlHelper = new CurlHelper(),
+        IAuthHelper $authHelper = new AuthHelper(),
+        ILogger $logger = new Logger()
+    )
     {
+        $this->databaseHelper = $databaseHelper;
+        $this->securityHelper = $securityHelper;
+        $this->curlHelper = $curlHelper;
+        $this->authHelper = $authHelper;
+        $this->logger = $logger;
+
         header('Content-Type: application/json');
         $this->config = $config;
         $this->generalConfig = $generalConfig;
-        $this->pdo = getPDO();
+        $this->pdo = $this->databaseHelper->getPDO();
         $this->initSession();
         $this->validateAccess();
         $this->userId = $_SESSION['user_id'];
         $this->action = $_GET['action'] ?? '';
         $this->inputData = $this->parseInputData();
 
-        logDebug("Initialized CTFCreationHandler for user ID: {$this->userId}, Action: {$this->action}");
+        $this->logger->logDebug("Initialized CTFCreationHandler for user ID: {$this->userId}, Action: {$this->action}");
     }
 
     private function initSession(): void
     {
         try {
-            init_secure_session();
+            $this->securityHelper->initSecureSession();
         } catch (Exception $e) {
-            logError("Session initialization failed: " . $e->getMessage());
+            $this->logger->logError("Session initialization failed: " . $e->getMessage());
             throw new RuntimeException('Session initialization error', 401);
         }
     }
 
     private function validateAccess(): void
     {
-        if (!validate_session()) {
-            logWarning("Unauthorized access attempt from IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        if (!$this->securityHelper->validateSession()) {
+            $this->logger->logWarning("Unauthorized access attempt from IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new RuntimeException('Unauthorized - Please login', 401);
         }
 
         $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-        if (!validate_csrf_token($csrfToken)) {
-            logWarning("Invalid CSRF token from user ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+        if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
+            $this->logger->logWarning("Invalid CSRF token from user ID: " . ($_SESSION['user_id'] ?? 'unknown'));
             throw new RuntimeException('Invalid request token', 403);
         }
 
-        if (!validate_admin_access($this->pdo)) {
-            logWarning("Unauthorized admin access attempt by user ID: ". ($_SESSION['user_id'] ?? 'unknown'));
+        if (!$this->securityHelper->validateAdminAccess($this->pdo)) {
+            $this->logger->logWarning("Unauthorized admin access attempt by user ID: ". ($_SESSION['user_id'] ?? 'unknown'));
             throw new RuntimeException('Unauthorized - Admin access required', 403);
         }
     }
@@ -105,7 +125,7 @@ class CtfCreationHandler
     {
         $validationResult = $this->validateInput();
         if (!empty($validationResult['errors'])) {
-            logWarning("Validation errors for user {$this->userId}: " . implode(', ', $validationResult['errors']));
+            $this->logger->logWarning("Validation errors for user {$this->userId}: " . implode(', ', $validationResult['errors']));
             http_response_code(400);
             echo json_encode([
                 'success' => false,
@@ -313,7 +333,7 @@ class CtfCreationHandler
             $json = json_decode($this->inputData[$field] ?? '[]', true, 512, JSON_THROW_ON_ERROR);
             return is_array($json) ? $json : [];
         } catch (JsonException $e) {
-            logError("Invalid JSON input for field {$field} from user {$this->userId}: " . $e->getMessage());
+            $this->logger->logError("Invalid JSON input for field {$field} from user {$this->userId}: " . $e->getMessage());
             throw new RuntimeException("Invalid input format for {$field}", 400);
         }
     }
@@ -331,7 +351,7 @@ class CtfCreationHandler
         ]);
 
         if ($stmt->fetchColumn() > 0) {
-            logWarning("Duplicate challenge name attempt by user {$this->userId}: {$name}");
+            $this->logger->logWarning("Duplicate challenge name attempt by user {$this->userId}: {$name}");
             http_response_code(400);
             echo json_encode([
                 'success' => false,
@@ -400,13 +420,13 @@ class CtfCreationHandler
             return $challengeId;
         } catch (Exception $e) {
             $this->pdo->rollBack();
-            logError("Database transaction rolled back due to error: " . $e->getMessage());
+            $this->logger->logError("Database transaction rolled back due to error: " . $e->getMessage());
 
             if (!empty($imagePath)) {
                 $fullPath = __DIR__ . '/..' . $imagePath;
                 if (file_exists($fullPath)) {
                     @unlink($fullPath);
-                    logDebug("Cleaned up uploaded image after error: {$fullPath}");
+                    $this->logger->logDebug("Cleaned up uploaded image after error: {$fullPath}");
                 }
             }
 
@@ -439,7 +459,7 @@ class CtfCreationHandler
         ]);
 
         $challengeId = $stmt->fetchColumn();
-        logInfo("Challenge template created with ID: {$challengeId}");
+        $this->logger->logInfo("Challenge template created with ID: {$challengeId}");
         return $challengeId;
     }
 
@@ -461,7 +481,7 @@ class CtfCreationHandler
             $proxmoxFilename = $stmt->fetchColumn();
 
             if (!$proxmoxFilename) {
-                logError("Invalid OVA file reference by user {$this->userId}: " . $vm['ova_name']);
+                $this->logger->logError("Invalid OVA file reference by user {$this->userId}: " . $vm['ova_name']);
                 throw new RuntimeException("Invalid OVA file reference for VM: {$vmName}", 400);
             }
 
@@ -536,7 +556,7 @@ class CtfCreationHandler
                 $machineId = $stmt->fetchColumn();
 
                 if (!$machineId) {
-                    logError("Machine template not found for VM {$vmName} in challenge {$challengeId}");
+                    $this->logger->logError("Machine template not found for VM {$vmName} in challenge {$challengeId}");
                     throw new RuntimeException("Machine template '{$vmName}' not found for this challenge");
                 }
 
@@ -602,20 +622,20 @@ class CtfCreationHandler
 
     private function importMachineTemplates(int $challengeId): void
     {
-        $response = makeBackendRequest(
+        $response = $this->curlHelper->makeBackendRequest(
             '/import-machine-templates',
             'POST',
-            getBackendHeaders(),
+            $this->authHelper->getBackendHeaders(),
             ['challenge_template_id' => $challengeId]
         );
 
         if (!$response['success']) {
-            logError("Failed to import machine templates for challenge {$challengeId}. Response: " . json_encode($response));
+            $this->logger->logError("Failed to import machine templates for challenge {$challengeId}. Response: " . json_encode($response));
             $this->revertChallengeCreation($challengeId);
             throw new RuntimeException('Failed to import machine templates', 500);
         }
 
-        logDebug("Successfully imported machine templates for challenge {$challengeId}");
+        $this->logger->logDebug("Successfully imported machine templates for challenge {$challengeId}");
     }
 
     private function revertChallengeCreation(int $challengeId): void
@@ -656,12 +676,12 @@ class CtfCreationHandler
                 ->execute([$challengeId]);
 
             $this->pdo->commit();
-            logInfo("Successfully reverted challenge creation for ID: {$challengeId}");
+            $this->logger->logInfo("Successfully reverted challenge creation for ID: {$challengeId}");
         } catch (Exception $e) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            logError("Failed to revert challenge creation for ID {$challengeId}: " . $e->getMessage());
+            $this->logger->logError("Failed to revert challenge creation for ID {$challengeId}: " . $e->getMessage());
         }
     }
 
@@ -682,7 +702,7 @@ class CtfCreationHandler
             $ovas = $stmt->fetchAll(PDO::FETCH_ASSOC);
             return $ovas;
         } catch (PDOException $e) {
-            logError("Error fetching OVAs for user {$this->userId}: " . $e->getMessage());
+            $this->logger->logError("Error fetching OVAs for user {$this->userId}: " . $e->getMessage());
             throw new RuntimeException('Could not retrieve OVAs', 500);
         }
     }
@@ -785,9 +805,9 @@ class CtfCreationHandler
         $errorMessage = $code >= 500 ? 'An internal server error occurred' : $e->getMessage();
 
         if ($code >= 500) {
-            logError("Internal error : " . $e->getMessage());
+            $this->logger->logError("Internal error : " . $e->getMessage());
         } else {
-            logWarning("CTF creation error: " . $e->getMessage());
+            $this->logger->logWarning("CTF creation error: " . $e->getMessage());
         }
 
         http_response_code($code);
@@ -806,7 +826,7 @@ try {
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
-    logError("Error in create-ctf endpoint: " . $e->getMessage() . " (Code: $errorCode)");
+    $this->logger->logError("Error in create-ctf endpoint: " . $e->getMessage() . " (Code: $errorCode)");
     $response = [
         'success' => false,
         'message' => $e->getMessage()

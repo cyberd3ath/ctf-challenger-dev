@@ -7,10 +7,20 @@ require_once '/var/www/html/includes/auth.php';
 class ChallengeWorker
 {
     private $pdo;
+    private IDatabaseHelper $databaseHelper;
+    private ICurlHelper $curlHelper;
+    private IAuthHelper $authHelper;
 
-    public function __construct()
-    {
-        $this->pdo = getPDO();
+    public function __construct(
+        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
+        ICurlHelper $curlHelper = new CurlHelper(),
+        IAuthHelper $authHelper = new AuthHelper()
+    ) {
+        $this->databaseHelper = $databaseHelper;
+        $this->curlHelper = $curlHelper;
+        $this->authHelper = $authHelper;
+
+        $this->pdo = $this->databaseHelper->getPDO();
     }
 
     public function run()
@@ -77,10 +87,10 @@ class ChallengeWorker
 
     private function stopChallenge($userId)
     {
-        $result = makeBackendRequest(
+        $result = $this->curlHelper->makeBackendRequest(
             '/stop-challenge',
             'POST',
-            getBackendHeaders(),
+            $this->authHelper->getBackendHeaders(),
             ['user_id' => $userId]
         );
 
@@ -132,10 +142,10 @@ class ChallengeWorker
             WHERE challenge_template_id = :challenge_id
         ");
         $stmt->execute(['challenge_id' => $challengeTemplateId]);
-        $result = makeBackendRequest(
+        $result = $this->curlHelper->makeBackendRequest(
             '/delete-machine-templates',
             'POST',
-            getBackendHeaders(),
+            $this->authHelper->getBackendHeaders(),
             ['challenge_id' => $challengeTemplateId]
         );
 

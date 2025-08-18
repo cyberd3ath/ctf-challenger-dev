@@ -1,9 +1,21 @@
 <?php
 declare(strict_types=1);
 
-function isChallengeSolved(PDO $pdo, int $userId, int $challengeId): bool
+
+interface IChallengeHelper
 {
-    $stmt = $pdo->prepare("
+    public function isChallengeSolved(PDO $pdo, int $userId, int $challengeId): bool;
+    public function getElapsedSecondsForChallenge(PDO $pdo, int $userId, int $challengeId): int;
+    public function getSolvedLeaderboard(PDO $pdo, int $challengeTemplateId): array;
+    public function getChallengeLeaderboard(PDO $pdo, int $challengeTemplateId, int $limit = 10, int $offset = 0): array;
+}
+
+
+class ChallengeHelper implements IChallengeHelper
+{
+    public function isChallengeSolved(PDO $pdo, int $userId, int $challengeId): bool
+    {
+        $stmt = $pdo->prepare("
         SELECT 
             COUNT(DISTINCT cf.id) AS total_flags,
             COUNT(DISTINCT cc.flag_id) AS flags_completed,
@@ -15,17 +27,17 @@ function isChallengeSolved(PDO $pdo, int $userId, int $challengeId): bool
             cc.challenge_template_id = :challenge_id
         WHERE cf.challenge_template_id = :challenge_id
     ");
-    $stmt->execute([
-        'user_id' => $userId,
-        'challenge_id' => $challengeId
-    ]);
-    $solvedData = $stmt->fetch(PDO::FETCH_ASSOC);
-    return (bool)($solvedData['is_solved'] ?? false);
-}
+        $stmt->execute([
+            'user_id' => $userId,
+            'challenge_id' => $challengeId
+        ]);
+        $solvedData = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (bool)($solvedData['is_solved'] ?? false);
+    }
 
-function getElapsedSecondsForChallenge(PDO $pdo, int $userId, int $challengeId) :int
-{
-    $stmt = $pdo->prepare("
+    public function getElapsedSecondsForChallenge(PDO $pdo, int $userId, int $challengeId): int
+    {
+        $stmt = $pdo->prepare("
             WITH possible_flags AS (
                 SELECT cf.id AS flag_id
                 FROM challenge_flags cf
@@ -65,17 +77,17 @@ function getElapsedSecondsForChallenge(PDO $pdo, int $userId, int $challengeId) 
             )
             SELECT EXTRACT(EPOCH FROM SUM(intervals.intvl))::BIGINT AS total_seconds FROM intervals;
         ");
-    $stmt->execute([
-        'user_id' => $userId,
-        'challenge_template_id' => $challengeId
-    ]);
+        $stmt->execute([
+            'user_id' => $userId,
+            'challenge_template_id' => $challengeId
+        ]);
 
-    return (int)$stmt->fetchColumn();
-}
+        return (int)$stmt->fetchColumn();
+    }
 
-function getSolvedLeaderboard(PDO $pdo, int $challengeTemplateId): array
-{
-    $stmt = $pdo->prepare("
+    public function getSolvedLeaderboard(PDO $pdo, int $challengeTemplateId): array
+    {
+        $stmt = $pdo->prepare("
         WITH possible_flags AS (
             SELECT cf.id AS flag_id
             FROM challenge_flags cf
@@ -129,13 +141,13 @@ function getSolvedLeaderboard(PDO $pdo, int $challengeTemplateId): array
         ORDER BY rank
         LIMIT 10;
     ");
-    $stmt->execute(['challenge_template_id' => $challengeTemplateId]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
+        $stmt->execute(['challenge_template_id' => $challengeTemplateId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
-function getChallengeLeaderboard(PDO $pdo, int $challengeTemplateId, int $limit = 10, int $offset = 0): array
-{
-    $stmt = $pdo->prepare("
+    public function getChallengeLeaderboard(PDO $pdo, int $challengeTemplateId, int $limit = 10, int $offset = 0): array
+    {
+        $stmt = $pdo->prepare("
         WITH possible_flags AS (
             SELECT cf.id AS flag_id, cf.points
             FROM challenge_flags cf
@@ -208,11 +220,12 @@ function getChallengeLeaderboard(PDO $pdo, int $challengeTemplateId, int $limit 
         LIMIT :limit OFFSET :offset;
     ");
 
-    $stmt->bindValue(':challenge_template_id', $challengeTemplateId, PDO::PARAM_INT);
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
+        $stmt->bindValue(':challenge_template_id', $challengeTemplateId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
 
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    }
 }
-

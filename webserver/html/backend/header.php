@@ -11,24 +11,36 @@ class ProfileStatusHandler
     private ?int $userId;
     private bool $isLoggedIn;
 
-    public function __construct()
+    private IDatabaseHelper $databaseHelper;
+    private ISecurityHelper $securityHelper;
+    private ILogger $logger;
+
+    public function __construct(
+        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
+        ISecurityHelper $securityHelper = new SecurityHelper(),
+        ILogger $logger = new Logger()
+    )
     {
+        $this->databaseHelper = $databaseHelper;
+        $this->securityHelper = $securityHelper;
+        $this->logger = $logger;
+
         header('Content-Type: application/json');
         $this->initSession();
         $this->validateRequestMethod();
-        $this->pdo = getPDO();
-        $this->isLoggedIn = validate_session();
+        $this->pdo = $this->databaseHelper->getPDO();
+        $this->isLoggedIn = $this->securityHelper->validateSession();
         $this->userId = $_SESSION['user_id'] ?? null;
 
-        logDebug("Initialized ProfileStatusHandler for " . ($this->isLoggedIn ? "user ID: {$this->userId}" : "guest"));
+        $this->logger->logDebug("Initialized ProfileStatusHandler for " . ($this->isLoggedIn ? "user ID: {$this->userId}" : "guest"));
     }
 
     private function initSession(): void
     {
         try {
-            init_secure_session();
+            $this->securityHelper->initSecureSession();
         } catch (Exception $e) {
-            logError("Session initialization failed: " . $e->getMessage());
+            $this->logger->logError("Session initialization failed: " . $e->getMessage());
             throw new RuntimeException('Session initialization error', 500);
         }
     }
@@ -36,7 +48,7 @@ class ProfileStatusHandler
     private function validateRequestMethod(): void
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-            logWarning("Invalid request method: " . $_SERVER['REQUEST_METHOD']);
+            $this->logger->logWarning("Invalid request method: " . $_SERVER['REQUEST_METHOD']);
             throw new RuntimeException('Method not allowed', 405);
         }
     }
@@ -71,7 +83,7 @@ class ProfileStatusHandler
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$result) {
-                logError("User not found in database: {$this->userId}");
+                $this->logger->logError("User not found in database: {$this->userId}");
                 throw new RuntimeException('User not found', 400);
             }
 
@@ -80,7 +92,7 @@ class ProfileStatusHandler
                 'is_admin' => (bool)$result['is_admin']
             ];
         } catch (PDOException $e) {
-            logError("Database error for user {$this->userId}: " . $e->getMessage());
+            $this->logger->logError("Database error for user {$this->userId}: " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve profile data', 500);
         }
     }
@@ -101,13 +113,13 @@ class ProfileStatusHandler
         if ($errorCode === 401) {
             session_unset();
             session_destroy();
-            logWarning("Session destroyed due to unauthorized access");
+            $this->logger->logWarning("Session destroyed due to unauthorized access");
         }
 
         if ($errorCode >= 500) {
-            logError("Internal error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            $this->logger->logError("Internal error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
         } else {
-            logWarning("Profile status error: " . $e->getMessage());
+            $this->logger->logWarning("Profile status error: " . $e->getMessage());
         }
 
         http_response_code($errorCode);
@@ -125,7 +137,7 @@ try {
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
-    logError("Error in header endpoint: " . $e->getMessage() . " (Code: $errorCode)");
+    $this->logger->logError("Error in header endpoint: " . $e->getMessage() . " (Code: $errorCode)");
     $response = [
         'success' => false,
         'message' => $e->getMessage()

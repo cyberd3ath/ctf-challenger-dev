@@ -16,22 +16,35 @@ class ExploreHandler
     private array $config;
     private int $perPage = 12;
 
-    public function __construct(array $config)
+    private IDatabaseHelper $databaseHelper;
+    private ISecurityHelper $securityHelper;
+    private ILogger $logger;
+
+    public function __construct(
+        array $config,
+        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
+        ISecurityHelper $securityHelper = new SecurityHelper(),
+        ILogger $logger = new Logger()
+    )
     {
+        $this->databaseHelper = $databaseHelper;
+        $this->securityHelper = $securityHelper;
+        $this->logger = $logger;
+
         $this->config = $config;
         $this->initSession();
         $this->validateRequest();
-        $this->pdo = getPDO();
+        $this->pdo = $this->databaseHelper->getPDO();
         $this->userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
-        logDebug("Initialized ExploreHandler for user ID: " . ($this->userId ?? 'guest'));
+        $this->logger->logDebug("Initialized ExploreHandler for user ID: " . ($this->userId ?? 'guest'));
     }
 
     private function initSession()
     {
-        init_secure_session();
+        $this->securityHelper->initSecureSession();
 
-        if (!$this->isPublic && !validate_session()) {
-            logWarning('Unauthorized access attempt to explore route');
+        if (!$this->isPublic && !$this->securityHelper->validateSession()) {
+            $this->logger->logWarning('Unauthorized access attempt to explore route');
             throw new Exception('Unauthorized - Please login', 401);
         }
     }
@@ -40,8 +53,8 @@ class ExploreHandler
     {
         if (!$this->isPublic) {
             $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-            if (!validate_csrf_token($csrfToken)) {
-                logWarning('Invalid CSRF token attempt from user: ' . ($_SESSION['user_id'] ?? 'unknown'));
+            if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
+                $this->logger->logWarning('Invalid CSRF token attempt from user: ' . ($_SESSION['user_id'] ?? 'unknown'));
                 throw new Exception('Invalid CSRF token.', 403);
             }
         }
@@ -56,7 +69,7 @@ class ExploreHandler
 
             $this->sendResponse($response);
         } catch (PDOException $e) {
-            logError("Database error in explore route: " . $e->getMessage());
+            $this->logger->logError("Database error in explore route: " . $e->getMessage());
             throw new Exception('Failed to retrieve challenges', 500);
         }
     }
@@ -70,22 +83,22 @@ class ExploreHandler
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
         if (!in_array($category, $this->config['filters']['CHALLENGE_CATEGORIES'])) {
-            logDebug("Invalid category requested: $category - Defaulting to 'all'");
+            $this->logger->logDebug("Invalid category requested: $category - Defaulting to 'all'");
             $category = 'all';
         }
 
         if (!in_array($difficulty, $this->config['filters']['CHALLENGE_DIFFICULTIES'])) {
-            logDebug("Invalid difficulty requested: $difficulty - Defaulting to 'all'");
+            $this->logger->logDebug("Invalid difficulty requested: $difficulty - Defaulting to 'all'");
             $difficulty = 'all';
         }
 
         if (!in_array($sort, $this->config['sorts']['VALID'])) {
-            logDebug("Invalid sort requested: $sort - Defaulting to 'popularity'");
+            $this->logger->logDebug("Invalid sort requested: $sort - Defaulting to 'popularity'");
             $sort = 'popularity';
         }
 
         if ($page < 1) {
-            logDebug("Invalid page number requested: $page - Defaulting to 1");
+            $this->logger->logDebug("Invalid page number requested: $page - Defaulting to 1");
             $page = 1;
         }
 
@@ -317,7 +330,7 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
 
             return $data['solved'];
         } catch (PDOException $e) {
-            logError("Database error in getUserChallengeData for user {$this->userId} and challenge $challengeId: " . $e->getMessage());
+            $this->logger->logError("Database error in getUserChallengeData for user {$this->userId} and challenge $challengeId: " . $e->getMessage());
             return null;
         }
     }
@@ -338,14 +351,14 @@ try {
     if ($errorCode === 401) {
         session_unset();
         session_destroy();
-        logWarning("Session destroyed due to unauthorized access");
+        $this->logger->logWarning("Session destroyed due to unauthorized access");
     }
 
     if ($errorCode >= 500) {
         $errorMessage = 'An internal server error occurred';
-        logError("Internal error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+        $this->logger->logError("Internal error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
     } else {
-        logError("Explore endpoint error: " . $e->getMessage());
+        $this->logger->logError("Explore endpoint error: " . $e->getMessage());
     }
 
     http_response_code($errorCode);

@@ -15,23 +15,36 @@ class ProfileHandlerPublic
     private string $requestedUsername;
     private array $generalConfig;
 
-    public function __construct(array $generalConfig)
+    private IDatabaseHelper $databaseHelper;
+    private ISecurityHelper $securityHelper;
+    private ILogger $logger;
+
+    public function __construct(
+        array $generalConfig,
+        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
+        ISecurityHelper $securityHelper = new SecurityHelper(),
+        ILogger $logger = new Logger()
+    )
     {
+        $this->databaseHelper = $databaseHelper;
+        $this->securityHelper = $securityHelper;
+        $this->logger = $logger;
+
         $this->generalConfig = $generalConfig;
-        $this->pdo = getPDO();
+        $this->pdo = $this->databaseHelper->getPDO();
         $this->requestedUsername = trim($_GET['username'] ?? '');
         $this->initSession();
         $this->validateRequest();
         $this->initializeUserData();
-        logDebug("Initialized ProfileHandlerPublic for username: {$this->requestedUsername}");
+        $this->logger->logDebug("Initialized ProfileHandlerPublic for username: {$this->requestedUsername}");
     }
 
     private function initSession()
     {
-        init_secure_session();
+        $this->securityHelper->initSecureSession();
 
-        if (!validate_session()) {
-            logWarning("Unauthorized access attempt to profile - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        if (!$this->securityHelper->validateSession()) {
+            $this->logger->logWarning("Unauthorized access attempt to profile - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized', 401);
         }
     }
@@ -39,21 +52,21 @@ class ProfileHandlerPublic
     private function validateRequest()
     {
         if (empty($this->requestedUsername)) {
-            logError("Empty username requested - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logError("Empty username requested - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Username is required', 400);
         }
 
         if (strlen($this->requestedUsername) > $this->generalConfig['user']['MAX_USERNAME_LENGTH'] ||
             strlen($this->requestedUsername) < $this->generalConfig['user']['MIN_USERNAME_LENGTH'] ||
             !preg_match('/' . $this->generalConfig['user']['USERNAME_REGEX'] . '/', $this->requestedUsername)) {
-            logError("Invalid username format requested: {$this->requestedUsername}");
+            $this->logger->logError("Invalid username format requested: {$this->requestedUsername}");
             throw new Exception('Invalid username format', 400);
         }
 
         if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE', 'PATCH'])) {
             $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-            if (!validate_csrf_token($csrfToken)) {
-                logWarning("Invalid CSRF token in profile request - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
+                $this->logger->logWarning("Invalid CSRF token in profile request - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
                 throw new Exception('Invalid request', 403);
             }
         }
@@ -67,13 +80,13 @@ class ProfileHandlerPublic
             $user = $stmt->fetch();
 
             if (!$user) {
-                logError("User not found in profile view: {$this->requestedUsername}");
+                $this->logger->logError("User not found in profile view: {$this->requestedUsername}");
                 throw new Exception('Profile not found', 404);
             }
 
             $this->userId = (int)$user['id'];
         } catch (PDOException $e) {
-            logError("Database error during profile initialization: " . $e->getMessage());
+            $this->logger->logError("Database error during profile initialization: " . $e->getMessage());
             throw new Exception('Database error occurred', 500);
         }
     }
@@ -146,7 +159,7 @@ class ProfileHandlerPublic
             $profileData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$profileData) {
-                logError("Profile data not found for user ID: {$this->userId}");
+                $this->logger->logError("Profile data not found for user ID: {$this->userId}");
                 throw new RuntimeException('Profile data not found', 404);
             }
 
@@ -183,7 +196,7 @@ class ProfileHandlerPublic
                 'solved_count' => (int)$profileData['solved_count']
             ];
         } catch (PDOException $e) {
-            logError("Database error in getBasicProfileData: " . $e->getMessage());
+            $this->logger->logError("Database error in getBasicProfileData: " . $e->getMessage());
             throw new RuntimeException('Could not load profile data', 500);
         }
     }
@@ -225,7 +238,7 @@ class ProfileHandlerPublic
             $successData = $successStmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$successData) {
-                logError("Failed to retrieve stats for user ID: {$this->userId}");
+                $this->logger->logError("Failed to retrieve stats for user ID: {$this->userId}");
                 throw new RuntimeException('Failed to retrieve profile statistics', 500);
             }
 
@@ -246,7 +259,7 @@ class ProfileHandlerPublic
                 'total_attempts' => (int)$successData['attempts']
             ];
         } catch (PDOException $e) {
-            logError("Database error in getProfileStats: " . $e->getMessage());
+            $this->logger->logError("Database error in getProfileStats: " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve profile statistics', 500);
         }
     }
@@ -258,7 +271,7 @@ class ProfileHandlerPublic
             $allCategories = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
             if (empty($allCategories)) {
-                logError("No challenge categories found in database");
+                $this->logger->logError("No challenge categories found in database");
                 throw new RuntimeException('No challenge categories found', 500);
             }
 
@@ -307,7 +320,7 @@ class ProfileHandlerPublic
                 'solved_counts' => array_replace(array_fill_keys($allCategories, 0), $solved)
             ];
         } catch (PDOException $e) {
-            logError("Database error in getCategoryData: " . $e->getMessage());
+            $this->logger->logError("Database error in getCategoryData: " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve category data', 500);
         }
     }
@@ -346,7 +359,7 @@ class ProfileHandlerPublic
                 'total_badges' => $totalBadges
             ];
         } catch (PDOException $e) {
-            logError("Database error in getProfileBadges: " . $e->getMessage());
+            $this->logger->logError("Database error in getProfileBadges: " . $e->getMessage());
             throw new RuntimeException('Failed to retrieve badge information', 500);
         }
     }
@@ -383,14 +396,14 @@ class ProfileHandlerPublic
         if ($errorCode === 401) {
             session_unset();
             session_destroy();
-            logWarning("Session destroyed due to unauthorized access");
+            $this->logger->logWarning("Session destroyed due to unauthorized access");
         }
 
         if ($errorCode >= 500) {
             $errorMessage = 'An internal server error occurred';
-            logError("Internal error : " . $e->getMessage());
+            $this->logger->logError("Internal error : " . $e->getMessage());
         } else {
-            logError("Profile error: " . $e->getMessage());
+            $this->logger->logError("Profile error: " . $e->getMessage());
         }
 
         http_response_code($errorCode);
@@ -408,7 +421,7 @@ try {
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
-    logError("Error in profile_view endpoint: " . $e->getMessage() . " (Code: $errorCode)");
+    $this->logger->logError("Error in profile_view endpoint: " . $e->getMessage() . " (Code: $errorCode)");
     $response = [
         'success' => false,
         'message' => $e->getMessage()

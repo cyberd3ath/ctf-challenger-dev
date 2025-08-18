@@ -18,25 +18,41 @@ class DashboardHandler
     private ?string $view;
     private array $config;
 
-    public function __construct(array $config)
+    private IDatabaseHelper $databaseHelper;
+    private ISecurityHelper $securityHelper;
+    private ILogger $logger;
+    private IChallengeHelper $challengeHelper;
+
+    public function __construct(
+        array $config,
+        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
+        ISecurityHelper $securityHelper = new SecurityHelper(),
+        ILogger $logger = new Logger(),
+        IChallengeHelper $challengeHelper = new ChallengeHelper()
+    )
     {
+        $this->databaseHelper = $databaseHelper;
+        $this->securityHelper = $securityHelper;
+        $this->logger = $logger;
+        $this->challengeHelper = $challengeHelper;
+
         $this->config = $config;
-        $this->pdo = getPDO();
+        $this->pdo = $this->databaseHelper->getPDO();
         $this->dataType = $_GET['type'] ?? 'all';
         $this->range = $_GET['range'] ?? null;
         $this->view = $_GET['view'] ?? null;
         $this->initSession();
         $this->userId = $_SESSION['user_id'];
         $this->validateRequest();
-        logDebug("Initialized DashboardHandler for user ID: {$this->userId}, Data type: {$this->dataType}");
+        $this->logger->logDebug("Initialized DashboardHandler for user ID: {$this->userId}, Data type: {$this->dataType}");
     }
 
     private function initSession()
     {
-        init_secure_session();
+        $this->securityHelper->initSecureSession();
 
-        if (!validate_session()) {
-            logWarning("Unauthorized access attempt to dashboard - IP: " . anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        if (!$this->securityHelper->validateSession()) {
+            $this->logger->logWarning("Unauthorized access attempt to dashboard - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized - Please login', 401);
         }
     }
@@ -44,13 +60,13 @@ class DashboardHandler
     private function validateRequest()
     {
         $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-        if (!validate_csrf_token($csrfToken)) {
-            logWarning("Invalid CSRF token in dashboard - User ID: {$this->userId}, Token: {$csrfToken}");
+        if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
+            $this->logger->logWarning("Invalid CSRF token in dashboard - User ID: {$this->userId}, Token: {$csrfToken}");
             throw new Exception('Invalid CSRF token', 403);
         }
 
         if (!in_array($this->dataType, $this->config['dashboard']['VALID_DATA_TYPES'])) {
-            logWarning("Invalid data type requested - User ID: {$this->userId}, Type: {$this->dataType}");
+            $this->logger->logWarning("Invalid data type requested - User ID: {$this->userId}, Type: {$this->dataType}");
             throw new Exception('Invalid data type requested', 400);
         }
     }
@@ -70,47 +86,47 @@ class DashboardHandler
         switch ($this->dataType) {
             case 'user':
                 $data = $this->getUserData();
-                logDebug("Retrieved user data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved user data for user {$this->userId}");
                 break;
 
             case 'progress':
                 $data = $this->getProgressData();
-                logDebug("Retrieved progress data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved progress data for user {$this->userId}");
                 break;
 
             case 'category':
                 $data = $this->getCategoryData();
-                logDebug("Retrieved category data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved category data for user {$this->userId}");
                 break;
 
             case 'activity':
                 $data = $this->getActivityData();
-                logDebug("Retrieved activity data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved activity data for user {$this->userId}");
                 break;
 
             case 'badges':
                 $data = $this->getBadgesData();
-                logDebug("Retrieved badges data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved badges data for user {$this->userId}");
                 break;
 
             case 'active_challenge':
                 $data = $this->getActiveChallengeData();
-                logDebug("Retrieved active challenge data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved active challenge data for user {$this->userId}");
                 break;
 
             case 'challenges':
                 $data = $this->getChallengesData();
-                logDebug("Retrieved challenges data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved challenges data for user {$this->userId}");
                 break;
 
             case 'timeline':
                 $data = $this->getTimelineData($this->range, $this->view);
-                logDebug("Retrieved timeline data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved timeline data for user {$this->userId}");
                 break;
 
             case 'news':
                 $data = $this->getLatestNews();
-                logDebug("Retrieved latest news");
+                $this->logger->logDebug("Retrieved latest news");
                 break;
 
             default:
@@ -125,7 +141,7 @@ class DashboardHandler
                     'timeline' => $this->getTimelineData('week', 'daily'),
                     'news' => $this->getLatestNews()
                 ];
-                logDebug("Retrieved complete dashboard data for user {$this->userId}");
+                $this->logger->logDebug("Retrieved complete dashboard data for user {$this->userId}");
         }
 
         return ['success' => true, 'data' => $data];
@@ -176,7 +192,7 @@ class DashboardHandler
             $userData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$userData) {
-                logError("User not found in getUserData: {$this->userId}");
+                $this->logger->logError("User not found in getUserData: {$this->userId}");
                 throw new Exception('User not found', 404);
             }
 
@@ -186,7 +202,7 @@ class DashboardHandler
                 'points' => (int)$userData['total_points']
             ];
         } catch (PDOException $e) {
-            logError("Database error in getUserData: " . $e->getMessage());
+            $this->logger->logError("Database error in getUserData: " . $e->getMessage());
             throw new Exception('Failed to retrieve user data', 500);
         }
     }
@@ -255,7 +271,7 @@ class DashboardHandler
                 'avg_time' => $this->formatTime($avgTimeSeconds)
             ];
         } catch (PDOException $e) {
-            logError("Database error in getProgressData: " . $e->getMessage());
+            $this->logger->logError("Database error in getProgressData: " . $e->getMessage());
             throw new Exception('Failed to retrieve progress data', 500);
         }
     }
@@ -322,7 +338,7 @@ class DashboardHandler
 
             return ['percentages' => $percentages];
         } catch (PDOException $e) {
-            logError("Database error in getCategoryData: " . $e->getMessage());
+            $this->logger->logError("Database error in getCategoryData: " . $e->getMessage());
             throw new Exception('Failed to retrieve category data', 500);
         }
     }
@@ -441,7 +457,7 @@ class DashboardHandler
 
             return $activities;
         } catch (PDOException $e) {
-            logError("Database error in getActivityData: " . $e->getMessage());
+            $this->logger->logError("Database error in getActivityData: " . $e->getMessage());
             throw new Exception('Failed to retrieve activity data', 500);
         }
     }
@@ -520,7 +536,7 @@ class DashboardHandler
                 ]
             ];
         } catch (PDOException $e) {
-            logError("Database error in getBadgesData: " . $e->getMessage());
+            $this->logger->logError("Database error in getBadgesData: " . $e->getMessage());
             throw new Exception('Failed to retrieve badges data', 500);
         }
     }
@@ -607,7 +623,7 @@ class DashboardHandler
 
             return $challenges;
         } catch (PDOException $e) {
-            logError("Database error in getChallengesData: " . $e->getMessage());
+            $this->logger->logError("Database error in getChallengesData: " . $e->getMessage());
             throw new Exception('Failed to retrieve challenges data', 500);
         }
     }
@@ -754,7 +770,7 @@ class DashboardHandler
                 'details' => array_values($details)
             ];
         } catch (PDOException $e) {
-            logError("Database error in getTimelineData: " . $e->getMessage());
+            $this->logger->logError("Database error in getTimelineData: " . $e->getMessage());
             throw new Exception('Failed to retrieve timeline data', 500);
         }
     }
@@ -792,7 +808,7 @@ class DashboardHandler
 
             return $sanitizedNews;
         } catch (PDOException $e) {
-            logError("Database error in getLatestNews: " . $e->getMessage());
+            $this->logger->logError("Database error in getLatestNews: " . $e->getMessage());
             throw new Exception('Failed to retrieve latest news', 500);
         }
     }
@@ -820,7 +836,7 @@ class DashboardHandler
             $stmt->execute(['running_challenge_id' => $runningChallengeId]);
             $challenge_template_id = (int)$stmt->fetchColumn();
 
-            $elapsedSeconds = getElapsedSecondsForChallenge($this->pdo,$this->userId,$challenge_template_id);
+            $elapsedSeconds = $this->challengeHelper->getElapsedSecondsForChallenge($this->pdo,$this->userId,$challenge_template_id);
 
             $stmt = $this->pdo->prepare("
                 SELECT 
@@ -847,7 +863,7 @@ class DashboardHandler
             $challenge = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$challenge) {
-                logError("Challenge details not found for running challenge ID: $runningChallengeId");
+                $this->logger->logError("Challenge details not found for running challenge ID: $runningChallengeId");
                 return null;
             }
 
@@ -859,10 +875,10 @@ class DashboardHandler
                 'points' => (int)$challenge['points'],
                 'started_at' => $challenge['current_attempt_started_at'],
                 'elapsedSeconds' => $elapsedSeconds,
-                'isSolved' => isChallengeSolved($this->pdo, $this->userId, $challenge['id']),
+                'isSolved' => $this->challengeHelper->isChallengeSolved($this->pdo, $this->userId, $challenge['id']),
             ];
         } catch (PDOException $e) {
-            logError("Database error in getActiveChallengeData: " . $e->getMessage());
+            $this->logger->logError("Database error in getActiveChallengeData: " . $e->getMessage());
             throw new Exception('Failed to retrieve active challenge data', 500);
         }
     }
@@ -891,14 +907,14 @@ class DashboardHandler
         if ($errorCode === 401) {
             session_unset();
             session_destroy();
-            logWarning("Session destroyed due to unauthorized access");
+            $this->logger->logWarning("Session destroyed due to unauthorized access");
         }
 
         if ($errorCode >= 500) {
             $errorMessage = 'An internal server error occurred';
-            logError("Internal error : " . $e->getMessage());
+            $this->logger->logError("Internal error : " . $e->getMessage());
         } else {
-            logError("Dashboard error: " . $e->getMessage());
+            $this->logger->logError("Dashboard error: " . $e->getMessage());
         }
 
         http_response_code($errorCode);
@@ -916,7 +932,7 @@ try {
 } catch (Exception $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
-    logError("Error in dashboard endpoint: " . $e->getMessage() . " (Code: $errorCode)");
+    $this->logger->logError("Error in dashboard endpoint: " . $e->getMessage() . " (Code: $errorCode)");
     $response = [
         'success' => false,
         'message' => $e->getMessage()
