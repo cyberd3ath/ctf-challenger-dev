@@ -47,7 +47,7 @@ class OvaUploadHandler
         ICurlHelper $curlHelper = new CurlHelper(),
         IAuthHelper $authHelper = new AuthHelper(),
         IOvaValidator $ovaValidator = null,
-        ?array $session = null,
+        ?array &$session = null,
         ?array $server = null,
         ?array $get = null,
         ?array $post = null,
@@ -55,7 +55,7 @@ class OvaUploadHandler
         ?array $env = null
     )
     {
-        if($session)
+        if($session !== null)
             $this->session =& $session;
         else
             $this->session =& $_SESSION;

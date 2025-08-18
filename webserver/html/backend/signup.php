@@ -42,12 +42,12 @@ class RegistrationHandler
         ILogger $logger = new Logger(),
         IAuthHelper $authHelper = new AuthHelper(),
         ICurlHelper $curlHelper = new CurlHelper(),
-        ?array $session = null,
+        ?array &$session = null,
         ?array $server = null,
         ?array $post = null
     )
     {
-        if($session)
+        if($session !== null)
             $this->session =& $session;
         else
             $this->session =& $_SESSION;

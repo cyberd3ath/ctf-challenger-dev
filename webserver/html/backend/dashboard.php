@@ -36,12 +36,12 @@ class DashboardHandler
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
         IChallengeHelper $challengeHelper = new ChallengeHelper(),
-        ?array $session = null,
+        ?array &$session = null,
         ?array $server = null,
         ?array $get = null
     )
     {
-        if($session)
+        if($session !== null)
             $this->session =& $session;
         else
             $this->session =& $_SESSION;

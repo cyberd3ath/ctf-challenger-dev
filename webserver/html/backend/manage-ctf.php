@@ -45,13 +45,13 @@ class CTFManagementHandler
         IAuthHelper $authHelper = new AuthHelper(),
         ICurlHelper $curlHelper = new CurlHelper(),
         IChallengeHelper $challengeHelper = new ChallengeHelper(),
-        ?array $session = null,
+        ?array &$session = null,
         ?array $server = null,
         ?array $get = null,
         ?array $post = null
     )
     {
-        if($session)
+        if($session !== null)
             $this->session =& $session;
         else
             $this->session =& $_SESSION;

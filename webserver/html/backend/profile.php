@@ -43,7 +43,7 @@ class ProfileHandler
         ILogger $logger = new Logger(),
         IAuthHelper $authHelper = new AuthHelper(),
         ICurlHelper $curlHelper = new CurlHelper(),
-        ?array $session = null,
+        ?array &$session = null,
         ?array $server = null,
         ?array $get = null,
         ?array $post = null,
@@ -51,7 +51,7 @@ class ProfileHandler
         ?array $env = null
     )
     {
-        if($session)
+        if($session !== null)
             $this->session =& $session;
         else
             $this->session =& $_SESSION;

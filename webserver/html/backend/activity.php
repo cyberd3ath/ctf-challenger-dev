@@ -36,12 +36,12 @@ class ActivitiesHandler
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        ?array $session = null,
+        ?array &$session = null,
         ?array $server = null,
         ?array $get = null
     )
     {
-        if($session)
+        if($session !== null)
             $this->session =& $session;
         else
             $this->session =& $_SESSION;

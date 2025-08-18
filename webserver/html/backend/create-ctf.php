@@ -44,14 +44,14 @@ class CtfCreationHandler
         ICurlHelper $curlHelper = new CurlHelper(),
         IAuthHelper $authHelper = new AuthHelper(),
         ILogger $logger = new Logger(),
-        ?array $session = null,
+        ?array &$session = null,
         ?array $server = null,
         ?array $get = null,
         ?array $post = null,
         ?array $files = null
     )
     {
-        if($session)
+        if($session !== null)
             $this->session =& $session;
         else
             $this->session =& $_SESSION;
