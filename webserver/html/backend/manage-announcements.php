@@ -259,11 +259,11 @@ class AdminAnnouncementsHandler
 
     private function createAnnouncement(array $data): array
     {
-        $title = trim($data['title']);
-        $content = trim($data['content']);
-        $shortDesc = !empty($data['short_description']) ? trim($data['short_description']) : null;
-        $importance = strtolower(trim($data['importance']));
-        $category = strtolower(trim($data['category']));
+        $title = trim($data['title']  ?? '');
+        $content = trim($data['content'] ?? '');
+        $shortDesc = trim($data['short_description'] ?? '');
+        $importance = strtolower(trim($data['importance'] ?? ''));
+        $category = strtolower(trim($data['category'] ?? ''));
 
         $stmt = $this->pdo->prepare("
             INSERT INTO announcements (
@@ -319,11 +319,11 @@ class AdminAnnouncementsHandler
         $id = intval($data['id']);
         $this->verifyAnnouncementExists($id);
 
-        $title = trim($data['title']);
-        $content = trim($data['content']);
-        $shortDesc = !empty($data['short_description']) ? trim($data['short_description']) : null;
-        $importance = strtolower(trim($data['importance']));
-        $category = strtolower(trim($data['category']));
+        $title = trim($data['title'] ?? '');
+        $content = trim($data['content'] ?? '');
+        $shortDesc = trim($data['short_description'] ?? '');
+        $importance = strtolower(trim($data['importance'] ?? ''));
+        $category = strtolower(trim($data['category'] ?? ''));
 
         $stmt = $this->pdo->prepare("
             UPDATE announcements SET

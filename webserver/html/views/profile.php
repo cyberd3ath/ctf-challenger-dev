@@ -11,8 +11,6 @@
 <body>
 <?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/header.html'); ?>
 <main class="profile-container">
-    <input type="hidden" id="user-id" value="<?php echo $_SESSION['user_id']; ?>">
-
     <div class="profile-grid">
         <section class="account-info-card">
             <div class="account-info-nav">

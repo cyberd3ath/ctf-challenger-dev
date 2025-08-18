@@ -29,7 +29,7 @@ $csrf_token = $securityHelper->generateCsrfToken();
 </div>
 <div class="login-container">
     <form class="login-form" id="signupForm" method="POST">
-        <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
+        <input type="hidden" name="csrf_token" value="<?php echo (new SecurityHelper())->generateCsrfToken();?>">
         <h2>Sign Up</h2>
         <div class="input-group has-icon">
             <label for="username">Username</label>
