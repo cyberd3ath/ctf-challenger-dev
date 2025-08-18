@@ -16,12 +16,36 @@ class LogoutHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger()
+        ILogger $logger = new Logger(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -39,17 +63,17 @@ class LogoutHandler
 
     private function validateSession()
     {
-        if (!$this->securityHelper->validateSession() || empty($_SESSION['authenticated'])) {
-            $this->logger->logWarning("Unauthorized logout attempt - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        if (!$this->securityHelper->validateSession() || empty($this->session['authenticated'])) {
+            $this->logger->logWarning("Unauthorized logout attempt - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized - Please login', 401);
         }
 
-        $this->userId = $_SESSION['user_id'] ?? 'unknown';
+        $this->userId = $this->session['user_id'] ?? 'unknown';
     }
 
     private function parseRequest()
     {
-        $this->csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $this->csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
     }
 
     public function handleRequest()
@@ -66,7 +90,7 @@ class LogoutHandler
     private function validateCsrfToken()
     {
         if (!$this->securityHelper->validateCsrfToken($this->csrfToken)) {
-            $this->logger->logError("Invalid CSRF token during logout - User ID: {$this->userId}, Token: {$this->csrfToken}, IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logError("Invalid CSRF token during logout - User ID: {$this->userId}, Token: {$this->csrfToken}, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Invalid security token', 403);
         }
     }
@@ -124,7 +148,7 @@ class LogoutHandler
 
         $this->logger->logError("Logout failed - Code: {$code}, Message: " . $e->getMessage() .
             ", User ID: {$this->userId}" .
-            ", IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            ", IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
 
         echo json_encode([
             'success' => false,

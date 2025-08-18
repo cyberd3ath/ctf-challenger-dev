@@ -23,14 +23,38 @@ class DashboardHandler
     private ILogger $logger;
     private IChallengeHelper $challengeHelper;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
-        IChallengeHelper $challengeHelper = new ChallengeHelper()
+        IChallengeHelper $challengeHelper = new ChallengeHelper(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -38,11 +62,11 @@ class DashboardHandler
 
         $this->config = $config;
         $this->pdo = $this->databaseHelper->getPDO();
-        $this->dataType = $_GET['type'] ?? 'all';
-        $this->range = $_GET['range'] ?? null;
-        $this->view = $_GET['view'] ?? null;
+        $this->dataType = $this->get['type'] ?? 'all';
+        $this->range = $this->get['range'] ?? null;
+        $this->view = $this->get['view'] ?? null;
         $this->initSession();
-        $this->userId = $_SESSION['user_id'];
+        $this->userId = $this->session['user_id'];
         $this->validateRequest();
         $this->logger->logDebug("Initialized DashboardHandler for user ID: {$this->userId}, Data type: {$this->dataType}");
     }
@@ -52,14 +76,14 @@ class DashboardHandler
         $this->securityHelper->initSecureSession();
 
         if (!$this->securityHelper->validateSession()) {
-            $this->logger->logWarning("Unauthorized access attempt to dashboard - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logWarning("Unauthorized access attempt to dashboard - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized - Please login', 401);
         }
     }
 
     private function validateRequest()
     {
-        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in dashboard - User ID: {$this->userId}, Token: {$csrfToken}");
             throw new Exception('Invalid CSRF token', 403);

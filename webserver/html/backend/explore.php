@@ -20,13 +20,37 @@ class ExploreHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger()
+        ILogger $logger = new Logger(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -35,7 +59,7 @@ class ExploreHandler
         $this->initSession();
         $this->validateRequest();
         $this->pdo = $this->databaseHelper->getPDO();
-        $this->userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+        $this->userId = isset($this->session['user_id']) ? $this->session['user_id'] : null;
         $this->logger->logDebug("Initialized ExploreHandler for user ID: " . ($this->userId ?? 'guest'));
     }
 
@@ -52,9 +76,9 @@ class ExploreHandler
     private function validateRequest()
     {
         if (!$this->isPublic) {
-            $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+            $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
             if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-                $this->logger->logWarning('Invalid CSRF token attempt from user: ' . ($_SESSION['user_id'] ?? 'unknown'));
+                $this->logger->logWarning('Invalid CSRF token attempt from user: ' . ($this->session['user_id'] ?? 'unknown'));
                 throw new Exception('Invalid CSRF token.', 403);
             }
         }
@@ -76,11 +100,11 @@ class ExploreHandler
 
     private function parseInputParameters()
     {
-        $search = $_GET['search'] ?? '';
-        $category = $_GET['category'] ?? 'all';
-        $difficulty = $_GET['difficulty'] ?? 'all';
-        $sort = $_GET['sort'] ?? 'popularity';
-        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $search = $this->get['search'] ?? '';
+        $category = $this->get['category'] ?? 'all';
+        $difficulty = $this->get['difficulty'] ?? 'all';
+        $sort = $this->get['sort'] ?? 'popularity';
+        $page = isset($this->get['page']) ? (int)$this->get['page'] : 1;
 
         if (!in_array($category, $this->config['filters']['CHALLENGE_CATEGORIES'])) {
             $this->logger->logDebug("Invalid category requested: $category - Defaulting to 'all'");

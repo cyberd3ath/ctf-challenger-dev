@@ -23,13 +23,38 @@ class ActivitiesHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
+
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger()
+        ILogger $logger = new Logger(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -38,7 +63,7 @@ class ActivitiesHandler
         $this->initSession();
         $this->validateRequest();
         $this->pdo = $this->databaseHelper->getPDO();
-        $this->userId = $_SESSION['user_id'];
+        $this->userId = $this->session['user_id'];
         $this->parseInputParameters();
         $this->logger->logDebug("Initialized ActivitiesHandler for user ID: {$this->userId}");
     }
@@ -55,9 +80,9 @@ class ActivitiesHandler
 
     private function validateRequest()
     {
-        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning('Invalid CSRF token attempt from user ID: ' . ($_SESSION['user_id'] ?? 'unknown'));
+            $this->logger->logWarning('Invalid CSRF token attempt from user ID: ' . ($this->session['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);
         }
     }
@@ -68,19 +93,19 @@ class ActivitiesHandler
             'options' => ['default' => 1, 'min_range' => 1]
         ]);
 
-        $this->typeFilter = $_GET['type'] ?? 'all';
+        $this->typeFilter = $this->get['type'] ?? 'all';
         if (!in_array($this->typeFilter, $this->config['filters']['ACTIVITY_TYPES'])) {
             $this->logger->logWarning('Invalid type filter provided: ' . $this->typeFilter);
             throw new Exception('Invalid activity type filter', 400);
         }
 
-        $this->rangeFilter = $_GET['range'] ?? 'all';
+        $this->rangeFilter = $this->get['range'] ?? 'all';
         if (!in_array($this->rangeFilter, $this->config['filters']['ACTIVITY_RANGES'])) {
             $this->logger->logWarning('Invalid range filter provided: ' . $this->rangeFilter);
             throw new Exception('Invalid date range filter', 400);
         }
 
-        $this->categoryFilter = $_GET['category'] ?? 'all';
+        $this->categoryFilter = $this->get['category'] ?? 'all';
         if (!in_array($this->categoryFilter, $this->config['filters']['CHALLENGE_CATEGORIES'])) {
             $this->logger->logWarning('Invalid category filter provided: ' . $this->categoryFilter);
             throw new Exception('Invalid category filter', 400);

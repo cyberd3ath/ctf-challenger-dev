@@ -26,6 +26,13 @@ class OvaUploadHandler
     private IAuthHelper $authHelper;
     private IOvaValidator $ovaValidator;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         array $config,
         array $generalConfig,
@@ -34,23 +41,40 @@ class OvaUploadHandler
         ILogger $logger = new Logger(),
         ICurlHelper $curlHelper = new CurlHelper(),
         IAuthHelper $authHelper = new AuthHelper(),
-        IOvaValidator $ovaValidator = new OvaValidator()
+        IOvaValidator $ovaValidator = null,
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
         $this->curlHelper = $curlHelper;
         $this->authHelper = $authHelper;
-        $this->ovaValidator = $ovaValidator;
+        $this->ovaValidator = $ovaValidator ?? new OvaValidator($config);
 
         $this->config = $config;
         $this->generalConfig = $generalConfig;
         $this->pdo = $this->databaseHelper->getPDO();
         $this->initSession();
         $this->validateAccess();
-        $this->userId = $_SESSION['user_id'];
-        $this->action = $_GET['action'] ?? '';
+        $this->userId = $this->session['user_id'];
+        $this->action = $this->get['action'] ?? '';
         $this->inputData = $this->parseInputData();
 
         $this->logger->logDebug("Initialized OvaUploadHandler for User ID: {$this->userId}, Action: {$this->action}");
@@ -69,29 +93,29 @@ class OvaUploadHandler
     private function validateAccess(): void
     {
         if (!$this->securityHelper->validateSession()) {
-            $this->logger->logWarning("Unauthorized access attempt from IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logWarning("Unauthorized access attempt from IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new RuntimeException('Unauthorized - Please login', 401);
         }
 
-        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning("Invalid CSRF token from user ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+            $this->logger->logWarning("Invalid CSRF token from user ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new RuntimeException('Invalid request token', 403);
         }
 
         if (!$this->securityHelper->validateAdminAccess($this->pdo)) {
-            $this->logger->logWarning("Unauthorized admin access attempt by user ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+            $this->logger->logWarning("Unauthorized admin access attempt by user ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new RuntimeException('Unauthorized - Admin access required', 403);
         }
     }
 
     private function parseInputData(): array
     {
-        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        if ($this->server['REQUEST_METHOD'] === 'GET') {
             return [];
         }
 
-        if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+        if ($this->server['REQUEST_METHOD'] === 'DELETE') {
             $data = json_decode(file_get_contents('php://input'), true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $this->logger->logError("Invalid JSON in OVA deletion - User ID: {$this->userId}");
@@ -102,10 +126,10 @@ class OvaUploadHandler
 
         $jsonInput = json_decode(file_get_contents('php://input'), true);
         if ($jsonInput !== null) {
-            return array_merge($_POST, $jsonInput);
+            return array_merge($this->post, $jsonInput);
         }
 
-        return $_POST;
+        return $this->post;
     }
 
     public function handleRequest(): void
@@ -113,7 +137,7 @@ class OvaUploadHandler
         try {
             $this->ensureUploadDirectory();
 
-            switch ($_SERVER['REQUEST_METHOD']) {
+            switch ($this->server['REQUEST_METHOD']) {
                 case 'POST':
                     $this->handlePostRequest();
                     break;
@@ -152,7 +176,7 @@ class OvaUploadHandler
     private function handleChunkedUpload(): void
     {
         $phase = $this->inputData['phase'] ??
-            (isset($_FILES['chunk']) ? 'chunk' :
+            (isset($this->files['chunk']) ? 'chunk' :
                 (isset($this->inputData['fileName']) ? 'init' : 'finalize'));
 
         switch ($phase) {
@@ -167,6 +191,7 @@ class OvaUploadHandler
                 break;
             case 'cancel':
                 $this->handleUploadCancellation();
+                break;
             default:
                 throw new RuntimeException('Invalid upload request', 400);
         }
@@ -206,7 +231,7 @@ class OvaUploadHandler
 
         $meta = $this->validateUploadSession($uploadId);
 
-        $chunkTmpName = $_FILES['chunk']['tmp_name'];
+        $chunkTmpName = $this->files['chunk']['tmp_name'];
         $chunkData = file_get_contents($chunkTmpName);
         if ($chunkData === false) {
             $this->logger->logError("Failed to read uploaded chunk {$chunkIndex} for upload {$uploadId}");
@@ -347,8 +372,8 @@ class OvaUploadHandler
 
     private function handleDirectUpload(): void
     {
-        if (!isset($_FILES['ova_file']) || $_FILES['ova_file']['error'] !== UPLOAD_ERR_OK) {
-            $errorCode = $_FILES['ova_file']['error'] ?? 'unknown';
+        if (!isset($this->files['ova_file']) || $this->files['ova_file']['error'] !== UPLOAD_ERR_OK) {
+            $errorCode = $this->files['ova_file']['error'] ?? 'unknown';
 
             if ($errorCode === UPLOAD_ERR_PARTIAL) {
                 $this->logger->logWarning("Upload cancelled/timed out for user {$this->userId}");
@@ -359,7 +384,7 @@ class OvaUploadHandler
             throw new RuntimeException('File upload failed', 400);
         }
 
-        $file = $_FILES['ova_file'];
+        $file = $this->files['ova_file'];
         $tempPath = '';
         $uniqueName = '';
 
@@ -587,7 +612,7 @@ class OvaUploadHandler
 
         $this->checkDuplicateFileName($displayName);
 
-        $endpoint = "/api2/json/nodes/" . $_ENV['PROXMOX_HOSTNAME'] . "/storage/local/upload";
+        $endpoint = "/api2/json/nodes/" . $this->env['PROXMOX_HOSTNAME'] . "/storage/local/upload";
         $postParams = [
             'content' => 'import',
             'filename' => new CURLFile(
@@ -670,7 +695,7 @@ class OvaUploadHandler
 
     private function deleteFromProxmox(string $proxmoxFilename): void
     {
-        $endpoint = "/api2/json/nodes/" . $_ENV['PROXMOX_HOSTNAME'] . "/storage/local/content/import/" . urlencode($proxmoxFilename);
+        $endpoint = "/api2/json/nodes/" . $this->env['PROXMOX_HOSTNAME'] . "/storage/local/content/import/" . urlencode($proxmoxFilename);
         $authHeaders = $this->authHelper->getAuthHeaders();
         $result = $this->curlHelper->makeCurlRequest($endpoint, 'DELETE', $authHeaders);
 

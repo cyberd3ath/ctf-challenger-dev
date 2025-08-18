@@ -24,6 +24,13 @@ class ChallengeHandler
     private IChallengeHelper $challengeHelper;
     private ILogger $logger;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
@@ -31,9 +38,26 @@ class ChallengeHandler
         ICurlHelper $curlHelper = new CurlHelper(),
         IAuthHelper $authHelper = new AuthHelper(),
         IChallengeHelper $challengeHelper = new ChallengeHelper(),
-        ILogger $logger = new Logger()
+        ILogger $logger = new Logger(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->curlHelper = $curlHelper;
@@ -45,7 +69,7 @@ class ChallengeHandler
         $this->initSession();
         $this->validateCSRF();
         $this->pdo = $this->databaseHelper->getPDO();
-        $this->userId = $_SESSION['user_id'];
+        $this->userId = $this->session['user_id'];
         $this->logger->logDebug("Initialized ChallengeHandler for user ID: {$this->userId}");
     }
 
@@ -54,16 +78,16 @@ class ChallengeHandler
         $this->securityHelper->initSecureSession();
 
         if (!$this->securityHelper->validateSession()) {
-            $this->logger->logWarning("Unauthorized access attempt to challenge route - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logWarning("Unauthorized access attempt to challenge route - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized - Please login', 401);
         }
     }
 
     private function validateCSRF()
     {
-        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning("Invalid CSRF token in challenge route - User ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+            $this->logger->logWarning("Invalid CSRF token in challenge route - User ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);
         }
     }
@@ -71,7 +95,7 @@ class ChallengeHandler
     public function handleRequest()
     {
         try {
-            $method = $_SERVER['REQUEST_METHOD'];
+            $method = $this->server['REQUEST_METHOD'];
 
             switch ($method) {
                 case 'POST':
@@ -670,7 +694,7 @@ class ChallengeHandler
 
     private function handleGetRequest()
     {
-        $challengeId = $this->validateChallengeId($_GET['id'] ?? 0);
+        $challengeId = $this->validateChallengeId($this->get['id'] ?? 0);
 
         try {
             $challenge = $this->getChallengeDetails($challengeId);

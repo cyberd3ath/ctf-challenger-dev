@@ -21,14 +21,37 @@ class AnnouncementsHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
 
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger()
+        ILogger $logger = new Logger(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -53,9 +76,9 @@ class AnnouncementsHandler
 
     private function validateRequest()
     {
-        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning('Invalid CSRF token attempt from user ID: ' . ($_SESSION['user_id'] ?? 'unknown'));
+            $this->logger->logWarning('Invalid CSRF token attempt from user ID: ' . ($this->session['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);
         }
     }
@@ -66,13 +89,13 @@ class AnnouncementsHandler
             'options' => ['default' => 1, 'min_range' => 1]
         ]);
 
-        $this->importanceFilter = $_GET['importance'] ?? 'all';
+        $this->importanceFilter = $this->get['importance'] ?? 'all';
         if (!in_array($this->importanceFilter, $this->config['filters']['IMPORTANCE_LEVELS'])) {
             $this->logger->logWarning('Invalid importance filter provided: ' . $this->importanceFilter);
             throw new Exception('Invalid importance value', 400);
         }
 
-        $this->rangeFilter = $_GET['range'] ?? 'all';
+        $this->rangeFilter = $this->get['range'] ?? 'all';
         if (!in_array($this->rangeFilter, $this->config['filters']['ACTIVITY_RANGES'])) {
             $this->logger->logWarning('Invalid range filter provided: ' . $this->rangeFilter);
             throw new Exception('Invalid date range value', 400);

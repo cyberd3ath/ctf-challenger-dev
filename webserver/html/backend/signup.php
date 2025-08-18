@@ -26,6 +26,12 @@ class RegistrationHandler
     private IAuthHelper $authHelper;
     private ICurlHelper $curlHelper;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
 
     public function __construct(
         array $generalConfig,
@@ -33,9 +39,26 @@ class RegistrationHandler
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
         IAuthHelper $authHelper = new AuthHelper(),
-        ICurlHelper $curlHelper = new CurlHelper()
+        ICurlHelper $curlHelper = new CurlHelper(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -56,18 +79,18 @@ class RegistrationHandler
 
     private function validateRequestMethod()
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        if ($this->server['REQUEST_METHOD'] !== 'POST') {
             throw new Exception('Invalid request method', 400);
         }
     }
 
     private function parseInput()
     {
-        $this->csrfToken = $_POST['csrf_token'] ?? '';
-        $this->username = trim($_POST['username'] ?? '');
-        $this->email = trim($_POST['email'] ?? '');
-        $this->password = $_POST['password'] ?? '';
-        $this->confirmPassword = $_POST['confirm-password'] ?? '';
+        $this->csrfToken = $this->post['csrf_token'] ?? '';
+        $this->username = trim($this->post['username'] ?? '');
+        $this->email = trim($this->post['email'] ?? '');
+        $this->password = $this->post['password'] ?? '';
+        $this->confirmPassword = $this->post['confirm-password'] ?? '';
     }
 
     public function handleRequest()
@@ -119,7 +142,7 @@ class RegistrationHandler
     private function validateCsrfToken()
     {
         if (!$this->securityHelper->validateCsrfToken($this->csrfToken)) {
-            $this->logger->logError("CSRF token validation failed from IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown') ." with csrf_token={$this->csrfToken}");
+            $this->logger->logError("CSRF token validation failed from IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown') ." with csrf_token={$this->csrfToken}");
             throw new Exception('Invalid CSRF token', 403);
         }
     }
@@ -302,12 +325,12 @@ class RegistrationHandler
     private function initializeUserSession($userId)
     {
         session_regenerate_id(true);
-        $_SESSION['user_id'] = $userId;
-        $_SESSION['ip'] = $_SERVER['REMOTE_ADDR'];
-        $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
-        $_SESSION['last_activity'] = time();
-        $_SESSION['authenticated'] = true;
-        $_SESSION['username'] = $this->username;
+        $this->session['user_id'] = $userId;
+        $this->session['ip'] = $this->server['REMOTE_ADDR'];
+        $this->session['user_agent'] = $this->server['HTTP_USER_AGENT'];
+        $this->session['last_activity'] = time();
+        $this->session['authenticated'] = true;
+        $this->session['username'] = $this->username;
 
         $newCsrf = $this->securityHelper->generateCsrfToken();
         setcookie(

@@ -25,6 +25,13 @@ class CtfCreationHandler
     private IAuthHelper $authHelper;
     private ILogger $logger;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         array $config,
         array $generalConfig,
@@ -32,9 +39,26 @@ class CtfCreationHandler
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ICurlHelper $curlHelper = new CurlHelper(),
         IAuthHelper $authHelper = new AuthHelper(),
-        ILogger $logger = new Logger()
+        ILogger $logger = new Logger(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->curlHelper = $curlHelper;
@@ -47,8 +71,8 @@ class CtfCreationHandler
         $this->pdo = $this->databaseHelper->getPDO();
         $this->initSession();
         $this->validateAccess();
-        $this->userId = $_SESSION['user_id'];
-        $this->action = $_GET['action'] ?? '';
+        $this->userId = $this->session['user_id'];
+        $this->action = $this->get['action'] ?? '';
         $this->inputData = $this->parseInputData();
 
         $this->logger->logDebug("Initialized CTFCreationHandler for user ID: {$this->userId}, Action: {$this->action}");
@@ -67,40 +91,40 @@ class CtfCreationHandler
     private function validateAccess(): void
     {
         if (!$this->securityHelper->validateSession()) {
-            $this->logger->logWarning("Unauthorized access attempt from IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logWarning("Unauthorized access attempt from IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new RuntimeException('Unauthorized - Please login', 401);
         }
 
-        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning("Invalid CSRF token from user ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+            $this->logger->logWarning("Invalid CSRF token from user ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new RuntimeException('Invalid request token', 403);
         }
 
         if (!$this->securityHelper->validateAdminAccess($this->pdo)) {
-            $this->logger->logWarning("Unauthorized admin access attempt by user ID: ". ($_SESSION['user_id'] ?? 'unknown'));
+            $this->logger->logWarning("Unauthorized admin access attempt by user ID: ". ($this->session['user_id'] ?? 'unknown'));
             throw new RuntimeException('Unauthorized - Admin access required', 403);
         }
     }
 
     private function parseInputData(): array
     {
-        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        if ($this->server['REQUEST_METHOD'] === 'GET') {
             return [];
         }
 
         $jsonInput = json_decode(file_get_contents('php://input'), true);
         if ($jsonInput !== null) {
-            return array_merge($_POST, $jsonInput);
+            return array_merge($this->post, $jsonInput);
         }
 
-        return $_POST;
+        return $this->post;
     }
 
     public function handleRequest(): void
     {
         try {
-            switch ($_SERVER['REQUEST_METHOD']) {
+            switch ($this->server['REQUEST_METHOD']) {
                 case 'GET':
                     $this->handleGetRequest();
                     break;
@@ -364,11 +388,11 @@ class CtfCreationHandler
 
     private function handleImageUpload(): ?string
     {
-        if (empty($_FILES['image']['tmp_name'])) {
+        if (empty($this->files['image']['tmp_name'])) {
             return null;
         }
 
-        $file = $_FILES['image'];
+        $file = $this->files['image'];
 
         if (!in_array($file['type'], $this->generalConfig['ctf']['ALLOWED_IMAGE_TYPES'])) {
             throw new RuntimeException('Invalid image type. Only JPG, PNG and GIF are allowed', 400);

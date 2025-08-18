@@ -22,14 +22,38 @@ class AdminAnnouncementsHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         array $config,
         array $generalConfig,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger()
+        ILogger $logger = new Logger(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -39,9 +63,9 @@ class AdminAnnouncementsHandler
         $this->pdo = $this->databaseHelper->getPDO();
         $this->initSession();
         $this->validateRequest();
-        $this->userId = $_SESSION['user_id'];
+        $this->userId = $this->session['user_id'];
         $this->username = $this->getUsername();
-        $this->action = $_GET['action'] ?? '';
+        $this->action = $this->get['action'] ?? '';
         $this->logger->logDebug("Initialized AdminAnnouncementsHandler for user ID: {$this->userId}, Action: {$this->action}");
     }
 
@@ -50,21 +74,21 @@ class AdminAnnouncementsHandler
         $this->securityHelper->initSecureSession();
 
         if (!$this->securityHelper->validateSession()) {
-            $this->logger->logWarning("Unauthorized access attempt to admin announcements - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logWarning("Unauthorized access attempt to admin announcements - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized', 401);
         }
     }
 
     private function validateRequest(): void
     {
-        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning("Invalid CSRF token in admin announcements - User ID: " . ($_SESSION['user_id'] ?? 'unknown') . ", Token: {$csrfToken}");
+            $this->logger->logWarning("Invalid CSRF token in admin announcements - User ID: " . ($this->session['user_id'] ?? 'unknown') . ", Token: {$csrfToken}");
             throw new Exception('Invalid CSRF token', 403);
         }
 
         if (!$this->securityHelper->validateAdminAccess($this->pdo)) {
-            $this->logger->logWarning("Non-admin access attempt to admin announcements - User ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+            $this->logger->logWarning("Non-admin access attempt to admin announcements - User ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new Exception('Unauthorized - Admin access only', 403);
         }
     }
@@ -114,7 +138,7 @@ class AdminAnnouncementsHandler
 
     private function handleListAction()
     {
-        $page = max(1, intval($_GET['page'] ?? 1));
+        $page = max(1, intval($this->get['page'] ?? 1));
         $perPage = 10;
         $offset = ($page - 1) * $perPage;
 

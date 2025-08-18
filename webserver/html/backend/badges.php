@@ -18,13 +18,37 @@ class BadgesHandler
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         array $config,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger()
+        ILogger $logger = new Logger(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -33,7 +57,7 @@ class BadgesHandler
         $this->initSession();
         $this->validateRequest();
         $this->pdo = $this->databaseHelper->getPDO();
-        $this->userId = $_SESSION['user_id'];
+        $this->userId = $this->session['user_id'];
         $this->logger->logDebug("Initialized BadgesHandler for user ID: {$this->userId}");
     }
 
@@ -49,13 +73,13 @@ class BadgesHandler
 
     private function validateRequest()
     {
-        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-            $this->logger->logWarning("Invalid CSRF token attempt from user ID: " . ($_SESSION['user_id'] ?? 'unknown'));
+            $this->logger->logWarning("Invalid CSRF token attempt from user ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);
         }
 
-        if (!isset($_SESSION['user_id'])) {
+        if (!isset($this->session['user_id'])) {
             $this->logger->logError("Session user_id not set after validation");
             throw new Exception('User identification failed', 500);
         }

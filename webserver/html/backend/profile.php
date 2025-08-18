@@ -25,6 +25,13 @@ class ProfileHandler
     private IAuthHelper $authHelper;
     private ICurlHelper $curlHelper;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         array $config,
         array $generalConfig,
@@ -32,9 +39,26 @@ class ProfileHandler
         ISecurityHelper $securityHelper = new SecurityHelper(),
         ILogger $logger = new Logger(),
         IAuthHelper $authHelper = new AuthHelper(),
-        ICurlHelper $curlHelper = new CurlHelper()
+        ICurlHelper $curlHelper = new CurlHelper(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
@@ -46,7 +70,7 @@ class ProfileHandler
         $this->pdo = $this->databaseHelper->getPDO();
         $this->initSession();
         $this->validateSession();
-        $this->requestMethod = $_SERVER['REQUEST_METHOD'];
+        $this->requestMethod = $this->server['REQUEST_METHOD'];
         $this->logger->logDebug("Initialized ProfileHandler for user ID: {$this->userId}");
     }
 
@@ -58,11 +82,11 @@ class ProfileHandler
     private function validateSession(): void
     {
         if (!$this->securityHelper->validateSession()) {
-            $this->logger->logWarning("Unauthorized access attempt to profile - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logWarning("Unauthorized access attempt to profile - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized - Please login', 401);
         }
-        $this->userId = (int)$_SESSION['user_id'];
-        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $this->userId = (int)$this->session['user_id'];
+        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in profile request - User ID: {$this->userId}, Token: {$csrfToken}");
             throw new Exception('Invalid CSRF token', 403);
@@ -93,7 +117,7 @@ class ProfileHandler
 
     private function handleGetRequest(): void
     {
-        $dataType = $_GET['type'] ?? 'full';
+        $dataType = $this->get['type'] ?? 'full';
         $response = [];
 
         if (!in_array($dataType, ['basic', 'stats', 'badges', 'activity', 'full'])) {
@@ -127,7 +151,7 @@ class ProfileHandler
 
     private function handlePostRequest(): void
     {
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        $contentType = $this->server['CONTENT_TYPE'] ?? '';
         $isJson = strpos($contentType, 'application/json') !== false;
         $data = [];
 
@@ -139,7 +163,7 @@ class ProfileHandler
                 throw new Exception('Invalid JSON data', 400);
             }
         } else {
-            $data = $_POST;
+            $data = $this->post;
         }
 
         $action = $data['action'] ?? '';
@@ -631,7 +655,7 @@ class ProfileHandler
 
             $this->pdo->commit();
 
-            $_SESSION['username'] = $newUsername;
+            $this->session['username'] = $newUsername;
             $this->logger->logDebug("Username updated - User ID: {$this->userId}, New Username: {$newUsername}");
 
             $this->sendResponse([
@@ -834,12 +858,12 @@ class ProfileHandler
     private function handleAvatarUpload(): void
     {
         try {
-            if (!isset($_FILES['avatar']) || !is_uploaded_file($_FILES['avatar']['tmp_name'])) {
+            if (!isset($this->files['avatar']) || !is_uploaded_file($this->files['avatar']['tmp_name'])) {
                 $this->logger->logWarning("Invalid file upload attempt - User ID: {$this->userId}");
                 throw new InvalidArgumentException('No file uploaded or upload error', 400);
             }
 
-            $file = $_FILES['avatar'];
+            $file = $this->files['avatar'];
 
             if ($file['error'] !== UPLOAD_ERR_OK) {
                 $this->logger->logWarning("File upload error - User ID: {$this->userId}, Error Code: {$file['error']}");
@@ -869,7 +893,7 @@ class ProfileHandler
             $oldAvatarUrl = $oldAvatar['avatar_url'] ?? '';
 
             if ($oldAvatarUrl && strpos($oldAvatarUrl, '/uploads/avatars/') === 0) {
-                $oldFilePath = $_SERVER['DOCUMENT_ROOT'] . $oldAvatarUrl;
+                $oldFilePath = $this->server['DOCUMENT_ROOT'] . $oldAvatarUrl;
                 if (file_exists($oldFilePath) && is_writable($oldFilePath)) {
                     if (!unlink($oldFilePath)) {
                         $this->logger->logError("Failed to delete old avatar - User ID: {$this->userId}, Path: {$oldFilePath}");
@@ -885,7 +909,7 @@ class ProfileHandler
             ];
             $extension = $extensionMap[$mimeType] ?? 'jpg';
             $filename = 'avatar_' . $this->userId . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
-            $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/avatars/';
+            $uploadDir = $this->server['DOCUMENT_ROOT'] . '/uploads/avatars/';
             $uploadPath = '/uploads/avatars/' . $filename;
             $fullPath = $uploadDir . $filename;
 
@@ -950,7 +974,7 @@ class ProfileHandler
             $oldAvatarUrl = $oldAvatar['avatar_url'] ?? '';
 
             if ($oldAvatarUrl && strpos($oldAvatarUrl, '/uploads/avatars/') === 0) {
-                $oldFilePath = $_SERVER['DOCUMENT_ROOT'] . $oldAvatarUrl;
+                $oldFilePath = $this->server['DOCUMENT_ROOT'] . $oldAvatarUrl;
                 if (file_exists($oldFilePath) && is_writable($oldFilePath)) {
                     if (!unlink($oldFilePath)) {
                         $this->logger->logError("Failed to delete old avatar file - User ID: {$this->userId}, Path: {$oldFilePath}");
@@ -1254,7 +1278,7 @@ class ProfileHandler
 
             foreach ($ovas as $ova) {
                 try {
-                    $endpoint = "/api2/json/nodes/" . $_ENV['PROXMOX_HOSTNAME'] . "/storage/local/content/import/" .
+                    $endpoint = "/api2/json/nodes/" . $this->env['PROXMOX_HOSTNAME'] . "/storage/local/content/import/" .
                         urlencode($ova['proxmox_filename']);
                     $result = $this->curlHelper->makeCurlRequest($endpoint, 'DELETE', $this->authHelper->getAuthHeaders());
 
@@ -1310,7 +1334,7 @@ class ProfileHandler
     {
         try {
             session_regenerate_id(true);
-            $_SESSION = [];
+            $this->session = [];
 
             if (session_status() === PHP_SESSION_ACTIVE) {
                 session_destroy();

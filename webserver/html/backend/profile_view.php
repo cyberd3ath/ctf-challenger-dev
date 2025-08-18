@@ -19,20 +19,44 @@ class ProfileHandlerPublic
     private ISecurityHelper $securityHelper;
     private ILogger $logger;
 
+    private array $session;
+    private array $server;
+    private array $get;
+    private array $post;
+    private array $files;
+    private array $env;
+
     public function __construct(
         array $generalConfig,
         IDatabaseHelper $databaseHelper = new DatabaseHelper(),
         ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger()
+        ILogger $logger = new Logger(),
+        array $session = null,
+        array $server = null,
+        array $get = null,
+        array $post = null,
+        array $files = null,
+        array $env = null
     )
     {
+        if($session)
+            $this->session =& $session;
+        else
+            $this->session =& $_SESSION;
+
+        $this->server = $server ?? $_SERVER;
+        $this->get = $get ?? $_GET;
+        $this->post = $post ?? $_POST;
+        $this->files = $files ?? $_FILES;
+        $this->env = $env ?? $_ENV;
+
         $this->databaseHelper = $databaseHelper;
         $this->securityHelper = $securityHelper;
         $this->logger = $logger;
 
         $this->generalConfig = $generalConfig;
         $this->pdo = $this->databaseHelper->getPDO();
-        $this->requestedUsername = trim($_GET['username'] ?? '');
+        $this->requestedUsername = trim($this->get['username'] ?? '');
         $this->initSession();
         $this->validateRequest();
         $this->initializeUserData();
@@ -44,7 +68,7 @@ class ProfileHandlerPublic
         $this->securityHelper->initSecureSession();
 
         if (!$this->securityHelper->validateSession()) {
-            $this->logger->logWarning("Unauthorized access attempt to profile - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logWarning("Unauthorized access attempt to profile - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Unauthorized', 401);
         }
     }
@@ -52,7 +76,7 @@ class ProfileHandlerPublic
     private function validateRequest()
     {
         if (empty($this->requestedUsername)) {
-            $this->logger->logError("Empty username requested - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logError("Empty username requested - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Username is required', 400);
         }
 
@@ -63,10 +87,10 @@ class ProfileHandlerPublic
             throw new Exception('Invalid username format', 400);
         }
 
-        if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE', 'PATCH'])) {
-            $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        if (in_array($this->server['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE', 'PATCH'])) {
+            $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
             if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
-                $this->logger->logWarning("Invalid CSRF token in profile request - IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+                $this->logger->logWarning("Invalid CSRF token in profile request - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
                 throw new Exception('Invalid request', 403);
             }
         }
