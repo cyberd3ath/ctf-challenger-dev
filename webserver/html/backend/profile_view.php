@@ -1,13 +1,7 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-$generalConfig = json_decode(file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class ProfileHandlerPublic
 {
@@ -29,21 +23,25 @@ class ProfileHandlerPublic
      */
     public function __construct(
         array $generalConfig,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
+
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+
         ISession $session = new Session(),
         IServer $server = new Server(),
-        IGet $get = new Get()
+        IGet $get = new Get(),
+
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
 
         $this->generalConfig = $generalConfig;
         $this->pdo = $this->databaseHelper->getPDO();
@@ -418,8 +416,8 @@ class ProfileHandlerPublic
         $errorMessage = $e->getMessage();
 
         if ($errorCode === 401) {
-            session_unset();
-            session_destroy();
+            $this->session->unset();
+            $this->session->destroy();
             $this->logger->logWarning("Session destroyed due to unauthorized access");
         }
 
@@ -439,7 +437,13 @@ class ProfileHandlerPublic
     }
 }
 
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+    $generalConfig = json_decode($this->system->file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+
     $handler = new ProfileHandlerPublic(generalConfig: $generalConfig);
     $handler->handleRequest();
 } catch (Exception $e) {

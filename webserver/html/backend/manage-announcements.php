@@ -1,14 +1,7 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-$config = require __DIR__ . '/../config/backend.config.php';
-$generalConfig = json_decode(file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class AdminAnnouncementsHandler
 {
@@ -26,6 +19,8 @@ class AdminAnnouncementsHandler
     private ISession $session;
     private IServer $server;
     private IGet $get;
+    
+    private ISystem $system;
 
     /**
      * @throws Exception
@@ -33,21 +28,27 @@ class AdminAnnouncementsHandler
     public function __construct(
         array $config,
         array $generalConfig,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
+
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+
         ISession $session = new Session(),
         IServer $server = new Server(),
-        IGet $get = new Get()
+        IGet $get = new Get(),
+
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
+        
+        $this->system = $system;
 
         $this->config = $config;
         $this->generalConfig = $generalConfig;
@@ -195,7 +196,7 @@ class AdminAnnouncementsHandler
      */
     private function getJsonInput()
     {
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode($this->system->file_get_contents('php://input'), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->logger->logError("Invalid JSON in announcement $this->action - User: $this->username");
             throw new Exception('Invalid JSON data', 400);
@@ -282,8 +283,8 @@ class AdminAnnouncementsHandler
                 :importance, 
                 :category, 
                 :author,
-                NOW(),
-                NOW()
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
             )
         ");
 
@@ -332,7 +333,7 @@ class AdminAnnouncementsHandler
                 short_description = :short_desc,
                 importance = :importance,
                 category = :category,
-                updated_at = NOW()
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
         ");
 
@@ -392,7 +393,14 @@ class AdminAnnouncementsHandler
     }
 }
 
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+    $config = require __DIR__ . '/../config/backend.config.php';
+    $generalConfig = json_decode($this->system->file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+
     $handler = new AdminAnnouncementsHandler(config: $config, generalConfig: $generalConfig);
     $handler->handleRequest();
 } catch (Exception $e) {

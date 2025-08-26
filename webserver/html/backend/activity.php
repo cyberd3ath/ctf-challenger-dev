@@ -1,13 +1,7 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-$config = require __DIR__ . '/../config/backend.config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class ActivitiesHandler
 {
@@ -34,21 +28,26 @@ class ActivitiesHandler
      */
     public function __construct(
         array $config,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
+
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+
         ISession $session = new Session(),
         IServer $server = new Server(),
-        IGet $get = new Get()
+        IGet $get = new Get(),
+
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
+        $this->logger = $logger ?? new Logger(system: $system);
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        
 
         $this->config = $config;
         $this->initSession();
@@ -89,9 +88,8 @@ class ActivitiesHandler
      */
     private function parseInputParameters(): void
     {
-        $this->page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
-            'options' => ['default' => 1, 'min_range' => 1]
-        ]);
+        $this->page = (int)$this->get['page'] ?? 1;
+        $this->page = max(1, $this->page);
 
         $this->typeFilter = $this->get['type'] ?? 'all';
         if (!in_array($this->typeFilter, $this->config['filters']['ACTIVITY_TYPES'])) {
@@ -146,11 +144,6 @@ class ActivitiesHandler
             $params = ['user_id' => $this->userId];
 
             $queries = $this->buildQueries($dateRange, $params);
-
-            if (empty($queries)) {
-                $this->sendResponse([], 0);
-                return;
-            }
 
             $combinedQuery = implode(" UNION ALL ", $queries);
             $total = $this->getTotalCount($combinedQuery, $params);
@@ -324,7 +317,7 @@ class ActivitiesHandler
     private function getPaginatedResults($query, $params): array
     {
         $offset = ($this->page - 1) * $this->perPage;
-        $finalQuery = "$query ORDER BY activity_date DESC LIMIT :limit OFFSET :offset";
+        $finalQuery = "$query ORDER BY activity_date DESC, item_id ASC LIMIT :limit OFFSET :offset";
 
         $stmt = $this->pdo->prepare($finalQuery);
 
@@ -430,7 +423,15 @@ class ActivitiesHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+    $config = require __DIR__ . '/../config/backend.config.php';
+
     $handler = new ActivitiesHandler(config: $config);
     $handler->handleRequest();
 } catch (Exception $e) {
@@ -449,3 +450,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

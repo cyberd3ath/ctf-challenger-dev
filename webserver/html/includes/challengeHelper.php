@@ -1,15 +1,7 @@
 <?php
 declare(strict_types=1);
 
-
-interface IChallengeHelper
-{
-    public function isChallengeSolved(PDO $pdo, int $userId, int $challengeId): bool;
-    public function getElapsedSecondsForChallenge(PDO $pdo, int $userId, int $challengeId): int;
-    public function getSolvedLeaderboard(PDO $pdo, int $challengeTemplateId): array;
-    public function getChallengeLeaderboard(PDO $pdo, int $challengeTemplateId, int $limit = 10, int $offset = 0): array;
-}
-
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class ChallengeHelper implements IChallengeHelper
 {
@@ -65,15 +57,15 @@ class ChallengeHelper implements IChallengeHelper
                          FROM completed_challenges cc
                          WHERE cc.flag_id IS NOT NULL
                         )
-                    ELSE NOW()
+                    ELSE CURRENT_TIMESTAMP
                 END AS end_of_last_interval
             ),
             intervals AS (
-                SELECT COALESCE(cc.completed_at, NOW()) - cc.started_at AS intvl
+                SELECT COALESCE(cc.completed_at, CURRENT_TIMESTAMP) - cc.started_at AS intvl
                 FROM completed_challenges cc, eola
                 WHERE cc.user_id = :user_id
                   AND cc.challenge_template_id = :challenge_template_id
-                  AND (COALESCE(cc.completed_at, NOW()) <= eola.end_of_last_interval)
+                  AND (COALESCE(cc.completed_at, CURRENT_TIMESTAMP) <= eola.end_of_last_interval)
             )
             SELECT EXTRACT(EPOCH FROM SUM(intervals.intvl))::BIGINT AS total_seconds FROM intervals;
         ");
@@ -120,10 +112,10 @@ class ChallengeHelper implements IChallengeHelper
         ),
         intervals AS (
             SELECT us.user_id,
-                   COALESCE(us.completed_at, NOW()) - us.started_at AS intvl
+                   COALESCE(us.completed_at, CURRENT_TIMESTAMP) - us.started_at AS intvl
             FROM user_submissions us
             JOIN user_eola e ON us.user_id = e.user_id
-            WHERE COALESCE(us.completed_at, NOW()) <= e.end_of_last_interval
+            WHERE COALESCE(us.completed_at, CURRENT_TIMESTAMP) <= e.end_of_last_interval
         ),
         summed AS (
             SELECT user_id, EXTRACT(EPOCH FROM SUM(intvl))::BIGINT AS total_seconds

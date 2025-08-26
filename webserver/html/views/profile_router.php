@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/securityHelper.php';
 $securityHelper = new SecurityHelper();
 $securityHelper->initSecureSession();
 
@@ -9,11 +9,10 @@ $requestedUser = $_GET['username'] ?? null;
 if (!$requestedUser) {
     if ($loggedInUser) {
         header("Location: /profile/" . urlencode($loggedInUser));
-        exit();
     } else {
         header("Location: /login");
-        exit();
     }
+    exit();
 }
 
 if ($loggedInUser === $requestedUser) {

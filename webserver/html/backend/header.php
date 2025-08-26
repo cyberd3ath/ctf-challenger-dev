@@ -1,10 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class ProfileStatusHandler
 {
@@ -20,19 +17,22 @@ class ProfileStatusHandler
     private IServer $server;
 
     public function __construct(
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+
         ISession $session = new Session(),
-        IServer $server = new Server()
+        IServer $server = new Server(),
+
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
 
         header('Content-Type: application/json');
         $this->initSession();
@@ -119,11 +119,14 @@ class ProfileStatusHandler
         $errorCode = $e->getCode() ?: 500;
         $errorMessage = $errorCode >= 500 ? 'An internal server error occurred' : $e->getMessage();
 
+        // @codeCoverageIgnoreStart
+        // most likely not reachable, gonna leave it here for safety
         if ($errorCode === 401) {
-            session_unset();
-            session_destroy();
+            $this->session->unset();
+            $this->session->destroy();
             $this->logger->logWarning("Session destroyed due to unauthorized access");
         }
+        // @codeCoverageIgnoreEnd
 
         if ($errorCode >= 500) {
             $this->logger->logError("Internal error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
@@ -139,6 +142,12 @@ class ProfileStatusHandler
         ]);
     }
 }
+
+
+// @codeCoverageIgnoreStart
+
+if(defined('PHPUNIT_RUNNING'))
+    return;
 
 try {
     $handler = new ProfileStatusHandler();
@@ -159,3 +168,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

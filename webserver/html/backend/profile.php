@@ -1,18 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Random\RandomException;
-
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/curlHelper.php';
-$config = require __DIR__ . '/../config/backend.config.php';
-$generalConfig = json_decode(file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class ProfileHandler
 {
@@ -34,22 +23,28 @@ class ProfileHandler
     private IFiles $files;
     private IEnv $env;
 
+    private ISystem $system;
+
     /**
      * @throws Exception
      */
     public function __construct(
         array $generalConfig,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
-        IAuthHelper $authHelper = new AuthHelper(),
-        ICurlHelper $curlHelper = new CurlHelper(),
+        
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+        IAuthHelper $authHelper = null,
+        ICurlHelper $curlHelper = null,
+        
         ISession $session = new Session(),
         IServer $server = new Server(),
         IGet $get = new Get(),
         IPost $post = new Post(),
         IFiles $files = new Files(),
-        IEnv $env = new Env()
+        IEnv $env = new Env(),
+        
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
@@ -59,11 +54,13 @@ class ProfileHandler
         $this->files = $files;
         $this->env = $env;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
-        $this->authHelper = $authHelper;
-        $this->curlHelper = $curlHelper;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
+        $this->authHelper = $authHelper ?? new AuthHelper($logger, $system, $env);
+        $this->curlHelper = $curlHelper ?? new CurlHelper($env);
+
+        $this->system = $system;
 
         $this->generalConfig = $generalConfig;
         $this->pdo = $this->databaseHelper->getPDO();
@@ -163,7 +160,7 @@ class ProfileHandler
         $isJson = str_contains($contentType, 'application/json');
 
         if ($isJson) {
-            $json = file_get_contents('php://input');
+            $json = $this->system->file_get_contents('php://input');
             $data = json_decode($json, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $this->logger->logWarning("Invalid JSON in profile update - User ID: $this->userId");
@@ -613,21 +610,21 @@ class ProfileHandler
                     CASE
                         WHEN sc.completed_at IS NOT NULL THEN
                             CASE
-                                WHEN EXTRACT(HOUR FROM (NOW() - sc.completed_at)) < 24
-                                THEN EXTRACT(HOUR FROM (NOW() - sc.completed_at)) || ' hours ago'
-                                ELSE EXTRACT(DAY FROM (NOW() - sc.completed_at)) || ' days ago'
+                                WHEN EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - sc.completed_at)) < 24
+                                THEN EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - sc.completed_at)) || ' hours ago'
+                                ELSE EXTRACT(DAY FROM (CURRENT_TIMESTAMP - sc.completed_at)) || ' days ago'
                             END
                         WHEN ca.completed_at IS NOT NULL THEN
                             CASE
-                                WHEN EXTRACT(HOUR FROM (NOW() - ca.completed_at)) < 24
-                                THEN 'Failed ' || EXTRACT(HOUR FROM (NOW() - ca.completed_at)) || ' hours ago'
-                                ELSE 'Failed ' || EXTRACT(DAY FROM (NOW() - ca.completed_at)) || ' days ago'
+                                WHEN EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.completed_at)) < 24
+                                THEN 'Failed ' || EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.completed_at)) || ' hours ago'
+                                ELSE 'Failed ' || EXTRACT(DAY FROM (CURRENT_TIMESTAMP - ca.completed_at)) || ' days ago'
                             END
                         ELSE
                             CASE
-                                WHEN EXTRACT(HOUR FROM (NOW() - ca.started_at)) < 24
-                                THEN 'Started ' || EXTRACT(HOUR FROM (NOW() - ca.started_at)) || ' hours ago'
-                                ELSE 'Started ' || EXTRACT(DAY FROM (NOW() - ca.started_at)) || ' days ago'
+                                WHEN EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.started_at)) < 24
+                                THEN 'Started ' || EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.started_at)) || ' hours ago'
+                                ELSE 'Started ' || EXTRACT(DAY FROM (CURRENT_TIMESTAMP - ca.started_at)) || ' days ago'
                             END
                     END AS time_ago
                 FROM challenge_templates ct
@@ -928,8 +925,8 @@ class ProfileHandler
 
             if ($oldAvatarUrl && str_starts_with($oldAvatarUrl, '/uploads/avatars/')) {
                 $oldFilePath = $this->server['DOCUMENT_ROOT'] . $oldAvatarUrl;
-                if (file_exists($oldFilePath) && is_writable($oldFilePath)) {
-                    if (!unlink($oldFilePath)) {
+                if ($this->system->file_exists($oldFilePath) && is_writable($oldFilePath)) {
+                    if (!$this->system->unlink($oldFilePath)) {
                         $this->logger->logError("Failed to delete old avatar - User ID: $this->userId, Path: $oldFilePath");
                         throw new RuntimeException('Error processing avatar', 500);
                     }
@@ -947,7 +944,7 @@ class ProfileHandler
             $uploadPath = '/uploads/avatars/' . $filename;
             $fullPath = $uploadDir . $filename;
 
-            if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true)) {
+            if (!$this->system->is_dir($uploadDir) && !$this->system->mkdir($uploadDir, 0755, true)) {
                 $this->logger->logError("Failed to create avatar directory - Path: $uploadDir");
                 throw new RuntimeException('Failed to process avatar', 500);
             }
@@ -957,7 +954,7 @@ class ProfileHandler
                 throw new RuntimeException('Error processing request', 500);
             }
 
-            chmod($fullPath, 0644);
+            $this->system->chmod($fullPath, 0644);
 
             $updateStmt = $this->pdo->prepare("UPDATE users SET avatar_url = :avatar_url WHERE id = :user_id");
             $updateStmt->execute([
@@ -982,7 +979,7 @@ class ProfileHandler
     private function handleAvatarUpdate(): void
     {
         try {
-            $input = file_get_contents('php://input');
+            $input = $this->system->file_get_contents('php://input');
             if ($input === false) {
                 throw new RuntimeException('Failed to read input data', 400);
             }
@@ -1009,8 +1006,8 @@ class ProfileHandler
 
             if ($oldAvatarUrl && str_starts_with($oldAvatarUrl, '/uploads/avatars/')) {
                 $oldFilePath = $this->server['DOCUMENT_ROOT'] . $oldAvatarUrl;
-                if (file_exists($oldFilePath) && is_writable($oldFilePath)) {
-                    if (!unlink($oldFilePath)) {
+                if ($this->system->file_exists($oldFilePath) && is_writable($oldFilePath)) {
+                    if (!$this->system->unlink($oldFilePath)) {
                         $this->logger->logError("Failed to delete old avatar file - User ID: $this->userId, Path: $oldFilePath");
                         throw new RuntimeException('Could not delete old avatar file', 500);
                     }
@@ -1167,7 +1164,7 @@ class ProfileHandler
             $configDir = '/var/lib/ctf-challenger/vpn-configs/';
             $configFile = $configDir . 'user_' . $this->userId . '.ovpn';
 
-            if (!file_exists($configFile) || !is_readable($configFile)) {
+            if (!$this->system->file_exists($configFile) || !$this->system->is_readable($configFile)) {
                 $this->logger->logError("VPN config not found or inaccessible - User ID: $this->userId, Path: $configFile");
                 throw new RuntimeException('VPN configuration not found. Please contact support.', 404);
             }
@@ -1209,7 +1206,7 @@ class ProfileHandler
     private function handleDeleteRequest(): void
     {
         try {
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = json_decode($this->system->file_get_contents('php://input'), true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $this->logger->logWarning("Invalid JSON in delete request - User ID: $this->userId");
                 throw new Exception('Invalid request data', 400);
@@ -1370,19 +1367,19 @@ class ProfileHandler
     private function destroyUserSession(): void
     {
         try {
-            session_regenerate_id(true);
+            $this->session->regenerate_id(true);
             $this->session->clear();
 
-            if (session_status() === PHP_SESSION_ACTIVE) {
-                session_destroy();
+            if ($this->session->status() === PHP_SESSION_ACTIVE) {
+                $this->session->destroy();
             }
 
-            $params = session_get_cookie_params();
-            setcookie(
-                session_name(),
+            $params = $this->session->get_cookie_params();
+            $this->system->setcookie(
+                $this->session->name(),
                 '',
                 [
-                    'expires' => time() - 3600,
+                    'expires' => $this->system->time() - 3600,
                     'path' => $params['path'],
                     'domain' => $params['domain'],
                     'secure' => $params['secure'],
@@ -1391,11 +1388,11 @@ class ProfileHandler
                 ]
             );
 
-            setcookie(
+            $this->system->setcookie(
                 'csrf_token',
                 '',
                 [
-                    'expires' => time() - 3600,
+                    'expires' => $this->system->time() - 3600,
                     'path' => '/',
                     'domain' => '',
                     'secure' => true,
@@ -1430,8 +1427,8 @@ class ProfileHandler
         $errorMessage = $e->getMessage();
 
         if ($errorCode === 401) {
-            session_unset();
-            session_destroy();
+            $this->session->unset();
+            $this->session->destroy();
             $this->logger->logWarning("Session destroyed due to unauthorized access");
         }
 
@@ -1451,7 +1448,14 @@ class ProfileHandler
     }
 }
 
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+    $config = require __DIR__ . '/../config/backend.config.php';
+    $generalConfig = json_decode($this->system->file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+
     $handler = new ProfileHandler(generalConfig: $generalConfig);
     $handler->handleRequest();
 } catch (Exception $e) {

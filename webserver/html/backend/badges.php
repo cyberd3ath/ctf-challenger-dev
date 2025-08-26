@@ -1,13 +1,7 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-$config = require __DIR__ . '/../config/backend.config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class BadgesHandler
 {
@@ -27,20 +21,24 @@ class BadgesHandler
      */
     public function __construct(
         array $config,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
+
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+
         ISession $session = new Session(),
-        IServer $server = new Server()
+        IServer $server = new Server(),
+
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
 
         $this->server = $server;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
 
         $this->config = $config;
         $this->initSession();
@@ -92,6 +90,7 @@ class BadgesHandler
             $this->sendResponse($badges, $stats);
         } catch (PDOException $e) {
             $this->logger->logError("Database error in badges route: " . $e->getMessage());
+            print_r($e->getMessage());
             throw new Exception('Database error occurred', 500);
         }
     }
@@ -112,7 +111,7 @@ class BadgesHandler
             CASE WHEN ub.user_id IS NULL THEN false ELSE true END as earned
         FROM badges b
         LEFT JOIN user_badges ub ON ub.badge_id = b.id AND ub.user_id = :user_id
-        ORDER BY b.rarity DESC, b.name ASC";
+        ORDER BY b.rarity DESC, b.name";
 
         $stmt = $this->pdo->prepare($query);
         $stmt->bindValue(':user_id', $this->userId, PDO::PARAM_INT);
@@ -162,30 +161,25 @@ class BadgesHandler
 
     private function calculateProgress($badge): ?array
     {
-        try {
-            $requirements = $badge['requirements'];
+        $requirements = $badge['requirements'];
 
-            if (preg_match('/complete (\d+) challenges?/i', $requirements, $matches)) {
-                return $this->calculateChallengeProgress((int)$matches[1]);
-            }
-
-            if (preg_match('/solve (\d+) (\w+) challenges?/i', $requirements, $matches)) {
-                return $this->calculateCategoryProgress((int)$matches[1], $matches[2]);
-            }
-
-            if (preg_match('/earn (\d+) points?/i', $requirements, $matches)) {
-                return $this->calculatePointsProgress((int)$matches[1]);
-            }
-
-            if (preg_match('/earn all available badges/i', $requirements)) {
-                return $this->calculateAllBadgesProgress($badge['id']);
-            }
-
-            return null;
-        } catch (Exception $e) {
-            $this->logger->logError("Error calculating progress for badge ID {$badge['id']}: " . $e->getMessage());
-            return null;
+        if (preg_match('/complete (\d+) challenges?/i', $requirements, $matches)) {
+            return $this->calculateChallengeProgress((int)$matches[1]);
         }
+
+        if (preg_match('/solve (\d+) (\w+) challenges?/i', $requirements, $matches)) {
+            return $this->calculateCategoryProgress((int)$matches[1], $matches[2]);
+        }
+
+        if (preg_match('/earn (\d+) points?/i', $requirements, $matches)) {
+            return $this->calculatePointsProgress((int)$matches[1]);
+        }
+
+        if (preg_match('/earn all available badges/i', $requirements)) {
+            return $this->calculateAllBadgesProgress($badge['id']);
+        }
+
+        return null;
     }
 
     private function calculateChallengeProgress($required): array
@@ -243,7 +237,7 @@ class BadgesHandler
                     COUNT(*) as total_flags
                 FROM challenge_flags cf
                 JOIN challenge_templates ct ON ct.id = cf.challenge_template_id
-                WHERE ct.category = ?::challenge_category
+                WHERE ct.category = ?
                 GROUP BY cf.challenge_template_id
             ),
             user_solved_challenges AS (
@@ -343,7 +337,15 @@ class BadgesHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+    $config = require __DIR__ . '/../config/backend.config.php';
+
     $handler = new BadgesHandler(config: $config);
     $handler->handleRequest();
 } catch (Exception $e) {
@@ -362,3 +364,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

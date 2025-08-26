@@ -1,14 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use JetBrains\PhpStorm\NoReturn;
-
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class LogoutHandler
 {
@@ -20,22 +13,29 @@ class LogoutHandler
 
     private ISession $session;
     private IServer $server;
+    
+    private ISystem $system;
 
     /**
      * @throws Exception
      */
     public function __construct(
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+
         ISession $session = new Session(),
-        IServer $server = new Server()
+        IServer $server = new Server(),
+
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
 
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
+        
+        $this->system = $system;
 
         $this->initSession();
         $this->validateSession();
@@ -90,20 +90,20 @@ class LogoutHandler
 
     private function destroySession(): void
     {
-        session_unset();
-        session_destroy();
+        $this->session->unset();
+        $this->session->destroy();
 
         $this->expireSessionCookies();
     }
 
     private function expireSessionCookies(): void
     {
-        $params = session_get_cookie_params();
-        setcookie(
-            session_name(),
+        $params = $this->session->get_cookie_params();
+        $this->system->setcookie(
+            $this->session->name(),
             '',
             [
-                'expires' => time() - 3600,
+                'expires' => $this->system->time() - 3600,
                 'path' => $params['path'],
                 'domain' => $params['domain'],
                 'secure' => $params['secure'],
@@ -112,11 +112,11 @@ class LogoutHandler
             ]
         );
 
-        setcookie(
+        $this->system->setcookie(
             'csrf_token',
             '',
             [
-                'expires' => time() - 3600,
+                'expires' => $this->system->time() - 3600,
                 'path' => '/',
                 'secure' => true,
                 'httponly' => true,
@@ -125,7 +125,7 @@ class LogoutHandler
         );
     }
 
-    #[NoReturn] private function sendSuccessResponse(): void
+    private function sendSuccessResponse(): void
     {
         echo json_encode([
             'success' => true,
@@ -134,7 +134,7 @@ class LogoutHandler
         defined('PHPUNIT_RUNNING') || exit;
     }
 
-    #[NoReturn] private function handleError(Exception $e): void
+    private function handleError(Exception $e): void
     {
         $code = $e->getCode() ?: 500;
         http_response_code($code);
@@ -151,7 +151,14 @@ class LogoutHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+
     $handler = new LogoutHandler();
     $handler->handleRequest();
 } catch (Exception $e) {
@@ -170,3 +177,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

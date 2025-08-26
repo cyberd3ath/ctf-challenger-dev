@@ -1,14 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use JetBrains\PhpStorm\NoReturn;
-
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class LoginHandler
 {
@@ -25,28 +18,34 @@ class LoginHandler
     private ISession $session;
     private IServer $server;
     private IPost $post;
+    
+    private ISystem $system;
 
     public function __construct(
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+
         ISession $session = new Session(),
         IServer $server = new Server(),
-        IPost $post = new Post()
+        IPost $post = new Post(),
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->post = $post;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
+        
+        $this->system = $system;
 
         $this->initSession();
         $this->validateRequestMethod();
         $this->checkAlreadyAuthenticated();
-        $this->logger->logDebug("Initialized LoginHandler with Session ID: " . session_id());
+        $this->logger->logDebug("Initialized LoginHandler with Session ID: " . $this->session->id());
     }
 
     private function initSession(): void
@@ -66,7 +65,7 @@ class LoginHandler
         }
     }
 
-    #[NoReturn] private function handleAlreadyAuthenticated(): void
+    private function handleAlreadyAuthenticated(): void
     {
         $redirectUrl = '/dashboard';
         $userId = $this->session['user_id'];
@@ -75,18 +74,19 @@ class LoginHandler
 
         $this->logger->logWarning("User already authenticated - User ID: $userId, Username: $username, IP: $ip");
 
-        $existingCsrf = $this->session['csrf_token'] ?? $this->securityHelper->generateCsrfToken();
         if (!isset($this->session['csrf_token'])) {
-            $this->session['csrf_token'] = $existingCsrf;
+            $this->securityHelper->generateCsrfToken();
             $this->logger->logDebug("Generated new CSRF token for user ID: $userId");
         }
 
-        $this->setCsrfCookie($existingCsrf);
+        $csrf = $this->session['csrf_token'];
+
+        $this->setCsrfCookie($csrf);
 
         echo json_encode([
             'success' => true,
             'redirect' => $redirectUrl,
-            'csrf_token' => $existingCsrf
+            'csrf_token' => $csrf
         ]);
         defined('PHPUNIT_RUNNING') || exit;
     }
@@ -109,7 +109,7 @@ class LoginHandler
     /**
      * @throws Exception
      */
-    #[NoReturn] private function processLogin(): void
+    private function processLogin(): void
     {
         $this->parseInput();
         $this->validateInput();
@@ -152,7 +152,7 @@ class LoginHandler
     /**
      * @throws Exception
      */
-    #[NoReturn] private function authenticateUser(): void
+    private function authenticateUser(): void
     {
         $this->pdo = $this->databaseHelper->getPDO();
 
@@ -198,24 +198,24 @@ class LoginHandler
 
     private function updateLastLogin(int $userId): void
     {
-        $update = $this->pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = :id");
+        $update = $this->pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = :id");
         $update->execute(['id' => $userId]);
     }
 
     private function initializeUserSession(array $user): void
     {
-        session_regenerate_id(true);
-        $this->logger->logDebug("Session regenerated - User ID: {$user['id']}, New Session ID: " . session_id());
+        $this->session->regenerate_id(true);
+        $this->logger->logDebug("Session regenerated - User ID: {$user['id']}, New Session ID: " . $this->session->id());
 
         $this->session['user_id'] = $user['id'];
         $this->session['authenticated'] = true;
         $this->session['ip'] = $this->server['REMOTE_ADDR'] ?? '';
         $this->session['user_agent'] = $this->server['HTTP_USER_AGENT'] ?? '';
-        $this->session['last_activity'] = time();
+        $this->session['last_activity'] = $this->system->time();
         $this->session['username'] = $user['username'];
     }
 
-    #[NoReturn] private function sendSuccessResponse(): void
+    private function sendSuccessResponse(): void
     {
         $newCsrf = $this->securityHelper->generateCsrfToken();
         $this->setCsrfCookie($newCsrf);
@@ -231,11 +231,11 @@ class LoginHandler
 
     private function setCsrfCookie(string $token): void
     {
-        setcookie(
+        $this->system->setcookie(
             'csrf_token',
             $token,
             [
-                'expires' => time() + 3600,
+                'expires' => $this->system->time() + 3600,
                 'path' => '/',
                 'secure' => true,
                 'httponly' => false,
@@ -244,7 +244,7 @@ class LoginHandler
         );
     }
 
-    #[NoReturn] private function respondWithError(string $message, int $statusCode, string $type = 'general'): void
+    private function respondWithError(string $message, int $statusCode, string $type = 'general'): void
     {
         http_response_code($statusCode);
         echo json_encode([
@@ -256,7 +256,12 @@ class LoginHandler
     }
 }
 
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+
     $handler = new LoginHandler();
     $handler->handleRequest();
 } catch (Throwable $e) {

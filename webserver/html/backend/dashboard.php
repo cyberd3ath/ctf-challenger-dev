@@ -1,14 +1,7 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-require_once __DIR__ . '/../includes/challengeHelper.php';
-$config = require __DIR__ . '/../config/backend.config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class DashboardHandler
 {
@@ -33,23 +26,27 @@ class DashboardHandler
      */
     public function __construct(
         array $config,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
-        IChallengeHelper $challengeHelper = new ChallengeHelper(),
+
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+        IChallengeHelper $challengeHelper = null,
+
         ISession $session = new Session(),
         IServer $server = new Server(),
-        IGet $get = new Get()
+        IGet $get = new Get(),
+
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
-        $this->challengeHelper = $challengeHelper;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
+        $this->challengeHelper = $challengeHelper ?? new ChallengeHelper();
 
         $this->config = $config;
         $this->pdo = $this->databaseHelper->getPDO();
@@ -438,24 +435,24 @@ class DashboardHandler
                     CASE
                         WHEN sc.completed_at IS NOT NULL THEN
                             CASE
-                                WHEN EXTRACT(EPOCH FROM (NOW() - sc.completed_at)) / 3600 < 24 THEN 
-                                    EXTRACT(HOUR FROM (NOW() - sc.completed_at)) || ' hours ago'
+                                WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - sc.completed_at)) / 3600 < 24 THEN 
+                                    EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - sc.completed_at)) || ' hours ago'
                                 ELSE 
-                                    EXTRACT(DAY FROM (NOW() - sc.completed_at)) || ' days ago'
+                                    EXTRACT(DAY FROM (CURRENT_TIMESTAMP - sc.completed_at)) || ' days ago'
                             END
                         WHEN ca.completed_at IS NOT NULL THEN
                             CASE
-                                WHEN EXTRACT(EPOCH FROM (NOW() - ca.completed_at)) / 3600 < 24 THEN 
-                                    'Failed ' || EXTRACT(HOUR FROM (NOW() - ca.completed_at)) || ' hours ago'
+                                WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - ca.completed_at)) / 3600 < 24 THEN 
+                                    'Failed ' || EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.completed_at)) || ' hours ago'
                                 ELSE 
-                                    'Failed ' || EXTRACT(DAY FROM (NOW() - ca.completed_at)) || ' days ago'
+                                    'Failed ' || EXTRACT(DAY FROM (CURRENT_TIMESTAMP - ca.completed_at)) || ' days ago'
                             END
                         ELSE
                             CASE
-                                WHEN EXTRACT(EPOCH FROM (NOW() - ca.started_at)) / 3600 < 24 THEN 
-                                    'Started ' || EXTRACT(HOUR FROM (NOW() - ca.started_at)) || ' hours ago'
+                                WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - ca.started_at)) / 3600 < 24 THEN 
+                                    'Started ' || EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.started_at)) || ' hours ago'
                                 ELSE 
-                                    'Started ' || EXTRACT(DAY FROM (NOW() - ca.started_at)) || ' days ago'
+                                    'Started ' || EXTRACT(DAY FROM (CURRENT_TIMESTAMP - ca.started_at)) || ' days ago'
                             END
                     END AS time_ago
                 FROM challenge_templates ct
@@ -956,8 +953,8 @@ class DashboardHandler
         $errorMessage = $e->getMessage();
 
         if ($errorCode === 401) {
-            session_unset();
-            session_destroy();
+            $this->session->unset();
+            $this->session->destroy();
             $this->logger->logWarning("Session destroyed due to unauthorized access");
         }
 
@@ -977,7 +974,13 @@ class DashboardHandler
     }
 }
 
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+    $config = require __DIR__ . '/../config/backend.config.php';
+
     $handler = new DashboardHandler(config: $config);
     $handler->handleRequest();
 } catch (Exception $e) {

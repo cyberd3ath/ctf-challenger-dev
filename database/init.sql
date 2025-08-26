@@ -132,14 +132,14 @@ CREATE TABLE users (
     last_ip VARCHAR(45),
     running_challenge INT,
     is_admin BOOLEAN DEFAULT FALSE,
-    vpn_static_ip INET REFERENCES vpn_static_ips(vpn_static_ip)
+    vpn_static_ip INET REFERENCES vpn_static_ips(vpn_static_ip) ON DELETE SET NULL
 );
 
 
 ALTER TABLE vpn_static_ips
 ADD CONSTRAINT fk_user_id
 FOREIGN KEY (user_id)
-REFERENCES users(id);
+REFERENCES users(id) ON DELETE SET NULL;
 
 CREATE TABLE challenge_templates (
     id SERIAL PRIMARY KEY,
@@ -151,7 +151,7 @@ CREATE TABLE challenge_templates (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    creator_id INT REFERENCES users(id) ON DELETE SET NULL,
+    creator_id INT REFERENCES users(id) ON DELETE CASCADE,
     hint TEXT,
     solution TEXT,
     marked_for_deletion BOOLEAN DEFAULT FALSE
@@ -168,8 +168,8 @@ CREATE TABLE challenge_subnets
 CREATE TABLE challenges (
     id SERIAL PRIMARY KEY,
     challenge_template_id INT NOT NULL,
-    subnet INET REFERENCES challenge_subnets(subnet),
-    FOREIGN KEY (challenge_template_id) REFERENCES challenge_templates(id),
+    subnet INET REFERENCES challenge_subnets(subnet) ON DELETE CASCADE,
+    FOREIGN KEY (challenge_template_id) REFERENCES challenge_templates(id) ON DELETE CASCADE,
     expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '1 hour'),
     used_extensions INT DEFAULT 0
 );
@@ -178,7 +178,6 @@ ALTER TABLE users
 ADD CONSTRAINT fk_running_challenge
 FOREIGN KEY (running_challenge)
 REFERENCES challenges(id) ON DELETE SET NULL;
-
 
 CREATE TABLE user_profiles (
     user_id INT PRIMARY KEY,
@@ -248,9 +247,9 @@ CREATE TABLE completed_challenges (
     attempts INT NOT NULL DEFAULT 1,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP NULL,
-    flag_id INTEGER REFERENCES challenge_flags(id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (challenge_template_id) REFERENCES challenge_templates(id)
+    flag_id INTEGER REFERENCES challenge_flags(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (challenge_template_id) REFERENCES challenge_templates(id) ON DELETE CASCADE
 );
 
 CREATE TABLE badges (
@@ -279,7 +278,7 @@ CREATE TABLE announcements (
     short_description VARCHAR(255),
     importance announcement_importance NOT NULL,
     category announcement_category NOT NULL,
-    author VARCHAR(50) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+    author VARCHAR(50) NOT NULL REFERENCES users(username) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -3,8 +3,8 @@ import sys
 import os
 import time
 
-TEST_UTILS_DIR = "/root/ctf-challenger/testing/utils"
 BACKEND_DIR = "/root/ctf-challenger/backend"
+TEST_UTILS_DIR = os.path.join(BACKEND_DIR, "tests", "utils")
 
 sys.path.append(TEST_UTILS_DIR)
 sys.path.append(BACKEND_DIR)

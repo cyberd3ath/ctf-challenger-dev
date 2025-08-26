@@ -1,17 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use JetBrains\PhpStorm\NoReturn;
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-require_once __DIR__ . '/../includes/curlHelper.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/challengeHelper.php';
-$config = require __DIR__ . '/../config/backend.config.php';
-$generalConfig = json_decode(file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class CTFManagementHandler
 {
@@ -33,6 +23,8 @@ class CTFManagementHandler
     private IServer $server;
     private IGet $get;
     private IPost $post;
+    
+    private ISystem $system;
 
     /**
      * @throws Exception
@@ -40,16 +32,20 @@ class CTFManagementHandler
     public function __construct(
         array $config,
         array $generalConfig,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
-        IAuthHelper $authHelper = new AuthHelper(),
-        ICurlHelper $curlHelper = new CurlHelper(),
-        IChallengeHelper $challengeHelper = new ChallengeHelper(),
+        
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+        IAuthHelper $authHelper = null,
+        ICurlHelper $curlHelper = null,
+        IChallengeHelper $challengeHelper = null,
+        
         ISession $session = new Session(),
         IServer $server = new Server(),
         IGet $get = new Get(),
-        IPost $post = new Post()
+        IPost $post = new Post(),
+        
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
@@ -57,12 +53,14 @@ class CTFManagementHandler
         $this->get = $get;
         $this->post = $post;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
-        $this->authHelper = $authHelper;
-        $this->curlHelper = $curlHelper;
-        $this->challengeHelper = $challengeHelper;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
+        $this->authHelper = $authHelper ?? new AuthHelper($logger, $system, $env);
+        $this->curlHelper = $curlHelper ?? new CurlHelper($env);
+        $this->challengeHelper = $challengeHelper ?? new ChallengeHelper();
+        
+        $this->system = $system;
 
         $this->config = $config;
         $this->generalConfig = $generalConfig;
@@ -116,7 +114,7 @@ class CTFManagementHandler
         }
 
         if ($this->method === 'DELETE') {
-            $data = json_decode(file_get_contents('php://input'), true);
+            $data = json_decode($this->system->file_get_contents('php://input'), true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $this->logger->logError("Invalid JSON in CTF deletion - User ID: $this->userId");
                 throw new RuntimeException('Invalid JSON data', 400);
@@ -404,7 +402,7 @@ class CTFManagementHandler
                 hint = :hint,
                 solution = :solution,
                 is_active = :is_active,
-                updated_at = NOW()
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
         ");
 
@@ -868,14 +866,14 @@ class CTFManagementHandler
         ";
     }
 
-    #[NoReturn] private function handleError(Exception $e): void
+    private function handleError(Exception $e): void
     {
         $errorCode = $e->getCode() ?: 500;
         $errorMessage = $errorCode >= 500 ? 'An internal server error occurred' : $e->getMessage();
 
         if ($errorCode === 401) {
-            session_unset();
-            session_destroy();
+            $this->session->unset();
+            $this->session->destroy();
             $this->logger->logWarning("Session destroyed due to unauthorized access");
         }
 
@@ -895,7 +893,13 @@ class CTFManagementHandler
     }
 }
 
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    $config = require __DIR__ . '/../config/backend.config.php';
+    $generalConfig = json_decode($this->system->file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+
     $handler = new CTFManagementHandler(config: $config, generalConfig: $generalConfig);
     $handler->handleRequest();
 } catch (Exception $e) {

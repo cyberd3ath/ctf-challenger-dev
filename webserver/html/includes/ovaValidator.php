@@ -1,31 +1,27 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/logger.php';
-$config = require __DIR__ . '/../config/backend.config.php';
-
-
-interface IOvaValidator
-{
-    public function __construct(array $config);
-    public function validate(string $ovaPath): void;
-}
-
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class OvaValidator implements IOvaValidator
 {
-    private $config;
-    
+    private array $config;
     private ILogger $logger;
+    private ISystem $system;
 
     public function __construct(
-        array $config,
-        ILogger $logger = new Logger()
+        array $config = null,
+        ILogger $logger = null,
+        ISystem $system = new SystemWrapper()
     )
     {
-        $this->logger = $logger;
+        if ($config === null)
+            $config = require __DIR__ . '/../config/backend.config.php';
+
+        $this->logger = $logger ?? new Logger(system: $system);
         $this->config = $config['upload'] ?? [];
         $this->logger->logDebug("Initialized OvaValidator");
+        $this->system = $system;
     }
 
     public function validate(string $ovaPath): void
@@ -38,10 +34,9 @@ class OvaValidator implements IOvaValidator
 
 
         $this->validateInputFile($ovaPath);
-        $fileSize = filesize($ovaPath);
 
-        $tmpDir = sys_get_temp_dir() . '/ova_check_' . uniqid();
-        if (!mkdir($tmpDir, 0755, true)) {
+        $tmpDir = $this->system->sys_get_temp_dir() . '/ova_check_' . uniqid();
+        if (!$this->system->mkdir($tmpDir, 0755, true)) {
             $this->logger->logError("Failed to create temp directory: " . $tmpDir);
             throw new RuntimeException("System error during validation", 500);
         }
@@ -53,7 +48,7 @@ class OvaValidator implements IOvaValidator
             $xml = $this->parseOvfFile($ovfPath);
             $disks = $this->extractDiskInformation($xml);
             $this->validateVirtualDisks($disks, $maxVirtualSizeBytes);
-            $vmdkFiles = $this->findAndValidateVmdkFiles($output, $maxSingleVmdkSizeBytes, $maxTotalVmdkSizeBytes, $maxVmdkCount);
+            $this->findAndValidateVmdkFiles($output, $maxSingleVmdkSizeBytes, $maxTotalVmdkSizeBytes, $maxVmdkCount);
             $this->logger->logDebug("OVA validation completed successfully");
         } finally {
             $this->cleanupTempDir($tmpDir);
@@ -62,12 +57,12 @@ class OvaValidator implements IOvaValidator
 
     private function validateInputFile(string $ovaPath): void
     {
-        if (!file_exists($ovaPath)) {
+        if (!$this->system->file_exists($ovaPath)) {
             $this->logger->logError("OVA file does not exist: " . $ovaPath);
             throw new InvalidArgumentException("Invalid OVA file", 400);
         }
 
-        if (!is_readable($ovaPath)) {
+        if (!$this->system->is_readable($ovaPath)) {
             $this->logger->logError("OVA file is not readable: " . $ovaPath);
             throw new RuntimeException("Cannot read OVA file", 403);
         }
@@ -135,7 +130,7 @@ class OvaValidator implements IOvaValidator
         }
 
         $ovfPath = $tmpDir . DIRECTORY_SEPARATOR . basename($ovfName);
-        if (!file_exists($ovfPath)) {
+        if (!$this->system->file_exists($ovfPath)) {
             $this->logger->logError("Extracted OVF file not found at expected path: " . $ovfPath);
             throw new RuntimeException("System error during OVF extraction", 500);
         }
@@ -145,13 +140,13 @@ class OvaValidator implements IOvaValidator
 
     private function parseOvfFile(string $ovfPath): SimpleXMLElement
     {
-        $ovfContent = file_get_contents($ovfPath);
+        $ovfContent = $this->system->file_get_contents($ovfPath);
         if ($ovfContent === false) {
             $this->logger->logError("Failed to read OVF file: " . $ovfPath);
             throw new RuntimeException("Failed to read OVF contents", 500);
         }
 
-        if (strpos($ovfContent, '<!ENTITY') !== false) {
+        if (str_contains($ovfContent, '<!ENTITY')) {
             $this->logger->logError("OVF contains potential XXE vulnerability (ENTITY declaration)");
             throw new RuntimeException("Invalid OVF file - security violation", 400);
         }
@@ -196,10 +191,9 @@ class OvaValidator implements IOvaValidator
                 $size = match ($units) {
                     'byte', 'bytes' => $capacity,
                     'kb', 'kilobytes' => $capacity * 1024,
-                    'mb', 'megabytes' => $capacity * 1024 ** 2,
+                    'mb', 'megabytes', 'byte * 2^20' => $capacity * 1024 ** 2,
                     'gb', 'gigabytes' => $capacity * 1024 ** 3,
                     'tb', 'terabytes' => $capacity * 1024 ** 4,
-                    'byte * 2^20' => $capacity * 1024 ** 2,
                     default => throw new RuntimeException("Unsupported capacity unit: $units", 400),
                 };
 
@@ -227,7 +221,7 @@ class OvaValidator implements IOvaValidator
         }
     }
 
-    private function findAndValidateVmdkFiles(array $output, int $maxSingleVmdkSizeBytes, int $maxTotalVmdkSizeBytes, int $maxVmdkCount): array
+    private function findAndValidateVmdkFiles(array $output, int $maxSingleVmdkSizeBytes, int $maxTotalVmdkSizeBytes, int $maxVmdkCount): void
     {
         $pattern = '/^\S+\s+\S+\/\S+\s+(\d+)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+(.+\.vmdk)$/i';
         $vmdkFiles = [];
@@ -263,14 +257,13 @@ class OvaValidator implements IOvaValidator
                 throw new RuntimeException("Disk file exceeds maximum allowed size", 400);
             }
         }
-        return $vmdkFiles;
     }
 
     private function cleanupTempDir(string $tmpDir): void
     {
-        if (is_dir($tmpDir)) {
+        if ($this->system->is_dir($tmpDir)) {
             try {
-                system("rm -rf " . escapeshellarg($tmpDir));
+                $this->system->system("rm -rf " . escapeshellarg($tmpDir));
             } catch (Exception $e) {
                 $this->logger->logError("Failed to clean up temp directory: " . $tmpDir . " - " . $e->getMessage());
             }

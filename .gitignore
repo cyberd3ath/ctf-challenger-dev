@@ -7,3 +7,6 @@ backend/.env
 webserver/.env
 backend/certificates
 database/backups
+**/*.phar
+webserver/html/vendor
+**/.phpunit.result.cache

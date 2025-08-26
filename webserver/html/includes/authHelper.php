@@ -1,35 +1,30 @@
 <?php
+declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/logger.php';
-
-$dotenv = Dotenv\Dotenv::createImmutable("/var/www");
-$dotenv->load();
-
-interface IAuthHelper
-{
-    public function __construct(ILogger $logger = new Logger());
-    public function getAuthHeaders($contentType = null);
-    public function getBackendHeaders($contentType = 'application/json');
-}
-
 
 class AuthHelper implements IAuthHelper
 {
     private ILogger $logger;
+    private IEnv $env;
 
-    public function __construct(ILogger $logger = new Logger())
+    public function __construct(
+        ILogger $logger = null,
+        ISystem $system = new SystemWrapper(),
+        IEnv $env = new Env()
+    )
     {
-        $this->logger = $logger;
+        $this->logger = $logger ?? new Logger(system: $system);
+        $this->env = $env;
     }
 
     public function getAuthHeaders($contentType = null)
     {
-        $username = $_ENV['PROXMOX_USER'];
-        $password = $_ENV['PROXMOX_PASSWORD'];
-        $base_url = $_ENV['PROXMOX_HOSTNAME'];
-        if (isset($_ENV['PROXMOX_PORT'])) {
-            $base_url .= ":" . $_ENV['PROXMOX_PORT'];
+        $username = $this->env['PROXMOX_USER'];
+        $password = $this->env['PROXMOX_PASSWORD'];
+        $base_url = $this->env['PROXMOX_HOSTNAME'];
+        if (isset($this->env['PROXMOX_PORT'])) {
+            $base_url .= ":" . $this->env['PROXMOX_PORT'];
         }
 
         $url = 'https://' . $base_url . "/api2/json/access/ticket";
@@ -78,16 +73,14 @@ class AuthHelper implements IAuthHelper
         return $headers;
     }
 
-    public function getBackendHeaders($contentType = 'application/json')
+    public function getBackendHeaders($contentType = 'application/json'): array
     {
-        $BACKEND_AUTHENTICATION_TOKEN = $_ENV['BACKEND_AUTHENTICATION_TOKEN'] ?? null;
+        $BACKEND_AUTHENTICATION_TOKEN = $this->env['BACKEND_AUTHENTICATION_TOKEN'] ?? null;
 
-        $headers = [
+        return [
             'Content-Type: ' . $contentType,
             'Authentication-Token: ' . $BACKEND_AUTHENTICATION_TOKEN
         ];
-
-        return $headers;
     }
 }
 

@@ -1,24 +1,22 @@
 <?php
-require __DIR__ . '/../vendor/autoload.php';
+declare(strict_types=1);
 
-$dotenv = Dotenv\Dotenv::createImmutable("/var/www");
-$dotenv->load();
-
-
-interface ICurlHelper
-{
-    public function makeCurlRequest($endpoint, $method = 'GET', $headers = [], $postFields = null);
-    public function makeBackendRequest($endpoint, $method = 'GET', $headers = [], $postFields = null);
-}
-
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class CurlHelper implements ICurlHelper
 {
+    private IEnv $env;
+
+    public function __construct(IEnv $env)
+    {
+        $this->env = $env;
+    }
+
     public function makeCurlRequest($endpoint, $method = 'GET', $headers = [], $postFields = null): bool|array
     {
-        $baseUrl = 'https://' . $_ENV['PROXMOX_HOSTNAME'];
-        if (isset($_ENV['PROXMOX_PORT'])) {
-            $baseUrl .= ":" . $_ENV['PROXMOX_PORT'];
+        $baseUrl = 'https://' . $this->env['PROXMOX_HOSTNAME'];
+        if (isset($this->env['PROXMOX_PORT'])) {
+            $baseUrl .= ":" . $this->env['PROXMOX_PORT'];
         }
 
         $url = $baseUrl . '/' . ltrim($endpoint, '/');
@@ -57,9 +55,9 @@ class CurlHelper implements ICurlHelper
 
     public function makeBackendRequest($endpoint, $method = 'GET', $headers = [], $postFields = null): array
     {
-        $baseUrl = 'https://' . rtrim($_ENV['BACKEND_HOST'], '/');
-        if (isset($_ENV['BACKEND_PORT'])) {
-            $baseUrl .= ":" . $_ENV['BACKEND_PORT'];
+        $baseUrl = 'https://' . rtrim($this->env['BACKEND_HOST'], '/');
+        if (isset($this->env['BACKEND_PORT'])) {
+            $baseUrl .= ":" . $this->env['BACKEND_PORT'];
         }
 
         $url = $baseUrl . '/' . ltrim($endpoint, '/');

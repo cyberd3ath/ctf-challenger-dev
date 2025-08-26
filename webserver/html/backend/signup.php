@@ -1,17 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use JetBrains\PhpStorm\NoReturn;
-
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-require_once __DIR__ . '/../includes/curlHelper.php';
-require_once __DIR__ . '/../includes/auth.php';
-$generalConfig = json_decode(file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class RegistrationHandler
 {
@@ -33,36 +23,44 @@ class RegistrationHandler
     private IServer $server;
     private IPost $post;
 
+    private ISystem $system;
+
     /**
      * @throws Exception
      */
     public function __construct(
         array $generalConfig,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
-        IAuthHelper $authHelper = new AuthHelper(),
-        ICurlHelper $curlHelper = new CurlHelper(),
+        
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+        IAuthHelper $authHelper = null,
+        ICurlHelper $curlHelper = null,
+        
         ISession $session = new Session(),
         IServer $server = new Server(),
-        IPost $post = new Post()
+        IPost $post = new Post(),
+        
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->post = $post;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
-        $this->authHelper = $authHelper;
-        $this->curlHelper = $curlHelper;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
+        $this->authHelper = $authHelper ?? new AuthHelper($logger, $system, $env);
+        $this->curlHelper = $curlHelper ?? new CurlHelper($env);
+
+        $this->system = $system;
 
         $this->generalConfig = $generalConfig;
         $this->initSession();
         $this->validateRequestMethod();
         $this->parseInput();
-        $this->logger->logDebug("Initialized RegistrationHandler with Session ID: " . session_id());
+        $this->logger->logDebug("Initialized RegistrationHandler with Session ID: " . $this->session->id());
     }
 
     private function initSession(): void
@@ -76,7 +74,7 @@ class RegistrationHandler
     private function validateRequestMethod(): void
     {
         if ($this->server['REQUEST_METHOD'] !== 'POST') {
-            throw new Exception('Invalid request method', 400);
+            throw new Exception('Invalid request method', 405);
         }
     }
 
@@ -116,21 +114,21 @@ class RegistrationHandler
         } elseif (strlen($this->username) < $this->generalConfig['user']['MIN_USERNAME_LENGTH']) {
             throw new Exception('Username must be at least' . $this->generalConfig['user']['MIN_USERNAME_LENGTH'] . 'characters long', 400);
         } elseif (strlen($this->username) > $this->generalConfig['user']['MAX_USERNAME_LENGTH']) {
-            throw new Exception('Username must not extend ' . $this->generalConfig['user']['MAX_USERNAME_LENGTH'], 400);
+            throw new Exception('Username must not exceed ' . $this->generalConfig['user']['MAX_USERNAME_LENGTH'] . 'characters', 400);
         } elseif (!preg_match('/' . $this->generalConfig['user']['USERNAME_REGEX'] . '/', $this->username)) {
             throw new Exception("Username contains invalid characters only '_' is allowed", 400);
         }
 
         if (strlen($this->email) > $this->generalConfig['user']['MAX_EMAIL_LENGTH']) {
-            throw new Exception('Email must not extend ' . $this->generalConfig['user']['MAX_EMAIL_LENGTH'], 400);
+            throw new Exception('Email must not exceed ' . $this->generalConfig['user']['MAX_EMAIL_LENGTH'] . 'characters', 400);
         } elseif (!filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
             throw new Exception('Invalid email format', 400);
         }
 
         if (strlen($this->password) < $this->generalConfig['user']['MIN_PASSWORD_LENGTH']) {
-            throw new Exception('Password must be at least' . $this->generalConfig['user']['MIN_PASSWORD_LENGTH'] . 'characters long', 400);
+            throw new Exception('Password must be at least ' . $this->generalConfig['user']['MIN_PASSWORD_LENGTH'] . 'characters long', 400);
         } elseif (strlen($this->password) > $this->generalConfig['user']['MAX_PASSWORD_LENGTH']) {
-            throw new Exception('Password must not exceed ' . $this->generalConfig['user']['MAX_PASSWORD_LENGTH'], 400);
+            throw new Exception('Password must not exceed ' . $this->generalConfig['user']['MAX_PASSWORD_LENGTH'] . 'characters', 400);
         }
 
         if ($this->password !== $this->confirmPassword) {
@@ -178,7 +176,10 @@ class RegistrationHandler
     {
         $passwordHash = password_hash($this->password, PASSWORD_DEFAULT);
         if (!$passwordHash) {
+            // @codeCoverageIgnoreStart
+            // This should never happen unless the server is misconfigured
             throw new Exception('Account creation failed', 500);
+            // @codeCoverageIgnoreEnd
         }
 
         $this->pdo->beginTransaction();
@@ -312,12 +313,12 @@ class RegistrationHandler
     {
         try {
             $configDir = '/var/lib/ctf-challenger/vpn-configs/';
-            if (!file_exists($configDir) && !mkdir($configDir, 0755, true)) {
+            if (!$this->system->file_exists($configDir) && !$this->system->mkdir($configDir, 0755, true)) {
                 throw new Exception('Error creating VPN config directory', 500);
             }
 
             $filename = $configDir . 'user_' . $userId . '.ovpn';
-            $bytesWritten = file_put_contents($filename, $configContent);
+            $bytesWritten = $this->system->file_put_contents($filename, $configContent);
 
             if ($bytesWritten === false) {
                 throw new Exception('Error creating VPN config file', 500);
@@ -332,26 +333,26 @@ class RegistrationHandler
 
     private function updateLastLogin(int $userId): void
     {
-        $update = $this->pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = :id");
+        $update = $this->pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = :id");
         $update->execute(['id' => $userId]);
     }
 
     private function initializeUserSession($userId): void
     {
-        session_regenerate_id(true);
+        $this->session->regenerate_id(true);
         $this->session['user_id'] = $userId;
         $this->session['ip'] = $this->server['REMOTE_ADDR'];
         $this->session['user_agent'] = $this->server['HTTP_USER_AGENT'];
-        $this->session['last_activity'] = time();
+        $this->session['last_activity'] = $this->system->time();
         $this->session['authenticated'] = true;
         $this->session['username'] = $this->username;
 
         $newCsrf = $this->securityHelper->generateCsrfToken();
-        setcookie(
+        $this->system->setcookie(
             'csrf_token',
             $newCsrf,
             [
-                'expires' => time() + 3600,
+                'expires' => $this->system->time() + 3600,
                 'path' => '/',
                 'secure' => true,
                 'httponly' => false,
@@ -362,7 +363,7 @@ class RegistrationHandler
         $this->logger->logInfo("Successful registration for user $userId");
     }
 
-    #[NoReturn] private function sendSuccessResponse($userId, $vpnIp): void
+    private function sendSuccessResponse($userId, $vpnIp): void
     {
         echo json_encode([
             'success' => true,
@@ -373,7 +374,7 @@ class RegistrationHandler
         defined('PHPUNIT_RUNNING') || exit;
     }
 
-    #[NoReturn] private function handleError(Exception $e): void
+    private function handleError(Exception $e): void
     {
         $code = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 400;
         http_response_code($code);
@@ -389,7 +390,15 @@ class RegistrationHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+    $generalConfig = json_decode($this->system->file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+
     $handler = new RegistrationHandler(generalConfig: $generalConfig);
     $handler->handleRequest();
 } catch (Exception $e) {
@@ -408,3 +417,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

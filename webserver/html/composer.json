@@ -1,0 +1,24 @@
+{
+  "name": "vendor_name/ctf-challenger",
+  "description": "description",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Jakob",
+      "email": "email@example.com"
+    }
+  ],
+  "require": {
+    "vlucas/phpdotenv": "*",
+    "phpunit/phpunit": "*",
+    "testcontainers/testcontainers": "*",
+    "ext-pdo": "*",
+    "ext-curl": "*",
+    "ext-simplexml": "*",
+    "ext-libxml": "*"
+  },
+    "autoload": {
+        "classmap": ["includes/", "backend/", "tests/", "interfaces/", "mocks/"]
+    }
+}

@@ -1,16 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use JetBrains\PhpStorm\NoReturn;
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-require_once __DIR__ . '/../includes/curlHelper.php';
-require_once __DIR__ . '/../includes/auth.php';
-$config = require __DIR__ . '/../config/backend.config.php';
-$generalConfig = json_decode(file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class CtfCreationHandler
 {
@@ -34,22 +25,28 @@ class CtfCreationHandler
     private IPost $post;
     private IFiles $files;
 
+    private ISystem $system;
+
     /**
      * @throws Exception
      */
     public function __construct(
         array $config,
         array $generalConfig,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ICurlHelper $curlHelper = new CurlHelper(),
-        IAuthHelper $authHelper = new AuthHelper(),
-        ILogger $logger = new Logger(),
+
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ICurlHelper $curlHelper = null,
+        IAuthHelper $authHelper = null,
+        ILogger $logger = null,
+
         ISession $session = new Session(),
         IServer $server = new Server(),
         IGet $get = new Get(),
         IPost $post = new Post(),
-        IFiles $files = new Files()
+        IFiles $files = new Files(),
+
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
@@ -58,11 +55,13 @@ class CtfCreationHandler
         $this->post = $post;
         $this->files = $files;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->curlHelper = $curlHelper;
-        $this->authHelper = $authHelper;
-        $this->logger = $logger;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->curlHelper = $curlHelper ?? new CurlHelper($env);
+        $this->authHelper = $authHelper ?? new AuthHelper($logger, $system, $env);
+        $this->logger = $logger ?? new Logger(system: $system);
+
+        $this->system = $system;
 
         header('Content-Type: application/json');
         $this->config = $config;
@@ -115,9 +114,9 @@ class CtfCreationHandler
             return [];
         }
 
-        $jsonInput = json_decode(file_get_contents('php://input'), true);
+        $jsonInput = json_decode($this->system->file_get_contents('php://input'), true);
         if ($jsonInput !== null) {
-            return array_merge($this->post, $jsonInput);
+            return array_merge($this->post->all(), $jsonInput);
         }
 
         return $this->post->all();
@@ -206,7 +205,7 @@ class CtfCreationHandler
             $value = trim($this->inputData[$key] ?? '');
             validateFieldLength($value, $max, $label, $fieldKey, $errors, $errorFields);
 
-            if ($key === 'name' && !empty($value) && !preg_match('/' . $this->config['ctf']['CTF_NAME_REGEX'] . '/', $value)) {
+            if ($key === 'name' && !empty($value) && !preg_match('/' . $this->generalConfig['ctf']['CTF_NAME_REGEX'] . '/', $value)) {
                 $errors[] = "$label contains invalid characters";
                 $errorFields[] = "ctf-$fieldKey";
             }
@@ -413,13 +412,13 @@ class CtfCreationHandler
         }
 
         $uploadDir = __DIR__ . '/..' . $this->config['challenge']['UPLOAD_DIR'];
-        if (!file_exists($uploadDir)) {
-            if (!mkdir($uploadDir, 0755, true)) {
+        if (!$this->system->file_exists($uploadDir)) {
+            if (!$this->system->mkdir($uploadDir, 0755, true)) {
                 throw new RuntimeException('Failed to create upload directory', 500);
             }
         }
 
-        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $extension = $this->system->pathinfo($file['name'], PATHINFO_EXTENSION);
         $filename = uniqid('challenge_') . '.' . $extension;
         $destination = $uploadDir . $filename;
 
@@ -428,7 +427,7 @@ class CtfCreationHandler
             throw new RuntimeException('Failed to save uploaded image: ' . ($error['message'] ?? 'Unknown error'), 500);
         }
 
-        chmod($destination, 0644);
+        $this->system->chmod($destination, 0644);
         return $this->config['challenge']['UPLOAD_DIR'] . $filename;
     }
 
@@ -456,8 +455,8 @@ class CtfCreationHandler
 
             if (!empty($imagePath)) {
                 $fullPath = __DIR__ . '/..' . $imagePath;
-                if (file_exists($fullPath)) {
-                    @unlink($fullPath);
+                if ($this->system->file_exists($fullPath)) {
+                    @$this->system->unlink($fullPath);
                     $this->logger->logDebug("Cleaned up uploaded image after error: $fullPath");
                 }
             }
@@ -830,7 +829,7 @@ class CtfCreationHandler
         return false;
     }
 
-    #[NoReturn] private function handleError(Exception $e): void
+    private function handleError(Exception $e): void
     {
         $code = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 500;
         $errorMessage = $code >= 500 ? 'An internal server error occurred' : $e->getMessage();
@@ -851,7 +850,13 @@ class CtfCreationHandler
     }
 }
 
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    $config = require __DIR__ . '/../config/backend.config.php';
+    $generalConfig = json_decode($this->system->file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+
     $handler = new CtfCreationHandler(config: $config, generalConfig: $generalConfig);
     $handler->handleRequest();
 } catch (Exception $e) {

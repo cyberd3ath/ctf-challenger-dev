@@ -1,13 +1,7 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-$config = require __DIR__ . '/../config/backend.config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class AnnouncementsHandler
 {
@@ -31,21 +25,25 @@ class AnnouncementsHandler
      */
     public function __construct(
         array $config,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ILogger $logger = new Logger(),
+
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ILogger $logger = null,
+
         ISession $session = new Session(),
         IServer $server = new Server(),
-        IGet $get = new Get()
+        IGet $get = new Get(),
+
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->logger = $logger;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->logger = $logger ?? new Logger(system: $system);
 
         $this->config = $config;
         $this->initSession();
@@ -85,9 +83,8 @@ class AnnouncementsHandler
      */
     private function parseInputParameters(): void
     {
-        $this->page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
-            'options' => ['default' => 1, 'min_range' => 1]
-        ]);
+        $this->page = (int)$this->get['page'] ?? 1;
+        $this->page = max($this->page, 1);
 
         $this->importanceFilter = $this->get['importance'] ?? 'all';
         if (!in_array($this->importanceFilter, $this->config['filters']['IMPORTANCE_LEVELS'])) {
@@ -187,7 +184,7 @@ class AnnouncementsHandler
     private function getPaginatedResults($query, $params): array
     {
         $offset = ($this->page - 1) * $this->perPage;
-        $query .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+        $query .= " ORDER BY created_at DESC, id ASC LIMIT :limit OFFSET :offset";
 
         $stmt = $this->pdo->prepare($query);
 
@@ -234,7 +231,15 @@ class AnnouncementsHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+    $config = require __DIR__ . '/../config/backend.config.php';
+
     $handler = new AnnouncementsHandler(config: $config);
     $handler->handleRequest();
 } catch (Exception $e) {
@@ -253,3 +258,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

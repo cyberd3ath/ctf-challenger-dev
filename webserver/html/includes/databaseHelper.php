@@ -1,17 +1,9 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/logger.php';
+use JetBrains\PhpStorm\NoReturn;
+
 require_once __DIR__ . '/../vendor/autoload.php';
-$dotenv = Dotenv\Dotenv::createImmutable("/var/www");
-$dotenv->load();
-
-interface IDatabaseHelper
-{
-    public function __construct(ILogger $logger = new Logger());
-    public function getPDO(): PDO;
-}
-
 
 class DatabaseHelper implements IDatabaseHelper
 {
@@ -19,9 +11,12 @@ class DatabaseHelper implements IDatabaseHelper
 
     private ILogger $logger;
 
-    public function __construct(ILogger $logger = new Logger())
+    public function __construct(
+        ILogger $logger = null,
+        ISystem $system = new SystemWrapper()
+    )
     {
-        $this->logger = $logger;
+        $this->logger = $logger ?? new Logger(system: $system);
         $this->pdoInstance = null;
     }
     
@@ -41,18 +36,15 @@ class DatabaseHelper implements IDatabaseHelper
             $this->logger->logError("Unexpected error during database connection: " . $e->getMessage());
             $this->sendErrorResponse();
         }
-
-        // If we reach here, something went wrong
-        throw new RuntimeException('Database connection error');
     }
 
     private function createConnection(): PDO
     {
-        $host = $_ENV['DB_HOST'] ?? '';
-        $db = $_ENV['DB_NAME'] ?? '';
-        $user = $_ENV['DB_USER'] ?? '';
-        $pass = $_ENV['DB_PASSWORD'] ?? '';
-        $port = $_ENV['DB_PORT'] ?? '';
+        $host = $this->env['DB_HOST'] ?? '';
+        $db = $this->env['DB_NAME'] ?? '';
+        $user = $this->env['DB_USER'] ?? '';
+        $pass = $this->env['DB_PASSWORD'] ?? '';
+        $port = $this->env['DB_PORT'] ?? '';
 
         if (empty($host) || empty($db) || empty($user) || empty($port)) {
             $this->logger->logError("Missing required database configuration parameters");
@@ -67,7 +59,7 @@ class DatabaseHelper implements IDatabaseHelper
         ]);
     }
 
-    private function sendErrorResponse(): void
+    #[NoReturn] private function sendErrorResponse(): void
     {
         header('Content-Type: application/json');
         http_response_code(500);

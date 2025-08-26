@@ -1,32 +1,27 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/logger.php';
-
-
-interface ISecurityHelper
-{
-    public function __construct(ILogger $logger = new Logger());
-    public function initSecureSession(): void;
-    public function addSecurityHeaders(): void;
-    public function generateCsrfToken(): string;
-    public function validateCsrfToken(string $token): bool;
-    public function validateSession(): bool;
-    public function validateAdminAccess(PDO $db): bool;
-}
-
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class SecurityHelper implements ISecurityHelper
 {    
-    private const SECURITY_HEADERS = [
+    private const array SECURITY_HEADERS = [
         "X-Content-Type-Options: nosniff", "X-Frame-Options: SAMEORIGIN", "X-XSS-Protection: 1; mode=block", "Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; connect-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';", "Referrer-Policy: strict-origin-when-cross-origin", "Permissions-Policy: geolocation=(), camera=(), microphone=(), fullscreen=*, payment=()", "Cross-Origin-Resource-Policy: same-origin", "X-Permitted-Cross-Domain-Policies: none"
     ];
 
     private ILogger $logger;
+    private ISession $session;
+    private ISystem $system;
 
-    public function __construct(ILogger $logger = new Logger())
+    public function __construct(
+        ILogger $logger = null,
+        ISession $session = new Session(),
+        ISystem $system = new SystemWrapper()
+    )
     {
-        $this->logger = $logger;
+        $this->logger = $logger ?? new Logger(system: $system);
+        $this->session = $session;
+        $this->system = $system;
     }
 
     public function initSecureSession(): void
@@ -37,7 +32,7 @@ class SecurityHelper implements ISecurityHelper
             $this->regenerateSessionId();
             $this->addSecurityHeaders();
 
-            $this->logger->logDebug("Secure session initialized for IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logDebug("Secure session initialized for IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
 
         } catch (Exception $e) {
             $this->logger->logError("Secure session initialization failed: " . $e->getMessage());
@@ -56,25 +51,25 @@ class SecurityHelper implements ISecurityHelper
             'samesite' => 'Strict'
         ];
 
-        if (!session_set_cookie_params($cookieParams)) {
+        if (!$this->session->set_cookie_params($cookieParams)) {
             throw new RuntimeException('Failed to set secure session cookie parameters');
         }
     }
 
     private function startSession(): void
     {
-        if (session_status() === PHP_SESSION_NONE && !session_start()) {
+        if ($this->session->status() === PHP_SESSION_NONE && !$this->session->start()) {
             throw new RuntimeException('Failed to start secure session');
         }
     }
 
     private function regenerateSessionId(): void
     {
-        if (empty($_SESSION['initiated'])) {
-            session_regenerate_id(true);
-            $_SESSION['initiated'] = true;
-            $_SESSION['ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
-            $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        if (empty($this->session['initiated'])) {
+            $this->session->regenerate_id(true);
+            $this->session['initiated'] = true;
+            $this->session['ip'] = $this->server['REMOTE_ADDR'] ?? '';
+            $this->session['user_agent'] = $this->server['HTTP_USER_AGENT'] ?? '';
         }
     }
 
@@ -84,7 +79,7 @@ class SecurityHelper implements ISecurityHelper
             foreach (self::SECURITY_HEADERS as $header) {
                 header($header);
             }
-            $this->logger->logDebug("Security headers added for IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logDebug("Security headers added for IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
         } catch (Exception $e) {
             $this->logger->logError("Failed to add security headers: " . $e->getMessage());
         }
@@ -93,7 +88,7 @@ class SecurityHelper implements ISecurityHelper
     public function generateCsrfToken(): string
     {
         try {
-            if (empty($_SESSION)) {
+            if (empty($this->session)) {
                 throw new RuntimeException('Session not initialized');
             }
 
@@ -102,10 +97,10 @@ class SecurityHelper implements ISecurityHelper
                 throw new RuntimeException('CSRF token generation failed');
             }
 
-            $_SESSION['csrf_token'] = $token;
-            $_SESSION['csrf_token_time'] = time();
+            $this->session['csrf_token'] = $token;
+            $this->session['csrf_token_time'] = $this->system->time();
 
-            $this->logger->logDebug("CSRF token generated for session ID: " . session_id());
+            $this->logger->logDebug("CSRF token generated for session ID: " . $this->session->id());
             return $token;
 
         } catch (Exception $e) {
@@ -117,13 +112,13 @@ class SecurityHelper implements ISecurityHelper
     public function validateCsrfToken(string $token): bool
     {
         try {
-            if (empty($_SESSION['csrf_token']) || empty($token)) {
+            if (empty($this->session['csrf_token']) || empty($token)) {
                 $this->logger->logError("Missing CSRF token in session or request");
                 return false;
             }
 
             if (!$this->isValidTokenFormat($token)) {
-                $this->logger->logError("Invalid CSRF token format from IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+                $this->logger->logError("Invalid CSRF token format from IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
                 return false;
             }
 
@@ -147,15 +142,15 @@ class SecurityHelper implements ISecurityHelper
 
     private function isTokenExpired(): bool
     {
-        $tokenAge = time() - ($_SESSION['csrf_token_time'] ?? 0);
+        $tokenAge = $this->system->time() - ($this->session['csrf_token_time'] ?? 0);
         return $tokenAge > 3600;
     }
 
     private function verifyToken(string $token): bool
     {
-        $isValid = hash_equals($_SESSION['csrf_token'], $token);
+        $isValid = hash_equals($this->session['csrf_token'], $token);
         if (!$isValid) {
-            $this->logger->logError("Invalid CSRF token provided from IP: " . $this->logger->anonymizeIp($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $this->logger->logError("Invalid CSRF token provided from IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
         }
         return $isValid;
     }
@@ -173,7 +168,7 @@ class SecurityHelper implements ISecurityHelper
                 return false;
             }
 
-            return $_SESSION['authenticated'] === true;
+            return $this->session['authenticated'] === true;
 
         } catch (Exception $e) {
             $this->logger->logError("Session validation error: " . $e->getMessage());
@@ -183,13 +178,13 @@ class SecurityHelper implements ISecurityHelper
 
     private function hasValidSessionData(): bool
     {
-        return !empty($_SESSION['user_id']) && !empty($_SESSION['authenticated']);
+        return !empty($this->session['user_id']) && !empty($this->session['authenticated']);
     }
 
     private function hasConsistentSession(): bool
     {
-        $ipMatch = ($_SESSION['ip'] ?? '') === ($_SERVER['REMOTE_ADDR'] ?? '');
-        $agentMatch = ($_SESSION['user_agent'] ?? '') === ($_SERVER['HTTP_USER_AGENT'] ?? '');
+        $ipMatch = ($this->session['ip'] ?? '') === ($this->server['REMOTE_ADDR'] ?? '');
+        $agentMatch = ($this->session['user_agent'] ?? '') === ($this->server['HTTP_USER_AGENT'] ?? '');
         return $ipMatch && $agentMatch;
     }
 
@@ -200,15 +195,15 @@ class SecurityHelper implements ISecurityHelper
                 throw new Exception('Unauthorized - Invalid session', 401);
             }
 
-            $userId = $_SESSION['user_id'] ?? 0;
+            $userId = $this->session['user_id'] ?? 0;
             $isAdmin = $this->checkAdminStatus($db, $userId);
 
-            if ($isAdmin === false) {
+            if (!$isAdmin) {
                 $this->logger->logError("Admin check failed - user ID {$userId} not found in database");
                 return false;
             }
 
-            return (bool)$isAdmin;
+            return true;
 
         } catch (PDOException $e) {
             $this->logger->logError("Database error during admin validation: " . $e->getMessage());

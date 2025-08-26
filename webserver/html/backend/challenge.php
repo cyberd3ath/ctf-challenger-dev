@@ -1,16 +1,7 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json');
-
-require_once __DIR__ . '/../includes/globals.php';
-require_once __DIR__ . '/../includes/logger.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/security.php';
-require_once __DIR__ . '/../includes/curlHelper.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/challengeHelper.php';
-$config = require __DIR__ . '/../config/backend.config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class ChallengeHandler
 {
@@ -28,33 +19,41 @@ class ChallengeHandler
     private ISession $session;
     private IServer $server;
     private IGet $get;
+    
+    private ISystem $system;
 
     /**
      * @throws Exception
      */
     public function __construct(
         array $config,
-        IDatabaseHelper $databaseHelper = new DatabaseHelper(),
-        ISecurityHelper $securityHelper = new SecurityHelper(),
-        ICurlHelper $curlHelper = new CurlHelper(),
-        IAuthHelper $authHelper = new AuthHelper(),
-        IChallengeHelper $challengeHelper = new ChallengeHelper(),
-        ILogger $logger = new Logger(),
+        
+        IDatabaseHelper $databaseHelper = null,
+        ISecurityHelper $securityHelper = null,
+        ICurlHelper $curlHelper = null,
+        IAuthHelper $authHelper = null,
+        IChallengeHelper $challengeHelper = null,
+        ILogger $logger = null,
+        
         ISession $session = new Session(),
         IServer $server = new Server(),
-        IGet $get = new Get()
+        IGet $get = new Get(),
+        
+        ISystem $system = new SystemWrapper()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
 
-        $this->databaseHelper = $databaseHelper;
-        $this->securityHelper = $securityHelper;
-        $this->curlHelper = $curlHelper;
-        $this->authHelper = $authHelper;
-        $this->challengeHelper = $challengeHelper;
-        $this->logger = $logger;
+        $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
+        $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
+        $this->curlHelper = $curlHelper ?? new CurlHelper($env);
+        $this->authHelper = $authHelper ?? new AuthHelper($logger, $system, $env);
+        $this->challengeHelper = $challengeHelper ?? new ChallengeHelper();
+        $this->logger = $logger ?? new Logger(system: $system);
+        
+        $this->system = $system;
 
         $this->config = $config;
         $this->initSession();
@@ -142,7 +141,7 @@ class ChallengeHandler
      */
     private function getJsonInput()
     {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = json_decode($this->system->file_get_contents('php://input'), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->logger->logWarning("Invalid JSON input in challenge route - User ID: $this->userId");
             throw new Exception('Invalid JSON input', 400);
@@ -304,7 +303,7 @@ class ChallengeHandler
                 ) VALUES (
                     :user_id, 
                     :challenge_template_id, 
-                    NOW()
+                    CURRENT_TIMESTAMP
                 )
             ");
             $stmt->execute([
@@ -363,7 +362,7 @@ class ChallengeHandler
         try {
             $stmt = $this->pdo->prepare("
                 UPDATE completed_challenges
-                SET completed_at = NOW()
+                SET completed_at = CURRENT_TIMESTAMP
                 WHERE user_id = :user_id
                 AND challenge_template_id = :challenge_id
                 AND completed_at IS NULL
@@ -651,7 +650,7 @@ class ChallengeHandler
         $stmt = $this->pdo->prepare("
             UPDATE completed_challenges
             SET flag_id = :flag_id,
-                completed_at = NOW()
+                completed_at = CURRENT_TIMESTAMP
             WHERE id = :attempt_id
         ");
         $stmt->execute([
@@ -673,8 +672,8 @@ class ChallengeHandler
                 :user_id, 
                 :challenge_template_id, 
                 :flag_id,
-                NOW(),
-                NOW()
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
             )
         ");
         $stmt->execute([
@@ -906,7 +905,7 @@ class ChallengeHandler
     private function getRemainingSecondsForChallenge(int $challengeId)
     {
         $stmt = $this->pdo->prepare("
-            SELECT EXTRACT(EPOCH FROM (c.expires_at - NOW()))::integer AS remaining_seconds
+            SELECT EXTRACT(EPOCH FROM (c.expires_at - CURRENT_TIMESTAMP))::integer AS remaining_seconds
             FROM challenges c
             JOIN users u ON u.running_challenge = c.id
             WHERE u.id = :user_id
@@ -944,7 +943,7 @@ class ChallengeHandler
         $stmt = $this->pdo->prepare("
             SELECT * FROM challenge_flags 
             WHERE challenge_template_id = :id
-            ORDER BY order_index ASC
+            ORDER BY order_index
         ");
         $stmt->execute(['id' => $challengeId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -965,7 +964,7 @@ class ChallengeHandler
         SELECT * FROM challenge_hints 
         WHERE challenge_template_id = :id
           AND unlock_points <= :userPoints
-        ORDER BY order_index ASC
+        ORDER BY order_index
     ");
         $stmt->execute([
             'id' => $challengeId,
@@ -1171,7 +1170,7 @@ class ChallengeHandler
         if (!$stmt->fetch()) {
             $stmt = $this->pdo->prepare("
                 INSERT INTO user_badges (user_id, badge_id, earned_at)
-                VALUES (:user_id, :badge_id, NOW())
+                VALUES (:user_id, :badge_id, CURRENT_TIMESTAMP)
             ");
             $stmt->execute(['user_id' => $this->userId, 'badge_id' => $badgeId]);
             $this->logger->logDebug("Badge granted - Badge ID: $badgeId, User ID: $this->userId");
@@ -1220,7 +1219,7 @@ class ChallengeHandler
             $stmt = $this->pdo->prepare("
                 UPDATE challenges
                 SET 
-                    expires_at = NOW() + (:extend_scalar * INTERVAL '1 hour'),
+                    expires_at = CURRENT_TIMESTAMP + (:extend_scalar * INTERVAL '1 hour'),
                     used_extensions = used_extensions + 1
                 WHERE id = :challenge_id
             ");
@@ -1275,7 +1274,13 @@ class ChallengeHandler
     }
 }
 
+if(defined('PHPUNIT_RUNNING'))
+    return;
+
 try {
+    header('Content-Type: application/json');
+    $config = require __DIR__ . '/../config/backend.config.php';
+
     $api = new ChallengeHandler(config: $config);
     $api->handleRequest();
 } catch (Exception $e) {

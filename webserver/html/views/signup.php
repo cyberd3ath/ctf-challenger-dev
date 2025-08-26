@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/securityHelper.php';
 $securityHelper = new SecurityHelper();
 $securityHelper->initSecureSession();
 $csrf_token = $securityHelper->generateCsrfToken();
