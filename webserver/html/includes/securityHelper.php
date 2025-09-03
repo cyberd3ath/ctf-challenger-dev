@@ -93,7 +93,7 @@ class SecurityHelper implements ISecurityHelper
             }
 
             $token = bin2hex(random_bytes(32));
-            if ($token === false) {
+            if ($token == false) {
                 throw new RuntimeException('CSRF token generation failed');
             }
 

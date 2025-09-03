@@ -45,7 +45,8 @@ class CTFManagementHandler
         IGet $get = new Get(),
         IPost $post = new Post(),
         
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        IEnv $env = new Env()
     )
     {
         $this->session = $session;

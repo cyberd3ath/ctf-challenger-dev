@@ -10,14 +10,17 @@ class DatabaseHelper implements IDatabaseHelper
     private ?PDO $pdoInstance;
 
     private ILogger $logger;
+    private IEnv $env;
 
     public function __construct(
         ILogger $logger = null,
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        IEnv $env = new Env()
     )
     {
         $this->logger = $logger ?? new Logger(system: $system);
         $this->pdoInstance = null;
+        $this->env = $env;
     }
     
     public function getPDO(): PDO

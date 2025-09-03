@@ -887,7 +887,6 @@ class ProfileHandlerPublicTest extends TestCase
         foreach ($challengesData as $challenge) {
             $totalExpectedSolved += ($challenge['num_flags'] == 2) ? 1 : 0;
             $totalExpectedPoints += match($challenge['num_flags']) {
-                0 => 0,
                 1 => $challenge['flag_points'][0],
                 2 => $challenge['flag_points'][0] + $challenge['flag_points'][1],
                 default => 0,

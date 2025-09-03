@@ -868,7 +868,7 @@ def setup_webserver():
     # Install Apache, PHP, and composer on the webserver
     print("\tInstalling Apache, PHP, and composer on the webserver")
     execute_command("sudo apt update")
-    execute_command("sudo apt install apache2 php libapache2-mod-php php-curl php-pgsql php-xml composer -y")
+    execute_command("sudo apt install apache2 php libapache2-mod-php php-curl php-pgsql php-xml php-mbstring php-xdebug php-sockets composer -y")
 
     # Enable Apache modules
     print("\tEnabling Apache modules")
@@ -955,7 +955,6 @@ def setup_webserver():
         "--name='ctf-challenger/webserver' "
         "--no-interaction"
     )
-    execute_command("sudo -u www-data composer require --working-dir=/var/www/html vlucas/phpdotenv phpunit/phpunit")
     execute_command("sudo -u www-data composer update --working-dir=/var/www/html")
     execute_command("sudo -u www-data composer install --working-dir=/var/www/html")
 

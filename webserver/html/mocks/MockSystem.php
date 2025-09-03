@@ -47,7 +47,7 @@ class MockSystem implements ISystem
             return false;
         }
         $content = substr($this->files[$filename], $offset, $length ?? null);
-        return $content === false ? '' : $content;
+        return $content == false ? '' : $content;
     }
 
     public function pathinfo(

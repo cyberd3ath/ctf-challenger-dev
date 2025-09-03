@@ -46,7 +46,8 @@ class CtfCreationHandler
         IPost $post = new Post(),
         IFiles $files = new Files(),
 
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        IEnv $env = new Env()
     )
     {
         $this->session = $session;
