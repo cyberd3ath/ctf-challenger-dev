@@ -450,7 +450,8 @@ if(defined('PHPUNIT_RUNNING'))
 
 try {
     header('Content-Type: application/json');
-    $generalConfig = json_decode($this->system->file_get_contents(__DIR__ . '/../config/general.config.json'), true);
+    $system = new SystemWrapper();
+    $generalConfig = json_decode($system->file_get_contents(__DIR__ . '/../config/general.config.json'), true);
 
     $handler = new ProfileHandlerPublic(generalConfig: $generalConfig);
     $handler->handleRequest();

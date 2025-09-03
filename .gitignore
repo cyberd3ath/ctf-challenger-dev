@@ -10,3 +10,4 @@ database/backups
 **/*.phar
 webserver/html/vendor
 **/.phpunit.result.cache
+tests/end-to-end/utils/yaml/ctf-jakob-config.yaml

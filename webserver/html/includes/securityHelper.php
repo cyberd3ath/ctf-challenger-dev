@@ -12,16 +12,19 @@ class SecurityHelper implements ISecurityHelper
     private ILogger $logger;
     private ISession $session;
     private ISystem $system;
+    private IServer $server;
 
     public function __construct(
         ILogger $logger = null,
         ISession $session = new Session(),
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        IServer $server = new Server()
     )
     {
         $this->logger = $logger ?? new Logger(system: $system);
         $this->session = $session;
         $this->system = $system;
+        $this->server = $server;
     }
 
     public function initSecureSession(): void
@@ -165,6 +168,8 @@ class SecurityHelper implements ISecurityHelper
 
             if (!$this->hasConsistentSession()) {
                 $this->logger->logError("Session validation failed - IP or User-Agent mismatch");
+                $this->logger->logDebug(($this->session['ip'] ?? 'unknown') . " vs " . ($this->server['REMOTE_ADDR'] ?? 'unknown'));
+                $this->logger->logDebug(($this->session['user_agent'] ?? 'unknown ') . " vs " . ($this->server['HTTP_USER_AGENT'] ?? 'unknown'));
                 return false;
             }
 
