@@ -949,14 +949,9 @@ def setup_webserver():
     execute_command("sudo chmod 755 /var/log/ctf-challenger")
 
     print("\tSetting up vendor directory using composer")
-    execute_command(
-        "sudo -u www-data composer init "
-        "--working-dir=/var/www/html "
-        "--name='ctf-challenger/webserver' "
-        "--no-interaction"
-    )
     execute_command("sudo -u www-data composer update --working-dir=/var/www/html")
     execute_command("sudo -u www-data composer install --working-dir=/var/www/html")
+    execute_command("sudo -u www-data composer dump-autoload --working-dir=/var/www/html")
 
     # Copy the backend certificate as trusted
     print("\tCopying backend certificate as trusted")
@@ -970,10 +965,6 @@ def setup_webserver():
     execute_command(f"echo {PROXMOX_HOST} {PROXMOX_HOSTNAME} | sudo tee -a /etc/hosts > /dev/null")
 
     execute_command("sudo update-ca-certificates")
-
-    # Moving composer files out of webroot
-    execute_command("sudo mv /var/www/html/composer.json /var/www/composer.json")
-    execute_command("sudo mv /var/www/html/composer.lock /var/www/composer.lock")
 
     # Generate a self-signed certificate for HTTPS
     print("\tGenerating self-signed SSL certificate")
