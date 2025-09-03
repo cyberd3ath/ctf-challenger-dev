@@ -1,14 +1,5 @@
 {
-  "name": "vendor_name/ctf-challenger",
-  "description": "description",
-  "minimum-stability": "stable",
-  "license": "proprietary",
-  "authors": [
-    {
-      "name": "Jakob",
-      "email": "email@example.com"
-    }
-  ],
+  "name": "ctf-challenger/webserver",
   "require": {
     "vlucas/phpdotenv": "*",
     "phpunit/phpunit": "*",
