@@ -8,13 +8,17 @@ use Testcontainers\Container\StartedGenericContainer;
 use Testcontainers\Modules\PostgresContainer;
 use Testcontainers\Wait\WaitForLog;
 
-class PostgresMockDB
+class MockPostgresDB
 {
     private StartedGenericContainer $postgresContainer;
     private GenericContainer $container;
     private PDO $pdo;
     private string $initScriptPath;
     private ISystem $system;
+
+    private string $dbName;
+    private string $dbUser;
+    private string $dbPassword;
 
     public function __construct(
         string $dbName = 'ctf-challenger',
@@ -24,18 +28,38 @@ class PostgresMockDB
         ISystem $system = new SystemWrapper()
     )
     {
+        $this->dbName = $dbName;
+        $this->dbUser = $dbUser;
+        $this->dbPassword = $dbPassword;
+
         $this->system = $system;
         $this->initScriptPath = $initScriptPath;
 
         putenv("DOCKER_HOST=tcp://localhost:2375");
 
-        $this->container = (new PostgresContainer("15"))
-            ->withPostgresUser($dbUser)
-            ->withPostgresPassword($dbPassword)
-            ->withPostgresDatabase($dbName)
-            ->withWait(new WaitForLog("database system is ready to accept connections", false, 120000));
+        $maxTries = 5;
+        $attempt = 0;
+        while ($attempt < $maxTries) {
+            try {
 
-        $this->postgresContainer = $this->container->start();
+            $this->container = (new PostgresContainer("15"))
+                ->withPostgresUser($dbUser)
+                ->withPostgresPassword($dbPassword)
+                ->withPostgresDatabase($dbName)
+                ->withWait(new WaitForLog("database system is ready to accept connections", false, 10000));
+
+            $this->postgresContainer = $this->container->start();
+            break;
+            } catch (Exception $e) {
+                $attempt++;
+                if ($attempt >= $maxTries) {
+                    throw new RuntimeException("Failed to start Postgres container after $maxTries attempts: " . $e->getMessage());
+                }
+                sleep(2); // wait before retrying
+            }
+        }
+
+
 
         $this->pdo = new PDO(
             sprintf(
@@ -72,7 +96,8 @@ class PostgresMockDB
     {
         $this->pdo->exec("
             INSERT INTO users (id, username, email, password_hash, is_admin)
-            VALUES (1, 'admin', 'admin@localhost.local', 'adminhash', true);
+            VALUES (1, 'admin', 'admin@localhost.local', 'adminhash', true),
+                   (2, 'testuser', 'test@test.test', crypt('testpass', gen_salt('bf')), false);
         ");
 
         $this->pdo->exec("

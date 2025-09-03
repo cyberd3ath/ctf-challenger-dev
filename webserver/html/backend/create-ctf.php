@@ -422,7 +422,7 @@ class CtfCreationHandler
         $filename = uniqid('challenge_') . '.' . $extension;
         $destination = $uploadDir . $filename;
 
-        if (!move_uploaded_file($file['tmp_name'], $destination)) {
+        if (!$this->system->move_uploaded_file($file['tmp_name'], $destination)) {
             $error = error_get_last();
             throw new RuntimeException('Failed to save uploaded image: ' . ($error['message'] ?? 'Unknown error'), 500);
         }
@@ -850,6 +850,8 @@ class CtfCreationHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
 if(defined('PHPUNIT_RUNNING'))
     return;
 
@@ -875,3 +877,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

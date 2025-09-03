@@ -39,7 +39,8 @@ class ChallengeHandler
         IServer $server = new Server(),
         IGet $get = new Get(),
         
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        IEnv $env = new Env()
     )
     {
         $this->session = $session;
@@ -1274,6 +1275,8 @@ class ChallengeHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
 if(defined('PHPUNIT_RUNNING'))
     return;
 
@@ -1299,3 +1302,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

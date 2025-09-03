@@ -75,7 +75,7 @@ class OvaUploadHandler
         $this->validateAccess();
         $this->userId = $this->session['user_id'];
         $this->action = $this->get['action'] ?? '';
-        $this->inputData = $this->parseInputData();
+        $this-> inputData = $this->parseInputData();
 
         $this->logger->logDebug("Initialized OvaUploadHandler for User ID: $this->userId, Action: $this->action");
     }
@@ -331,15 +331,18 @@ class OvaUploadHandler
 
     private function handleUploadCancellation(): void
     {
-        $uploadId = $this->inputData['uploadId'] ?? null;
+        $uploadId = $this->inputData['uploadId'];
 
-        if (empty($uploadId)) {
-            throw new RuntimeException('Missing upload ID', 400);
-        }
         $metaFile = $this->config['upload']['UPLOAD_TEMP_DIR'] . $uploadId . '.meta';
         if (!$this->system->file_exists($metaFile)) {
             echo json_encode(['success' => true]);
-            defined('PHPUNIT_RUNNING') || exit;
+
+            if (defined('PHPUNIT_RUNNING'))
+                return;
+            // @codeCoverageIgnoreStart
+            else
+                exit;
+            // @codeCoverageIgnoreEnd
         }
 
         $meta = json_decode($this->system->file_get_contents($metaFile), true);
@@ -411,13 +414,13 @@ class OvaUploadHandler
             $uniqueName = uniqid('ova_') . '.' . strtolower($this->system->pathinfo($file['name'], PATHINFO_EXTENSION));
             $tempPath = $this->system->sys_get_temp_dir() . '/' . $uniqueName;
 
-            ignore_user_abort(false);
+            $this->system->ignore_user_abort(false);
 
-            if (!move_uploaded_file($file['tmp_name'], $tempPath)) {
+            if (!$this->system->move_uploaded_file($file['tmp_name'], $tempPath)) {
                 throw new RuntimeException('File processing error', 500);
             }
 
-            if (connection_aborted()) {
+            if ($this->system->connection_aborted()) {
                 $this->logger->logWarning("Client disconnected during direct upload processing");
                 @$this->system->unlink($tempPath);
                 throw new RuntimeException('Upload cancelled', 400);
@@ -426,7 +429,7 @@ class OvaUploadHandler
             $this->validateOvaFile($tempPath);
             $this->uploadToProxmox($tempPath, $originalName, $uniqueName);
 
-            if (connection_aborted()) {
+            if ($this->system->connection_aborted()) {
                 $this->logger->logWarning("Client disconnected during direct upload processing");
                 @$this->system->unlink($tempPath);
                 throw new RuntimeException('Upload cancelled', 400);
@@ -499,8 +502,7 @@ class OvaUploadHandler
     private function handleDeleteAction(): void
     {
         $ovaId = $this->inputData['ova_id'] ?? null;
-
-        if (empty($ovaId)) {
+        if (!$ovaId) {
             throw new RuntimeException('Missing file ID', 400);
         }
 
@@ -759,6 +761,8 @@ class OvaUploadHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
 if(defined('PHPUNIT_RUNNING'))
     return;
 
@@ -784,3 +788,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

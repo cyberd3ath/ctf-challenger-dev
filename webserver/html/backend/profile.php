@@ -949,7 +949,7 @@ class ProfileHandler
                 throw new RuntimeException('Failed to process avatar', 500);
             }
 
-            if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+            if (!$this->system->move_uploaded_file($file['tmp_name'], $fullPath)) {
                 $this->logger->logError("Failed to save avatar - User ID: $this->userId, Path: $fullPath");
                 throw new RuntimeException('Error processing request', 500);
             }
@@ -1448,6 +1448,8 @@ class ProfileHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
 if(defined('PHPUNIT_RUNNING'))
     return;
 
@@ -1474,3 +1476,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

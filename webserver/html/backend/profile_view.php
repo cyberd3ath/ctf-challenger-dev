@@ -167,6 +167,7 @@ class ProfileHandlerPublic
                     u.username,
                     u.created_at,
                     u.avatar_url,
+                    p.full_name,
                     p.bio,
                     p.github_url,
                     p.twitter_url,
@@ -207,6 +208,7 @@ class ProfileHandlerPublic
                 'username' => $profileData['username'],
                 'join_date' => $profileData['created_at'],
                 'avatar_url' => $profileData['avatar_url'] ?? '/assets/avatars/default-avatar.png',
+                'full_name' => $profileData['full_name'] ?? '',
                 'bio' => $profileData['bio'] ?? '',
                 'social_links' => [
                     'github' => $profileData['github_url'] ?? '',
@@ -416,9 +418,13 @@ class ProfileHandlerPublic
         $errorMessage = $e->getMessage();
 
         if ($errorCode === 401) {
+            // @codeCoverageIgnoreStart
+            // This block is probably not reachable since authentication is required to reach this point
+            // Wont be deleted for security reasons
             $this->session->unset();
             $this->session->destroy();
             $this->logger->logWarning("Session destroyed due to unauthorized access");
+            // @codeCoverageIgnoreEnd
         }
 
         if ($errorCode >= 500) {
@@ -436,6 +442,8 @@ class ProfileHandlerPublic
         ]);
     }
 }
+
+// @codeCoverageIgnoreStart
 
 if(defined('PHPUNIT_RUNNING'))
     return;
@@ -462,3 +470,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

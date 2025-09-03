@@ -135,4 +135,23 @@ class SystemWrapper implements ISystem
             return setcookie($name, $value, $expires_or_options, $path, $domain, $secure, $httponly);
         }
     }
+
+    public function ignore_user_abort(?bool $value): int
+    {
+        if ($value === null) {
+            return ignore_user_abort();
+        } else {
+            return ignore_user_abort($value);
+        }
+    }
+
+    public function move_uploaded_file(string $from, string $to): bool
+    {
+        return move_uploaded_file($from, $to);
+    }
+
+    public function connection_aborted(): int
+    {
+        return connection_aborted();
+    }
 }

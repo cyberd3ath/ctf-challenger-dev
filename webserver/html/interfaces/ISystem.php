@@ -42,4 +42,11 @@ interface ISystem
     public function system(string $command, &$return_code = null): false|string;
 
     public function setcookie(string $name, string $value = "", int|array $expires_or_options = 0, string $path = "", string $domain = "", bool $secure = false, bool $httponly = false): bool;
+
+    public function ignore_user_abort(?bool $value): int;
+
+    public function move_uploaded_file(string $from, string $to): bool;
+
+    public function connection_aborted(): int;
+
 }

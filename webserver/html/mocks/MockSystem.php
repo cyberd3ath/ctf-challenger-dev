@@ -174,4 +174,19 @@ class MockSystem implements ISystem
     {
         $this->currentTime = $timestamp;
     }
+
+    public function ignore_user_abort(?bool $value): int
+    {
+        return 0;
+    }
+
+    public function move_uploaded_file(string $from, string $to, bool $simulateSuccess = true): bool
+    {
+        return $simulateSuccess;
+    }
+
+    public function connection_aborted(): int
+    {
+        return 0;
+    }
 }

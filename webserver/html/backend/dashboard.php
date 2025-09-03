@@ -974,6 +974,8 @@ class DashboardHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
 if(defined('PHPUNIT_RUNNING'))
     return;
 
@@ -999,3 +1001,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

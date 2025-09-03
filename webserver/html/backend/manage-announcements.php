@@ -182,7 +182,10 @@ class AdminAnnouncementsHandler
     private function handleCreateUpdateAction(): array
     {
         $data = $this->getJsonInput();
-        $this->validateAnnouncementData($data);
+        $earlyResponse = $this->validateAnnouncementData($data);
+
+        if ($earlyResponse)
+            return $earlyResponse;
 
         if ($this->action === 'create') {
             return $this->createAnnouncement($data);
@@ -204,7 +207,7 @@ class AdminAnnouncementsHandler
         return $data;
     }
 
-    private function validateAnnouncementData(array $data): void
+    private function validateAnnouncementData(array $data): ?array
     {
         $errors = [];
         $errorFields = [];
@@ -248,14 +251,22 @@ class AdminAnnouncementsHandler
         if (!empty($errors)) {
             $this->logger->logError("Validation failed in announcement $this->action - User: $this->username, Errors: " . implode(', ', $errors));
             http_response_code(400);
-            echo json_encode([
+
+            $errorResponse = [
                 'success' => false,
                 'message' => 'Validation failed',
                 'errors' => $errors,
                 'fields' => array_unique($errorFields)
-            ]);
-            defined('PHPUNIT_RUNNING') || exit;
+            ];
+            if(defined('PHPUNIT_RUNNING'))
+                return $errorResponse;
+            // @codeCoverageIgnoreStart
+            else
+                echo json_encode($errorResponse);
+            exit;
+            // @codeCoverageIgnoreEnd
         }
+        return null;
     }
 
     private function createAnnouncement(array $data): array
@@ -393,6 +404,8 @@ class AdminAnnouncementsHandler
     }
 }
 
+// @codeCoverageIgnoreStart
+
 if(defined('PHPUNIT_RUNNING'))
     return;
 
@@ -419,3 +432,5 @@ try {
 
     echo json_encode($response);
 }
+
+// @codeCoverageIgnoreEnd

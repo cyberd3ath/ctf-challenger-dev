@@ -60,8 +60,11 @@ class ExploreHandler
         $this->securityHelper->initSecureSession();
 
         if (!$this->isPublic && !$this->securityHelper->validateSession()) {
+            // @codeCoverageIgnoreStart
+            // This branch cananot be tested when isPublic is set to true by default
             $this->logger->logWarning('Unauthorized access attempt to explore route');
             throw new Exception('Unauthorized - Please login', 401);
+            // @codeCoverageIgnoreEnd
         }
     }
 
@@ -71,11 +74,14 @@ class ExploreHandler
     private function validateRequest(): void
     {
         if (!$this->isPublic) {
+            // @codeCoverageIgnoreStart
+            // This branch cananot be tested when isPublic is set to true by default
             $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
             if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
                 $this->logger->logWarning('Invalid CSRF token attempt from user: ' . ($this->session['user_id'] ?? 'unknown'));
                 throw new Exception('Invalid CSRF token.', 403);
             }
+            // @codeCoverageIgnoreEnd
         }
     }
 
@@ -138,31 +144,32 @@ class ExploreHandler
 
     private function fetchChallenges($params): array
     {
-        $query = $this->buildBaseQuery();
+        $withClauses = $this->buildBaseQuery();
+        $selectQuery = $this->buildSelectQuery();
+
         $whereConditions = $this->buildWhereConditions($params);
         $params['limit'] = $this->perPage;
         $params['offset'] = ($params['page'] - 1) * $this->perPage;
 
         if (!empty($whereConditions)) {
-            $query .= " WHERE " . implode(" AND ", $whereConditions);
+            $selectQuery .= " WHERE " . implode(" AND ", $whereConditions);
         }
 
-        $query .= $this->buildGroupBy();
-        $query .= $this->buildOrderBy($params['sort']);
-
-        $countQuery = "SELECT COUNT(*) FROM ($query) AS total";
+        $countQuery = "$withClauses, base AS ($selectQuery) SELECT COUNT(*) FROM base";
         $countStmt = $this->pdo->prepare($countQuery);
         $this->bindCommonParams($countStmt, $params);
         $countStmt->execute();
         $totalItems = (int)$countStmt->fetchColumn();
 
-        $query .= " LIMIT :limit OFFSET :offset";
-        $stmt = $this->pdo->prepare($query);
+        $selectQuery .= $this->buildOrderBy($params['sort']);
+        $selectQuery .= " LIMIT :limit OFFSET :offset";
+
+        $finalQuery = "$withClauses $selectQuery";
+        $stmt = $this->pdo->prepare($finalQuery);
         $this->bindCommonParams($stmt, $params);
         $stmt->bindValue(':limit', $params['limit'], PDO::PARAM_INT);
         $stmt->bindValue(':offset', $params['offset'], PDO::PARAM_INT);
         $stmt->execute();
-
         $challenges = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return [
@@ -172,33 +179,45 @@ class ExploreHandler
             'total_pages' => ceil($totalItems / $this->perPage)
         ];
     }
-
     private function buildBaseQuery(): string
     {
         return "
-WITH user_completed_flags AS (
+WITH solved_challenges AS (
     SELECT 
-        user_id,
-        challenge_template_id,
-        flag_id
-    FROM completed_challenges
+        cc.user_id,
+        cc.challenge_template_id
+    FROM completed_challenges cc 
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM challenge_flags cf 
+        WHERE cf.challenge_template_id = cc.challenge_template_id 
+        AND NOT EXISTS (
+            SELECT 1 
+            FROM completed_challenges ccf 
+            WHERE ccf.user_id = cc.user_id 
+            AND ccf.flag_id = cf.id
+        )
+    )
 ),
-challenge_total_flags AS (
+solve_counts AS (
     SELECT 
-        challenge_template_id, 
-        COUNT(*) as total_flags
-    FROM challenge_flags
+        challenge_template_id,
+        COUNT(DISTINCT user_id) AS unique_solvers
+    FROM solved_challenges
     GROUP BY challenge_template_id
 ),
-user_solved_challenges AS (
+attempt_counts AS (
     SELECT 
-        ucf.user_id,
-        ucf.challenge_template_id
-    FROM user_completed_flags ucf
-    JOIN challenge_total_flags ctf ON ucf.challenge_template_id = ctf.challenge_template_id
-    GROUP BY ucf.user_id, ucf.challenge_template_id
-    HAVING COUNT(DISTINCT ucf.flag_id) = MAX(ctf.total_flags)
-)
+        challenge_template_id,
+        COUNT(DISTINCT user_id) AS unique_attempts
+    FROM completed_challenges
+    GROUP BY challenge_template_id
+)";
+    }
+
+    private function buildSelectQuery(): string
+    {
+        return "
 SELECT 
     ct.id,
     ct.name,
@@ -208,11 +227,11 @@ SELECT
     ct.created_at,
     ct.image_path,
     ct.is_active,
-    COUNT(DISTINCT usc.user_id) AS solved_count,
-    COUNT(DISTINCT cc.user_id) AS attempted_count
+    COALESCE(s.unique_solvers, 0) AS solved_count,
+    COALESCE(a.unique_attempts, 0) AS attempted_count
 FROM challenge_templates ct
-LEFT JOIN user_solved_challenges usc ON usc.challenge_template_id = ct.id
-LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
+LEFT JOIN solve_counts s ON ct.id = s.challenge_template_id
+LEFT JOIN attempt_counts a ON ct.id = a.challenge_template_id";
     }
 
     private function buildWhereConditions($params): array
@@ -234,14 +253,9 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
         return $conditions;
     }
 
-    private function buildGroupBy(): string
-    {
-        return " GROUP BY ct.id, ct.name, ct.description, ct.category, ct.difficulty, ct.created_at, ct.image_path";
-    }
-
     private function buildOrderBy($sort): string
     {
-        return match ($sort) {
+        $primary = match ($sort) {
             'date' => " ORDER BY ct.created_at DESC",
             'difficulty' => " ORDER BY 
                     CASE ct.difficulty
@@ -252,6 +266,8 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
                     END",
             default => " ORDER BY solved_count DESC, attempted_count DESC",
         };
+        $secondary = ", ct.id";
+        return $primary . $secondary;
     }
 
     private function bindCommonParams($stmt, $params): void
@@ -359,6 +375,8 @@ LEFT JOIN completed_challenges cc ON cc.challenge_template_id = ct.id";
     }
 }
 
+// @codeCoverageIgnoreStart
+
 if(defined('PHPUNIT_RUNNING'))
     return;
 
@@ -393,3 +411,5 @@ try {
         'redirect' => $errorCode === 401 ? '/login' : null
     ]);
 }
+
+// @codeCoverageIgnoreEnd

@@ -44,7 +44,7 @@ class RegistrationHandlerTest extends TestCase
     }
 
     private function requireMockDB(): void {
-        $this->mockDB = new PostgresMockDB();
+        $this->mockDB = new MockPostgresDB();
         $this->pdo = $this->mockDB->getPDO();
         $this->databaseHelper = $this->createMock(IDatabaseHelper::class);
         $this->databaseHelper->method('getPDO')->willReturn($this->pdo);
@@ -74,8 +74,8 @@ class RegistrationHandlerTest extends TestCase
     public function testInvalidCsrfTokenThrowsException(): void {
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'invalid-token';
-        $this->post['username'] = 'testuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['username'] = 'testuser2';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -108,7 +108,7 @@ class RegistrationHandlerTest extends TestCase
     {
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -175,7 +175,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'existinguser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['confirm-password'] = 'Password1!';
 
         $this->securityHelper = $this->createMock(ISecurityHelper::class);
@@ -208,7 +208,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'existinguser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
 
         $this->securityHelper = $this->createMock(ISecurityHelper::class);
@@ -240,7 +240,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = str_repeat('a', $this->generalConfig['user']['MAX_USERNAME_LENGTH'] + 1);
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -273,7 +273,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = str_repeat('a', $this->generalConfig['user']['MIN_USERNAME_LENGTH'] - 1);
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -306,7 +306,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
 
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -346,7 +346,7 @@ class RegistrationHandlerTest extends TestCase
     public function testTooLongEmailThrowsException(): void {
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
-        $this->post['username'] = 'testuser';
+        $this->post['username'] = 'testuser2';
         $this->post['email'] = str_repeat('a', $this->generalConfig['user']['MAX_EMAIL_LENGTH'] + 1) . '@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
@@ -379,7 +379,7 @@ class RegistrationHandlerTest extends TestCase
     public function testInvalidEmailFormatThrowsException(): void {
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
-        $this->post['username'] = 'testuser';
+        $this->post['username'] = 'testuser2';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -424,8 +424,8 @@ class RegistrationHandlerTest extends TestCase
     {
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
-        $this->post['username'] = 'testuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['username'] = 'testuser2';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = str_repeat('a', $this->generalConfig['user']['MIN_PASSWORD_LENGTH'] - 1);
         $this->post['confirm-password'] = str_repeat('a', $this->generalConfig['user']['MIN_PASSWORD_LENGTH'] - 1);
 
@@ -458,8 +458,8 @@ class RegistrationHandlerTest extends TestCase
     {
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
-        $this->post['username'] = 'testuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['username'] = 'testuser2';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = str_repeat('a', $this->generalConfig['user']['MAX_PASSWORD_LENGTH'] + 1);
         $this->post['confirm-password'] = str_repeat('a', $this->generalConfig['user']['MAX_PASSWORD_LENGTH'] + 1);
 
@@ -492,8 +492,8 @@ class RegistrationHandlerTest extends TestCase
     {
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
-        $this->post['username'] = 'testuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['username'] = 'testuser2';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = str_repeat('a', $this->generalConfig['user']['MIN_PASSWORD_LENGTH']);
         $this->post['confirm-password'] = str_repeat('b', $this->generalConfig['user']['MIN_PASSWORD_LENGTH']);
 
@@ -527,7 +527,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'newuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -572,7 +572,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'newuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -620,7 +620,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'newuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -679,7 +679,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'newuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -738,7 +738,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'newuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -799,7 +799,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'newuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -860,7 +860,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'newuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -919,7 +919,7 @@ class RegistrationHandlerTest extends TestCase
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'newuser';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 
@@ -977,7 +977,7 @@ class RegistrationHandlerTest extends TestCase
 
         $this->pdo->exec("
             INSERT INTO users (username, email, password_hash)
-            VALUES ('existinguser', 'test@test.test', 'hashedpassword')
+            VALUES ('existinguser', 'test2@test.test', 'hashedpassword')
         ");
 
         $this->server['REQUEST_METHOD'] = 'POST';
@@ -1018,13 +1018,13 @@ class RegistrationHandlerTest extends TestCase
 
         $this->pdo->exec("
             INSERT INTO users (username, email, password_hash)
-            VALUES ('existinguser', 'test@test.test', 'hashedpassword')
+            VALUES ('existinguser', 'test2@test.test', 'hashedpassword')
         ");
 
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
         $this->post['username'] = 'existinguser2';
-        $this->post['email'] = 'test@test.test';
+        $this->post['email'] = 'test2@test.test';
         $this->post['password'] = 'Password1!';
         $this->post['confirm-password'] = 'Password1!';
 

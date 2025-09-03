@@ -31,7 +31,7 @@ class ProfileStatusHandlerTest extends TestCase
     }
 
     private function requireMockDB(): void {
-        $this->mockDB = new PostgresMockDB();
+        $this->mockDB = new MockPostgresDB();
         $this->pdo = $this->mockDB->getPDO();
         $this->databaseHelper = $this->createMock(IDatabaseHelper::class);
         $this->databaseHelper->method('getPDO')->willReturn($this->pdo);
