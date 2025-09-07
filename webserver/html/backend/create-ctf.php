@@ -363,7 +363,6 @@ class CtfCreationHandler
             return is_array($json) ? $json : [];
         } catch (JsonException $e) {
             $this->logger->logError("Invalid JSON input for field $field from user $this->userId: " . $e->getMessage());
-            $this->logger->logDebug("Received JSON: " . print_r($this->inputData[$field] ?? '', true));
             throw new RuntimeException("Invalid input format for $field", 400);
         }
     }
