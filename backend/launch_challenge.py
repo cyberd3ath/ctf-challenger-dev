@@ -32,13 +32,7 @@ def launch_challenge(challenge_template_id, user_id, db_conn):
             raise ValueError(f"Error fetching from database: {e}")
 
         try:
-            challenge_subnet = fetch_challenge_subnet(db_conn)
-
-        except Exception as e:
-            raise ValueError(f"Error fetching challenge subnet: {e}")
-
-        try:
-            challenge = create_challenge(challenge_template, challenge_subnet, db_conn)
+            challenge = create_challenge(challenge_template, db_conn)
 
         except Exception as e:
             raise ValueError(f"Error creating challenge: {e}")
@@ -143,58 +137,20 @@ def fetch_domain_templates(challenge_template, db_conn):
                 machine_template.add_domain_template(domain_template)
 
 
-def fetch_challenge_subnet(db_conn):
-    """
-    Fetch the challenge subnet.
-    """
-
-    with db_conn.cursor() as cursor:
-        cursor.execute("""
-            UPDATE challenge_subnets
-            SET available = FALSE
-            WHERE subnet = (
-                SELECT subnet
-                FROM challenge_subnets
-                WHERE available = TRUE
-                LIMIT 1
-                FOR UPDATE SKIP LOCKED
-            )
-            RETURNING subnet
-        """)
-        result = cursor.fetchone()
-
-        if result is None:
-            raise ValueError("No available challenge subnet found")
-
-        challenge_subnet = result[0]
-        challenge_subnet = ChallengeSubnet(subnet=challenge_subnet)
-
-        return challenge_subnet
-
-
-def create_challenge(challenge_template, challenge_subnet, db_conn):
+def create_challenge(challenge_template, db_conn):
     """
     Create a challenge for the given user ID and challenge template.
     """
 
     with db_conn.cursor() as cursor:
         cursor.execute("""
-        INSERT INTO challenges (id, challenge_template_id, subnet)
-        VALUES (
-            (
-                SELECT COALESCE(MIN(id), 0) + 1 
-                FROM challenges c
-                WHERE NOT EXISTS(
-                    SELECT 1 FROM challenges WHERE id = c.id + 1
-                )
-                OR c.id = 0                
-            ),
-            %s, %s
-        )
-        RETURNING id
-        """, (challenge_template.id, challenge_subnet.subnet))
+        INSERT INTO challenges (challenge_template_id)
+        VALUES (%s)
+        RETURNING id, subnet
+        """, (challenge_template.id))
 
-        challenge_id = cursor.fetchone()[0]
+        challenge_id, challenge_subnet_value = cursor.fetchone()
+        challenge_subnet = ChallengeSubnet(challenge_subnet_value)
         challenge = Challenge(challenge_id=challenge_id, template=challenge_template, subnet=challenge_subnet.subnet)
 
     return challenge
@@ -229,25 +185,25 @@ def clone_machines(challenge_template, challenge, db_conn):
         clone_vm_api_call(machine_template, machine)
 
 
-def generate_mac_address(challenge_id, local_network_id, local_connection_id):
+def generate_mac_address(machine_id, local_network_id, local_connection_id):
     """
     Generate a MAC address based on the machine ID, network ID, and connection ID.
-    network_id, connection_id : 1-15 -> 2 nibbles combined
-    challenge_id : 100000000 -> 899999999 -> 8 nibbles -> hash to
+    local_network_id, local_connection_id : 1-15 -> 2 nibbles combined
+    machine_id : 100000000 -> 899999999 -> 8 nibbles -> hash to
     """
-    challenge_hex = hex(challenge_id)[2:].zfill(8)[-8:]
-    challenge_bytes = [challenge_hex[i:i + 2] for i in range(0, len(challenge_hex), 2)]
+    machine_hex = hex(machine_id)[2:].zfill(8)[-8:]
+    machine_bytes = [machine_hex[i:i + 2] for i in range(0, len(machine_hex), 2)]
     network_hex = hex(local_network_id)[2:]
     connection_hex = hex(local_connection_id)[2:]
 
-    if len(challenge_bytes) != 4:
-        raise ValueError(f"Challenge ID must be 8 hex digits, got {len(challenge_bytes) * 2} hex digits")
+    if len(machine_bytes) != 4:
+        raise ValueError(f"Challenge ID must be 8 hex digits, got {len(machine_bytes) * 2} hex digits")
 
     if len(network_hex) > 1 or len(connection_hex) > 1:
         raise ValueError(f"Network ID and Connection ID must be 1 hex digit, got {len(network_hex)} and "
                          f"{len(connection_hex)} hex digits")
 
-    mac = (f"02:{challenge_bytes[0]}:{challenge_bytes[1]}:{challenge_bytes[2]}:{challenge_bytes[3]}"
+    mac = (f"02:{machine_bytes[0]}:{machine_bytes[1]}:{machine_bytes[2]}:{machine_bytes[3]}"
            f":{network_hex}{connection_hex}")
     return mac
 
@@ -280,18 +236,8 @@ def create_networks_and_connections(challenge_template, challenge, user_id, db_c
 
         with db_conn.cursor() as cursor:
             cursor.execute("""
-            INSERT INTO networks (id, network_template_id, subnet, host_device)
-            VALUES (
-                (
-                    SELECT COALESCE(MIN(id), 0) + 1 
-                    FROM networks n
-                    WHERE NOT EXISTS(
-                        SELECT 1 FROM networks WHERE id = n.id + 1
-                    )
-                    OR n.id = 0                
-                ),
-                %s, %s, %s
-            )
+            INSERT INTO networks (network_template_id, subnet, host_device)
+            VALUES (%s, %s, %s)
             RETURNING id""", (network_template.id, network_subnet, network_host_device))
 
             network_id = cursor.fetchone()[0]
@@ -306,11 +252,11 @@ def create_networks_and_connections(challenge_template, challenge, user_id, db_c
             challenge.add_network(network)
 
         for local_connection_id, machine_template in enumerate(network_template.connected_machines.values()):
-            client_mac = generate_mac_address(challenge.id, local_network_id, local_connection_id)
+            machine = machine_template.child
+
+            client_mac = generate_mac_address(machine.id, local_network_id, local_connection_id)
             client_ip = random.choice(list(available_client_ips))
             available_client_ips.remove(client_ip)
-
-            machine = machine_template.child
 
             if machine is None:
                 raise ValueError("Machine ID not found")

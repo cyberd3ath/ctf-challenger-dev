@@ -30,9 +30,9 @@ def stop_challenge(session, challenge_id, prints=False):
 if __name__ == "__main__":
     from get_authenticated_session import get_authenticated_session
 
-    username = "testuser"
+    username = "testuser_2"
     password = "testpass"
-    challenge_id = "2"
+    challenge_id = "1"
 
-    session = get_authenticated_session(username, password)
+    session = get_authenticated_session(username, password, prints=True)
     stop_challenge(session, challenge_id, prints=True)

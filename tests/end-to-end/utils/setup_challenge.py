@@ -24,7 +24,7 @@ def setup_challenge(admin_session, path_to_yaml, upload_ovas=True, prints=False)
     if upload_ovas:
         if prints:
             print("\nUploading all OVA files for the challenge")
-        upload_all_ova_files(path_to_yaml, admin_session, prints=prints)
+        upload_all_ova_files(admin_session, path_to_yaml, prints=prints)
 
     if prints:
         print("\nPreparing form data from YAML")
@@ -56,6 +56,6 @@ if __name__ == "__main__":
 
 
     YAML_PATH = os.path.abspath("yaml/ctf-config.yaml")
-    setup_challenge(session, YAML_PATH, upload_ovas=False, prints=True)
+    setup_challenge(session, YAML_PATH, upload_ovas=True, prints=True)
 
 

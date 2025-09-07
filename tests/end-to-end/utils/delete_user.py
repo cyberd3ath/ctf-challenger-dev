@@ -30,6 +30,6 @@ def delete_user(username, password, prints=False):
 
 
 if __name__ == "__main__":
-    username = "testuser_0"
+    username = "testuser_2"
     password = "testpass"
     delete_user(username, password, prints=True)

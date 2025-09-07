@@ -19,8 +19,7 @@ class SingleUserSignupThread(threading.Thread):
             self.user.create()
             self.success = True
         except Exception as e:
-            self.error = e
-            print(f"Error creating user {self.user.username}: {e}")
+            self.error = f"Error creating user {self.user.username}: {e}"
 
 
 class SingleUserDeleteThread(threading.Thread):
@@ -35,8 +34,7 @@ class SingleUserDeleteThread(threading.Thread):
             self.user.delete()
             self.success = True
         except Exception as e:
-            self.error = e
-            print(f"Error deleting user {self.user.username}: {e}")
+            self.error = f"Error deleting user {self.user.username}: {e}"
 
 
 def parallel_user_signup_test(num_users, duration_seconds=10):
@@ -53,25 +51,22 @@ def parallel_user_signup_test(num_users, duration_seconds=10):
 
 
     create_timer_start = time.time()
-
     for thread in create_threads:
         thread.start()
 
-    all_stopped = False
-    while not all_stopped:
-        all_stopped = True
-        for thread in create_threads:
-            if thread.is_alive():
-                all_stopped = False
-
+    for thread in create_threads:
+        thread.join()
     create_timer_end = time.time()
     create_duration = create_timer_end - create_timer_start
 
     create_thread_count = len(create_threads)
     create_success_count = 0
+    create_failure_count = 0
     for thread in create_threads:
         if thread.success:
             create_success_count += 1
+        else:
+            create_failure_count += 1
 
     time.sleep(duration_seconds)
 
@@ -85,20 +80,20 @@ def parallel_user_signup_test(num_users, duration_seconds=10):
     for thread in delete_threads:
         thread.start()
 
-    all_stopped = False
-    while not all_stopped:
-        all_stopped = True
-        for thread in delete_threads:
-            if thread.is_alive():
-                all_stopped = False
+    for thread in delete_threads:
+        thread.join()
     delete_timer_end = time.time()
     delete_duration = delete_timer_end - delete_timer_start
 
     delete_thread_count = len(delete_threads)
     delete_success_count = 0
+    delete_failure_count = 0
     for thread in delete_threads:
         if thread.success:
             delete_success_count += 1
+        else:
+            delete_failure_count += 1
+
 
     create_errors = [thread.error for thread in create_threads if thread.error]
     delete_errors = [thread.error for thread in delete_threads if thread.error]
@@ -106,13 +101,13 @@ def parallel_user_signup_test(num_users, duration_seconds=10):
     results = {
         "create_thread_count": create_thread_count,
         "create_success_count": create_success_count,
-        "create_failure_count": create_thread_count - create_success_count,
+        "create_failure_count": create_failure_count,
         "create_duration": create_duration,
         "create_errors": create_errors,
         "delete_thread_count": delete_thread_count,
         "delete_success_count": delete_success_count,
-        "delete_failure_count": delete_thread_count - delete_success_count,
-        "delete_duration": delete_timer_end - delete_timer_start,
+        "delete_failure_count": delete_failure_count,
+        "delete_duration": delete_duration,
         "delete_errors": delete_errors
     }
 
@@ -120,7 +115,7 @@ def parallel_user_signup_test(num_users, duration_seconds=10):
 
 
 if __name__ == "__main__":
-    num_users = 50
+    num_users = 10
     duration_seconds = 10
 
     results = parallel_user_signup_test(num_users, duration_seconds)

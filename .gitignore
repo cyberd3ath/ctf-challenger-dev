@@ -10,3 +10,4 @@ webserver/html/vendor
 **/.phpunit.result.cache
 tests/end-to-end/utils/yaml/**.yaml
 tests/end-to-end/utils/**.pem
+BUGS.md
