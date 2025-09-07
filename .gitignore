@@ -2,12 +2,11 @@ vpn/workdir/
 setup/ubuntu-base-server/
 __pycache__
 .idea
-setup/.env
-backend/.env
-webserver/.env
+**/.env
 backend/certificates
 database/backups
 **/*.phar
 webserver/html/vendor
 **/.phpunit.result.cache
 tests/end-to-end/utils/yaml/**.yaml
+tests/end-to-end/utils/**.pem

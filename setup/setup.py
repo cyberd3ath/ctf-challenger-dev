@@ -969,10 +969,11 @@ def setup_webserver():
     # Generate a self-signed certificate for HTTPS
     print("\tGenerating self-signed SSL certificate")
     execute_command(
-        "sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 "
-        "-keyout /etc/ssl/private/apache-selfsigned.key "
-        "-out /etc/ssl/certs/apache-selfsigned.crt "
-        "-subj \"/C=US/ST=Denial/L=Springfield/O=Dis/CN=localhost\""
+        'sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 '
+        '-keyout /etc/ssl/private/apache-selfsigned.key '
+        '-out /etc/ssl/certs/apache-selfsigned.crt '
+        '-subj "/CN=localhost" '
+        '-addext "subjectAltName=DNS:localhost,IP:127.0.0.1"'
     )
 
     # Configure Apache for HTTPS
