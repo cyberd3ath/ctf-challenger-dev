@@ -14,6 +14,59 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+----------------------------------------------------------
+-- 5) vpn_static_ips assign function (non-blocking with SKIP LOCKED)
+----------------------------------------------------------
+CREATE OR REPLACE FUNCTION assign_lowest_vpn_ip(user_id_param INT)
+RETURNS INET AS $$
+DECLARE
+    selected_ip INET;
+BEGIN
+    WITH next_ip AS (
+        SELECT vpn_static_ip
+        FROM vpn_static_ips
+        WHERE user_id IS NULL
+        ORDER BY vpn_static_ip
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+    )
+    UPDATE vpn_static_ips
+    SET user_id = user_id_param
+    FROM next_ip
+    WHERE vpn_static_ips.vpn_static_ip = next_ip.vpn_static_ip
+    RETURNING vpn_static_ips.vpn_static_ip INTO selected_ip;
+
+    RETURN selected_ip;
+END;
+$$ LANGUAGE plpgsql;
+
+
+----------------------------------------------------------
+-- 6) assign_challenge_subnet() - analogous to vpn ip assignment
+----------------------------------------------------------
+CREATE OR REPLACE FUNCTION assign_challenge_subnet()
+RETURNS INET AS $$
+DECLARE
+    selected_subnet INET;
+BEGIN
+    WITH next_subnet AS (
+        SELECT subnet
+        FROM challenge_subnets
+        WHERE available = TRUE
+        ORDER BY subnet
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+    )
+    UPDATE challenge_subnets
+    SET available = FALSE
+    FROM next_subnet
+    WHERE challenge_subnets.subnet = next_subnet.subnet
+    RETURNING challenge_subnets.subnet INTO selected_subnet;
+
+    RETURN selected_subnet;
+END;
+$$ LANGUAGE plpgsql;
+
 -----------------------------------------------------------
 -- 1) Sequences + Reclaim queues + allocation functions
 --    For tables where ID reuse matters & ranges exist:
@@ -524,60 +577,6 @@ CREATE INDEX idx_announcements_importance ON announcements(importance);
 CREATE INDEX idx_announcements_created_at ON announcements(created_at);
 CREATE INDEX idx_disk_files_user_id ON disk_files(user_id);
 CREATE INDEX idx_disk_files_upload_date ON disk_files(upload_date);
-
-----------------------------------------------------------
--- 5) vpn_static_ips assign function (non-blocking with SKIP LOCKED)
-----------------------------------------------------------
-CREATE OR REPLACE FUNCTION assign_lowest_vpn_ip(user_id_param INT)
-RETURNS INET AS $$
-DECLARE
-    selected_ip INET;
-BEGIN
-    WITH next_ip AS (
-        SELECT vpn_static_ip
-        FROM vpn_static_ips
-        WHERE user_id IS NULL
-        ORDER BY vpn_static_ip
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED
-    )
-    UPDATE vpn_static_ips
-    SET user_id = user_id_param
-    FROM next_ip
-    WHERE vpn_static_ips.vpn_static_ip = next_ip.vpn_static_ip
-    RETURNING vpn_static_ips.vpn_static_ip INTO selected_ip;
-
-    RETURN selected_ip;
-END;
-$$ LANGUAGE plpgsql;
-
-
-----------------------------------------------------------
--- 6) assign_challenge_subnet() - analogous to vpn ip assignment
-----------------------------------------------------------
-CREATE OR REPLACE FUNCTION assign_challenge_subnet()
-RETURNS INET AS $$
-DECLARE
-    selected_subnet INET;
-BEGIN
-    WITH next_subnet AS (
-        SELECT subnet
-        FROM challenge_subnets
-        WHERE available = TRUE
-        ORDER BY subnet
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED
-    )
-    UPDATE challenge_subnets
-    SET available = FALSE
-    FROM next_subnet
-    WHERE challenge_subnets.subnet = next_subnet.subnet
-    RETURNING challenge_subnets.subnet INTO selected_subnet;
-
-    RETURN selected_subnet;
-END;
-$$ LANGUAGE plpgsql;
-
 
 ----------------------------------------------------------
 -- 7) convenience: cleanup triggers / reclaim inserts exist above
