@@ -2,8 +2,11 @@ import subprocess
 import os
 from dotenv import load_dotenv
 from delete_user_config import delete_user_config
+import fcntl
 
 load_dotenv()
+
+LOCK_FILE = "/var/lock/easy_rsa.lock"
 
 
 def create_user_config(user_id, db_conn):
@@ -40,8 +43,12 @@ def create_user_config(user_id, db_conn):
         env["EASYRSA"] = "/etc/openvpn/easy-rsa"
         env["EASYRSA_PKI"] = "/etc/openvpn/easy-rsa/pki"
         env['EASYRSA_BATCH'] = '1'
-        subprocess.run([easy_rsa_binary, "--batch", "build-client-full", str(user_id), "nopass"], cwd=easy_rsa_dir,
-                       check=True, env=env, capture_output=True)
+
+        with open(LOCK_FILE, 'w') as lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            subprocess.run([easy_rsa_binary, "--batch", "build-client-full", str(user_id), "nopass"], cwd=easy_rsa_dir,
+                           check=True, env=env, capture_output=True)
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
 
         # Assign static IP to the client
         with open(ccd_file, 'w') as f:
