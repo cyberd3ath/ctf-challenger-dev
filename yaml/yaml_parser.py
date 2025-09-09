@@ -3,7 +3,7 @@ def yaml_to_create_challenge_form_data(path_to_yaml, prints=False):
     import yaml
     from yaml import SafeLoader
 
-    with open(path_to_yaml, "r") as file:
+    with open(path_to_yaml, "r", encoding="utf-8") as file:
         data = yaml.load(file, Loader=SafeLoader)['ctf']
 
     if prints:
@@ -74,11 +74,25 @@ def yaml_to_create_challenge_form_data(path_to_yaml, prints=False):
         print("\tFinished processing YAML data")
     return form_data
 
+
+def yaml_to_dict(path_to_yaml, prints=False):
+    form_data = yaml_to_create_challenge_form_data(path_to_yaml, prints=prints)
+    import json
+    form_data["vms"] = json.loads(form_data["vms"])
+    form_data["subnets"] = json.loads(form_data["subnets"])
+    form_data["flags"] = json.loads(form_data["flags"])
+    form_data["hints"] = json.loads(form_data["hints"])
+
+    return form_data
+
+
+
+
 def retrieve_ova_data(path_to_yaml):
     import yaml
     from yaml import SafeLoader
 
-    with open(path_to_yaml, "r") as file:
+    with open(path_to_yaml, "r", encoding="utf-8") as file:
         data = yaml.load(file, Loader=SafeLoader)['ctf']
 
     ova_files = []

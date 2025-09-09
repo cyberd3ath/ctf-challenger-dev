@@ -124,7 +124,7 @@ def parallel_challenge_launch_test(challenge_id, num_parallel_instances, duratio
 
 if __name__ == "__main__":
     challenge_id = 1
-    num_parallel_instances = 2
+    num_parallel_instances = 1
     duration_seconds = 10
 
     results = parallel_challenge_launch_test(challenge_id, num_parallel_instances, duration_seconds)

@@ -1,8 +1,9 @@
 from get_authenticated_session import get_authenticated_session
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import os
 
-load_dotenv()
+env_file = find_dotenv()
+load_dotenv(env_file)
 
 SERVER_HOST = os.getenv("SERVER_HOST", "localhost")
 SERVER_PORT = os.getenv("SERVER_PORT", "8000")
@@ -30,6 +31,6 @@ def delete_user(username, password, prints=False):
 
 
 if __name__ == "__main__":
-    username = "testuser_2"
+    username = "testuser"
     password = "testpass"
     delete_user(username, password, prints=True)

@@ -1,8 +1,9 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from get_authenticated_session import get_authenticated_session
 
-load_dotenv()
+env_file = find_dotenv()
+load_dotenv(env_file)
 
 DEFAULT_ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 DEFAULT_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "adminpass")

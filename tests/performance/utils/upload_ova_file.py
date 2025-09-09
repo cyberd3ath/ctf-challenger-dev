@@ -1,10 +1,15 @@
 import os
 import math
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import time
+import sys
+
+YAML_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../yaml"))
+sys.path.append(YAML_DIR)
 from yaml_parser import retrieve_ova_data
 
-load_dotenv()
+env_file = find_dotenv()
+load_dotenv(env_file)
 
 SERVER_HOST = os.getenv("SERVER_HOST", "localhost")
 SERVER_PORT = os.getenv("SERVER_PORT", "8000")
@@ -112,6 +117,6 @@ if __name__ == "__main__":
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
     session = get_authenticated_session(ADMIN_USER, ADMIN_PASSWORD)
 
-    YAML_PATH = os.path.abspath("yaml/ctf-config.yaml")
-    upload_all_ova_files(session, YAML_PATH, prints=True)
+    CONFIG_PATH = os.path.join(YAML_DIR, "ctf-config.yaml")
+    upload_all_ova_files(session, CONFIG_PATH, prints=True)
 

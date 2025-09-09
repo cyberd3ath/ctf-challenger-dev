@@ -8,6 +8,6 @@ database/backups
 **/*.phar
 webserver/html/vendor
 **/.phpunit.result.cache
-tests/end-to-end/utils/yaml/**.yaml
-tests/end-to-end/utils/**.pem
+tests/performance/utils/yaml/**.yaml
+tests/performance/utils/**.pem
 BUGS.md

@@ -1,8 +1,9 @@
 import ssl
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
+env_file = find_dotenv()
+load_dotenv(env_file)
 
 def download_certificate(server_host=None, server_port=None, output_path=None, prints=False):
     if not server_host:

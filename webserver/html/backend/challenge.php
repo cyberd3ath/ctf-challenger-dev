@@ -822,9 +822,6 @@ class ChallengeHandler
             throw new Exception("Challenge not found", 404);
         }
 
-        $this->logger->logError($challenge['creator_id']);
-        $this->logger->logError($this->userId);
-
         $challenge['isCreator'] = ($challenge['creator_id'] == $this->userId);
         unset($challenge['creator_id']);
 

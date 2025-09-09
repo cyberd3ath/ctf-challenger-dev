@@ -11,7 +11,7 @@ DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances/"
 os.makedirs(DNSMASQ_INSTANCES_DIR, exist_ok=True)
 
 
-@retry(stop=stop_after_attempt(10), wait=wait_exponential_jitter(initial=1, max=5, exp_base=1.1, jitter=1))
+@retry(stop=stop_after_attempt(10), wait=wait_exponential_jitter(initial=1, max=5, exp_base=1.1, jitter=1), reraise=True)
 def launch_challenge(challenge_template_id, user_id, db_conn):
     """
     Launch a challenge by creating a user and network device.
@@ -147,7 +147,7 @@ def create_challenge(challenge_template, db_conn):
         INSERT INTO challenges (challenge_template_id)
         VALUES (%s)
         RETURNING id, subnet
-        """, (challenge_template.id))
+        """, (challenge_template.id,))
 
         challenge_id, challenge_subnet_value = cursor.fetchone()
         challenge_subnet = ChallengeSubnet(challenge_subnet_value)
