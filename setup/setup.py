@@ -154,8 +154,29 @@ def install_dependencies():
 
     subprocess.run(["timedatectl", "set-timezone", "Europe/Berlin"], check=True, capture_output=True)
 
-    print("\tInstalling ntpdate")
-    subprocess.run(["apt", "install", "-y", "ntpdate"], check=True, capture_output=True)
+    # Detect Debian version
+    try:
+        with open("/etc/release") as f:
+            for line in f:
+                if line.startswith("DEBIAN_VERSION_FULL="):
+                    debian_version = line.strip().split("=")[1].strip('"')
+                    break
+            else:
+                debian_version = "0"  # fallback if not found
+    except FileNotFoundError:
+        debian_version = "0"
+
+    print(f"\tDetected Debian version: {debian_version}")
+
+    # Install appropriate ntpdate package
+    if subprocess.run(["dpkg", "--compare-versions", debian_version, "ge", "13.0"]).returncode == 0:
+        print("\tInstalling ntpsec-ntpdate (Debian >= 13)")
+        subprocess.run(["apt", "update"], check=True, capture_output=True)
+        subprocess.run(["apt", "install", "-y", "ntpsec-ntpdate"], check=True, capture_output=True)
+    else:
+        print("\tInstalling legacy ntpdate (Debian < 13)")
+        subprocess.run(["apt", "update"], check=True, capture_output=True)
+        subprocess.run(["apt", "install", "-y", "ntpdate"], check=True, capture_output=True)
 
     print("\tSynchronizing time with NTP server")
     subprocess.run(["ntpdate", "time.google.com"], check=True, capture_output=True)
@@ -166,36 +187,24 @@ def install_dependencies():
     print("\tUpdating package list")
     subprocess.run(["apt", "update"], check=True, capture_output=True)
 
-    # Install OpenVPN
-    print("\tInstalling OpenVPN")
-    subprocess.run(["apt", "install", "-y", "openvpn"], check=True, capture_output=True)
+    packages = [
+        ("OpenVPN", ["openvpn"]),
+        ("Easy-RSA", ["easy-rsa"]),
+        ("dnsmasq", ["dnsmasq"]),
+        ("iptables", ["iptables"]),
+        ("sshpass", ["sshpass"]),
+        ("postgres (used in testing)", ["postgresql", "postgresql-contrib"]),
+        ("sudo (used in testing)", ["sudo"]),
+        ("scapy (used in testing)", ["python3-scapy"]),
+    ]
 
-    print("\tInstalling Easy-RSA")
-    subprocess.run(["apt", "install", "-y", "easy-rsa"], check=True, capture_output=True)
+    for desc, pkgs in packages:
+        print(f"\tInstalling {desc}")
+        subprocess.run(["apt", "install", "-y"] + pkgs, check=True, capture_output=True)
 
-    # Install dnsmasq
-    print("\tInstalling dnsmasq")
-    subprocess.run(["apt", "install", "-y", "dnsmasq"], check=True, capture_output=True)
-
-    # Install iptables
-    print("\tInstalling iptables")
-    subprocess.run(["apt", "install", "-y", "iptables"], check=True, capture_output=True)
-
-    # Install sshpass
-    print("\tInstalling sshpass")
-    subprocess.run(["apt", "install", "-y", "sshpass"], check=True, capture_output=True)
-    
-    print("\tInstalling postgres (used in testing)")
-    subprocess.run(["apt", "install", "-y", "postgresql", "postgresql-contrib"], check=True, capture_output=True)
+    # Stop and disable PostgreSQL
     subprocess.run(["systemctl", "stop", "postgresql"], check=True, capture_output=True)
     subprocess.run(["systemctl", "disable", "postgresql"], check=True, capture_output=True)
-
-
-    print("\tInstalling sudo (used in testing)")
-    subprocess.run(["apt", "install", "-y", "sudo"], check=True, capture_output=True)
-
-    print("\tInstalling scapy (used in testing)")
-    subprocess.run(["apt", "install", "-y", "python3-scapy"], check=True, capture_output=True)
 
 
 def setup_backend_certificate():
