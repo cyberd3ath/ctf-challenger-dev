@@ -156,7 +156,7 @@ def install_dependencies():
 
     # Detect Debian version
     try:
-        with open("/etc/release") as f:
+        with open("/etc/os-release") as f:
             for line in f:
                 if line.startswith("DEBIAN_VERSION_FULL="):
                     debian_version = line.strip().split("=")[1].strip('"')
