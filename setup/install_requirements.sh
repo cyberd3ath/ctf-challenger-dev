@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-DEBIAN_VERSION_FULL=$(grep -oP '(?<=^DEBIAN_VERSION_FULL=).*' /etc/release | tr -d '"')
+DEBIAN_VERSION_FULL=$(grep -oP '(?<=^DEBIAN_VERSION_FULL=).*' /etc/os-release | tr -d '"')
 echo "Detected Debian version: $DEBIAN_VERSION_FULL"
 
 if dpkg --compare-versions "$DEBIAN_VERSION_FULL" "ge" "13.0"; then
