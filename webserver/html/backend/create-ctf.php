@@ -265,7 +265,7 @@ class CtfCreationHandler
                 $errors[] = "VM name is required";
             } elseif (strlen($vmName) > $this->generalConfig['ctf']['MAX_VM_NAME_LENGTH']) {
                 $errors[] = "VM name cannot exceed " . $this->generalConfig['ctf']['MAX_VM_NAME_LENGTH'] . " characters";
-            } elseif (!preg_match('/' . $this->config['ctf']['VM_SUBNET_NAME_REGEX'] . '/', $vmName)) {
+            } elseif (!preg_match('/' . $this->generalConfig['ctf']['VM_SUBNET_NAME_REGEX'] . '/', $vmName)) {
                 $errors[] = "VM Name $vmName contains invalid characters";
             } elseif (in_array($vmName, $vmNames)) {
                 $errors[] = "Duplicate VM name found: $vmName";
@@ -287,7 +287,7 @@ class CtfCreationHandler
                 $errors[] = "VM $vmName: Domain name is required";
             } elseif (strlen($domain) > $this->generalConfig['ctf']['MAX_VM_DOMAIN_LENGTH']) {
                 $errors[] = "VM $vmName: Domain name cannot exceed " . $this->generalConfig['ctf']['MAX_VM_DOMAIN_LENGTH'];
-            } elseif (!preg_match('/' . $this->config['ctf']['DOMAIN_REGEX'] . '/', $domain)) {
+            } elseif (!preg_match('/' . $this->generalConfig['ctf']['DOMAIN_REGEX'] . '/', $domain)) {
                 $errors[] = "VM $vmName: Domain name contains invalid characters or has invalid structure";
             }
         }
@@ -299,7 +299,7 @@ class CtfCreationHandler
                 $errors[] = "Subnet name is required";
             } elseif (strlen($subnetName) > $this->generalConfig['ctf']['MAX_SUBNET_NAME_LENGTH']) {
                 $errors[] = "Subnet name cannot exceed " . $this->generalConfig['ctf']['MAX_SUBNET_NAME_LENGTH'] . " characters";
-            } elseif (!preg_match('/' . $this->config['ctf']['VM_SUBNET_NAME_REGEX'] . '/', $subnetName)) {
+            } elseif (!preg_match('/' . $this->generalConfig['ctf']['VM_SUBNET_NAME_REGEX'] . '/', $subnetName)) {
                 $errors[] = "Subnet Name $subnetName contains invalid characters";
             } elseif (in_array($subnetName, $subnetNames)) {
                 $errors[] = "Duplicate subnet name found: $subnetName";
