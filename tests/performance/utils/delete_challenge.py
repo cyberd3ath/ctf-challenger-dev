@@ -31,7 +31,7 @@ def delete_challenge(admin_session, challenge_id, prints=False):
 if __name__ == "__main__":
     from get_authenticated_session import get_authenticated_session
 
-    challenge_id = "1"
+    challenge_id = "5"
     ADMIN_USER = os.getenv("ADMIN_USER", "admin")
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 

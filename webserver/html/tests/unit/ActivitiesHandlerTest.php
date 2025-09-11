@@ -187,15 +187,15 @@ class ActivitiesHandlerTest extends TestCase
             $cid = $this->combinationToId('badges', $range, 'all');
 
             $this->pdo->prepare("
-        INSERT INTO badges (id, name, icon, color, description, requirements)
-        VALUES (?, ?, 'icon.png', 'blue', 'test badge', 'requirement')
-    ")->execute([$cid, "Badge-$cid"]);
+                INSERT INTO badges (id, name, icon, color, rarity, description, requirements)
+                VALUES (?, ?, 'icon.png', 'blue', 'common', 'test badge', 'requirement')
+            ")->execute([$cid, "Badge-$cid"]);
 
             $earnedAt = $this->makeDateForRange($range);
             $this->pdo->prepare("
-        INSERT INTO user_badges (badge_id, user_id, earned_at)
-        VALUES (?, ?, ?)
-    ")->execute([$cid, $this->userId, $earnedAt]);
+                INSERT INTO user_badges (badge_id, user_id, earned_at)
+                VALUES (?, ?, ?)
+            ")->execute([$cid, $this->userId, $earnedAt]);
         }
     }
 

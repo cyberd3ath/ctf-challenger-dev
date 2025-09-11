@@ -35,21 +35,37 @@ class MockPostgresDB
         $this->system = $system;
         $this->initScriptPath = $initScriptPath;
 
-        putenv("DOCKER_HOST=tcp://localhost:2375");
+        putenv("DOCKER_HOST=tcp://192.168.227.3:2375");
 
-        $maxTries = 5;
+        $maxTries = 10;
         $attempt = 0;
         while ($attempt < $maxTries) {
             try {
 
-            $this->container = (new PostgresContainer("15"))
-                ->withPostgresUser($dbUser)
-                ->withPostgresPassword($dbPassword)
-                ->withPostgresDatabase($dbName)
-                ->withWait(new WaitForLog("database system is ready to accept connections", false, 10000));
+                $this->container = (new PostgresContainer("15"))
+                    ->withPostgresUser($dbUser)
+                    ->withPostgresPassword($dbPassword)
+                    ->withPostgresDatabase($dbName)
+                    ->withWait(new WaitForLog("database system is ready to accept connections", false, 20000));
 
-            $this->postgresContainer = $this->container->start();
-            break;
+                $this->postgresContainer = $this->container->start();
+
+                sleep(1);
+
+                $this->pdo = new PDO(
+                    sprintf(
+                        'pgsql:host=%s;port=%d;dbname=%s',
+                        $this->postgresContainer->getHost(),
+                        $this->postgresContainer->getMappedPort(5432),
+                        $dbName
+                    ),
+                    $dbUser,
+                    $dbPassword
+                );
+                $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                $this->initializeDatabase();
+
+                break;
             } catch (Exception $e) {
                 $attempt++;
                 if ($attempt >= $maxTries) {
@@ -58,21 +74,6 @@ class MockPostgresDB
                 sleep(2); // wait before retrying
             }
         }
-
-
-
-        $this->pdo = new PDO(
-            sprintf(
-                'pgsql:host=%s;port=%d;dbname=%s',
-                $this->postgresContainer->getHost(),
-                $this->postgresContainer->getMappedPort(5432),
-                $dbName
-            ),
-            $dbUser,
-            $dbPassword
-        );
-        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $this->initializeDatabase();
     }
 
     public function getPDO(): PDO
@@ -95,9 +96,9 @@ class MockPostgresDB
     private function insertTestData(): void
     {
         $this->pdo->exec("
-            INSERT INTO users (id, username, email, password_hash, is_admin)
-            VALUES (1, 'admin', 'admin@localhost.local', 'adminhash', true),
-                   (2, 'testuser', 'test@test.test', crypt('testpass', gen_salt('bf')), false);
+            INSERT INTO users (username, email, password_hash, is_admin)
+            VALUES ('admin', 'admin@localhost.local', 'adminhash', true),
+                   ('testuser', 'test@test.test', crypt('testpass', gen_salt('bf')), false);
         ");
 
         $this->pdo->exec("

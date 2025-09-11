@@ -3,6 +3,7 @@
   "require": {
     "vlucas/phpdotenv": "*",
     "phpunit/phpunit": "*",
+    "brianium/paratest": "*",
     "testcontainers/testcontainers": "*",
     "ext-pdo": "*",
     "ext-curl": "*",

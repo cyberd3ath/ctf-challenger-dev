@@ -21,6 +21,7 @@ class RegistrationHandlerTest extends TestCase
     private IPost $post;
 
     private ISystem $system;
+    private IEnv $env;
 
     private $mockDB;
 
@@ -36,6 +37,7 @@ class RegistrationHandlerTest extends TestCase
         $this->post = new MockPost();
 
         $this->system = new SystemWrapper();
+        $this->env = new MockEnv();
 
         $this->generalConfig = json_decode($this->system->file_get_contents(__DIR__ . '/../../config/general.config.json'), true);
 
@@ -67,7 +69,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
     }
 
@@ -93,7 +96,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -126,7 +130,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -159,7 +164,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -192,7 +198,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -225,7 +232,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -258,7 +266,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -291,7 +300,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -331,7 +341,8 @@ class RegistrationHandlerTest extends TestCase
                 $this->session,
                 $this->server,
                 $this->post,
-                $this->system
+                $this->system,
+                $this->env
             );
             $handler->handleRequest();
             $output = ob_get_clean();
@@ -365,7 +376,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -408,7 +420,8 @@ class RegistrationHandlerTest extends TestCase
                 $this->session,
                 $this->server,
                 $this->post,
-                $this->system
+                $this->system,
+                $this->env
             );
             $handler->handleRequest();
             $output = ob_get_clean();
@@ -443,7 +456,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -477,7 +491,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -511,7 +526,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -555,7 +571,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -604,7 +621,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -663,7 +681,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $systemMock
+            $systemMock,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -721,7 +740,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $systemMock
+            $systemMock,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -783,7 +803,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $systemMock
+            $systemMock,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -844,7 +865,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $systemMock
+            $systemMock,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -903,7 +925,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $systemMock
+            $systemMock,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -958,7 +981,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $systemMock
+            $systemMock,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -1001,7 +1025,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -1042,7 +1067,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -1091,7 +1117,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();
@@ -1145,7 +1172,8 @@ class RegistrationHandlerTest extends TestCase
             $this->session,
             $this->server,
             $this->post,
-            $this->system
+            $this->system,
+            $this->env
         );
         $handler->handleRequest();
         $output = ob_get_clean();

@@ -8,6 +8,7 @@ database/backups
 **/*.phar
 webserver/html/vendor
 **/.phpunit.result.cache
-tests/performance/utils/yaml/**.yaml
+yaml/ctf-config.yaml
+yaml/ubuntu-cloudimg.yaml
 tests/performance/utils/**.pem
 BUGS.md
