@@ -35,9 +35,13 @@ class MockPostgresDB
         $this->system = $system;
         $this->initScriptPath = $initScriptPath;
 
-        putenv("DOCKER_HOST=tcp://192.168.227.3:2375");
+        if (PHP_OS_FAMILY === 'Windows') {
+            putenv("DOCKER_HOST=tcp://localhost:2375");
+        } else {
+            putenv("DOCKER_HOST=unix:///var/run/docker.sock");
+        }
 
-        $maxTries = 10;
+        $maxTries = 5;
         $attempt = 0;
         while ($attempt < $maxTries) {
             try {
