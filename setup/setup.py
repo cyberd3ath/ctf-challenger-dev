@@ -416,9 +416,9 @@ def setup_iptables():
 
     # Enable IP forwarding
     print("\tEnabling IP forwarding")
-    subprocess.run(["sed", "-i", "s/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/", "/etc/sysctl.conf"], check=True,
-                   capture_output=True)
-    subprocess.run(["sysctl", "-p"], check=True, capture_output=True)
+    with open("/etc/sysctl.d/99-sysctl.conf", "a") as sysctl_file:
+        sysctl_file.write("\nnet.ipv4.ip_forward=1\n")
+    subprocess.run(["sysctl", "--system"], check=True, capture_output=True)
 
     print("\tSetting up iptables rules")
     iptables_script_dir = "/etc/iptables-backend"
