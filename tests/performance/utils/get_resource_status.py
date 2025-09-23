@@ -17,7 +17,12 @@ def get_resource_status():
     headers = {
         "Authorization": f"PVEAPIToken={PROXMOX_API_TOKEN}"
     }
-    response = requests.get(url, headers=headers, verify=os.path.join(os.path.dirname(__file__), "pve-root-ca.pem"))
+    response = requests.get(
+        url,
+        headers=headers,
+        verify=os.path.join(os.path.dirname(__file__), "pve-root-ca.pem"),
+        timeout=1
+    )
 
     if response.status_code == 200:
         return response.json()['data']

@@ -31,13 +31,16 @@ def stop_challenge(session, challenge_id, prints=False):
 if __name__ == "__main__":
     from get_authenticated_session import get_authenticated_session
 
-    for i in range(10):
+    for i in range(100):
         try:
             username = "testuser_" + str(i+1)
             password = "testpass"
             challenge_id = "1"
 
+            print(f"Stopping challenge for user {username}")
             session = get_authenticated_session(username, password, prints=True)
             stop_challenge(session, challenge_id, prints=True)
+            print()
         except Exception as e:
             print(f"Error for user {username}: {e}")
+            print()

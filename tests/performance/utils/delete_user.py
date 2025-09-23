@@ -31,10 +31,13 @@ def delete_user(username, password, prints=False):
 
 
 if __name__ == "__main__":
-    for i in range(10):
+    for i in range(100):
         try:
             username = "testuser_" + str(i+1)
             password = "testpass"
+            print(f"Deleting user {username}")
             delete_user(username, password, prints=True)
+            print()
         except Exception as e:
             print(f"Error for user {username}: {e}")
+            print()

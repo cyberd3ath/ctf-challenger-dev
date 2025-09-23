@@ -20,6 +20,8 @@ def stop_challenge(user_id, db_conn):
 
         stop_machines(challenge)
 
+        delete_machines(challenge)
+
         fetch_networks(challenge, db_conn)
 
         delete_network_devices(challenge)
@@ -27,8 +29,6 @@ def stop_challenge(user_id, db_conn):
         delete_iptables_rules(challenge, user_vpn_ip)
 
         stop_dnsmasq_instances(challenge)
-
-        delete_machines(challenge)
 
         remove_database_entries(challenge, user_id, db_conn)
 
@@ -119,10 +119,7 @@ def stop_machines(challenge):
             existing_machines[machine.id] = machine
 
     for machine in existing_machines.values():
-        try:
-            stop_vm_api_call(machine)
-        except Exception:
-            pass
+        stop_vm_api_call(machine)
 
     all_machines_stopped = True
     for machine in existing_machines.values():
