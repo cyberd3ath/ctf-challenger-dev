@@ -6,6 +6,7 @@ from proxmox_api_calls import *
 import os
 from stop_challenge import delete_iptables_rules, remove_database_entries, stop_dnsmasq_instances
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
+import time
 
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances/"
 os.makedirs(DNSMASQ_INSTANCES_DIR, exist_ok=True)
@@ -369,7 +370,7 @@ def add_iptables_rules(challenge, user_vpn_ip):
                  "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"], check=True)
 
 
-def wait_for_networks_to_be_up(challenge):
+def wait_for_networks_to_be_up(challenge, try_timeout=3, max_tries=10):
     """
     Wait for networks to be up.
     """
@@ -377,12 +378,23 @@ def wait_for_networks_to_be_up(challenge):
     host_devices = [network.host_device for network in challenge.networks.values()]
     all_devices_up = False
 
-    while not all_devices_up:
-        all_devices_up = True
-        for device in host_devices:
-            if not os.path.exists(f"/sys/class/net/{device}"):
-                all_devices_up = False
-                break
+    tries = 0
+
+    while not all_devices_up and tries < max_tries:
+        tries += 1
+        try_start = time.time()
+        while time.time() - try_start < try_timeout and not all_devices_up:
+            all_devices_up = True
+            for device in host_devices:
+                if not os.path.exists(f"/sys/class/net/{device}"):
+                    all_devices_up = False
+                    break
+
+        reload_network_api_call()
+
+    if not all_devices_up:
+        raise TimeoutError("Timed out waiting for networks to be up")
+
 
 
 def start_dnsmasq_instances(challenge, user_vpn_ip):

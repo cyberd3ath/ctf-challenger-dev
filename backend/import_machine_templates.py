@@ -207,5 +207,11 @@ def undo_import_machine_templates(challenge_template):
         try:
             delete_vm_api_call(machine_template)
         except Exception:
-            subprocess.run(["qm", "unlock", str(machine_template.id)], check=True, capture_output=True)
-            subprocess.run(["qm", "destroy", str(machine_template.id)], check=True, capture_output=True)
+            try:
+                subprocess.run(["qm", "unlock", str(machine_template.id)], check=True, capture_output=True)
+            except Exception:
+                pass
+            try:
+                subprocess.run(["qm", "destroy", str(machine_template.id)], check=True, capture_output=True)
+            except Exception:
+                pass

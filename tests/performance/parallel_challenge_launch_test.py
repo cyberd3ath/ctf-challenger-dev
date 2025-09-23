@@ -8,28 +8,30 @@ from TestUser import TestUser
 
 
 class SingleChallengeLaunchThread(threading.Thread):
-    def __init__(self, user, challenge_id):
+    def __init__(self, user, challenge_id, prints=False):
         threading.Thread.__init__(self)
         self.user = user
         self.challenge_id = challenge_id
         self.success = False
         self.error = None
+        self.prints = prints
 
     def run(self):
         try:
-            self.user.launch_challenge(self.challenge_id)
+            self.user.launch_challenge(self.challenge_id, prints=self.prints)
             self.success = True
         except Exception as e:
             self.error = f"Error for user {self.user.username}: {e}"
 
 
 class SingleChallengeStopThread(threading.Thread):
-    def __init__(self, user, challenge_id):
+    def __init__(self, user, challenge_id, prints=False):
         threading.Thread.__init__(self)
         self.user = user
         self.challenge_id = challenge_id
         self.success = False
         self.error = None
+        self.prints = prints
 
     def run(self):
         try:
@@ -39,7 +41,7 @@ class SingleChallengeStopThread(threading.Thread):
             self.error = f"Error stopping challenge for user {self.user.username}: {e}"
 
 
-def parallel_challenge_launch_test(challenge_id, num_parallel_instances, duration_seconds=60):
+def parallel_challenge_launch_test(challenge_id, num_parallel_instances, duration_seconds=60, prints=False):
     test_users = []
 
     for i in range(num_parallel_instances):
@@ -53,7 +55,7 @@ def parallel_challenge_launch_test(challenge_id, num_parallel_instances, duratio
 
     launch_threads = []
     for user in test_users:
-        thread = SingleChallengeLaunchThread(user, challenge_id)
+        thread = SingleChallengeLaunchThread(user, challenge_id, prints=prints)
         launch_threads.append(thread)
 
     launch_timer_start = time.time()
@@ -79,7 +81,7 @@ def parallel_challenge_launch_test(challenge_id, num_parallel_instances, duratio
     stop_threads = []
     for launch_thread in launch_threads:
         if launch_thread.success:
-            stop_thread = SingleChallengeStopThread(launch_thread.user, challenge_id)
+            stop_thread = SingleChallengeStopThread(launch_thread.user, challenge_id, prints=prints)
             stop_threads.append(stop_thread)
 
     stop_timer_start = time.time()
@@ -124,10 +126,10 @@ def parallel_challenge_launch_test(challenge_id, num_parallel_instances, duratio
 
 if __name__ == "__main__":
     challenge_id = 1
-    num_parallel_instances = 1
+    num_parallel_instances = 10
     duration_seconds = 10
 
-    results = parallel_challenge_launch_test(challenge_id, num_parallel_instances, duration_seconds)
+    results = parallel_challenge_launch_test(challenge_id, num_parallel_instances, duration_seconds, prints=True)
 
     print(f"Total Launch Attempts: {results['launch_thread_count']}")
     print(f"Successful Launches: {results['launch_success_count']}")

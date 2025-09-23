@@ -19,7 +19,7 @@ def create_user(username, email, password, prints=False):
     if prints:
         print(f"\tInitiating session")
     session = requests.Session()
-    session.verify = download_certificate()
+    session.verify = False # download_certificate()
 
     if prints:
         print(f"\tRetrieving CSRF token")
@@ -52,7 +52,7 @@ def create_user(username, email, password, prints=False):
 
 
 if __name__ == "__main__":
-    username = "testuser"
+    username = "testuser2"
     password = "testpass"
-    email = "test@test.test"
+    email = "test2@test.test"
     create_user(username, email, password, prints=True)

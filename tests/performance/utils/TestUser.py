@@ -22,8 +22,8 @@ class TestUser:
 
         delete_user(self.username, self.password)
 
-    def launch_challenge(self, challenge_id):
-        launch_challenge(self.session, challenge_id)
+    def launch_challenge(self, challenge_id, prints=False):
+        launch_challenge(self.session, challenge_id, prints=prints)
 
-    def stop_challenge(self, challenge_id):
-        stop_challenge(self.session, challenge_id)
+    def stop_challenge(self, challenge_id, prints=False):
+        stop_challenge(self.session, challenge_id, prints=prints)

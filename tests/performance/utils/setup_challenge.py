@@ -59,5 +59,5 @@ if __name__ == "__main__":
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
     session = get_authenticated_session(ADMIN_USER, ADMIN_PASSWORD)
 
-    CONFIG_PATH = os.path.join(YAML_DIR, "ubuntu-cloudimg.yaml")
+    CONFIG_PATH = os.path.join(YAML_DIR, "ctf-config.yaml")
     setup_challenge(session, CONFIG_PATH, upload_ovas=True, prints=True)
