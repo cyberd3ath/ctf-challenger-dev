@@ -1,5 +1,6 @@
 from flask import Flask, request, send_file, redirect
 import psycopg2
+from psycopg2 import pool
 from dotenv import load_dotenv
 import os
 
@@ -32,6 +33,16 @@ BACKEND_AUTHENTICATION_TOKEN = os.getenv("BACKEND_AUTHENTICATION_TOKEN")
 
 os.makedirs(BACKEND_LOGGING_DIR, exist_ok=True)
 
+db_pool = pool.SimpleConnectionPool(
+    minconn=3,
+    maxconn=20,
+    host=DB_HOST,
+    database=DB_NAME,
+    user=DB_USER,
+    password=DB_PASSWORD
+)
+
+
 @app.before_request
 def before_request():
     """
@@ -53,153 +64,153 @@ def before_request():
 @app.route('/launch-challenge', methods=['POST'])
 def launch_challenge():
     try:
-        db_conn = psycopg2.connect(
-            host=DB_HOST,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
+        db_conn = db_pool.getconn()
+
+        try:
+            data = request.json
+            challenge_template_id = data['challenge_template_id']
+            user_id = data['user_id']
+            _ = int(challenge_template_id)
+            _ = int(user_id)
+        except Exception as e:
+            print("Invalid input data", e, flush=True)
+            return {"error": "Invalid input data", "success": False}, 500
+
+        try:
+            accessible_networks = launch_challenge_backend(challenge_template_id, user_id, db_conn)
+        except Exception as e:
+            print("Error launching challenge", e, flush=True)
+            return {"error": str(e), "success": False}, 500
+
+        return {"message": "Challenge launched", "success": True, "entrypoints": accessible_networks}, 200
+
     except Exception as e:
         print("Database connection error", e, flush=True)
         return {"error": "Database connection error", "success": False}, 500
 
-    try:
-        data = request.json
-        challenge_template_id = data['challenge_template_id']
-        user_id = data['user_id']
-        _ = int(challenge_template_id)
-        _ = int(user_id)
-    except Exception as e:
-        print("Invalid input data", e, flush=True)
-        return {"error": "Invalid input data", "success": False}, 500
-
-    try:
-        accessible_networks = launch_challenge_backend(challenge_template_id, user_id, db_conn)
-    except Exception as e:
-        print("Error launching challenge", e, flush=True)
-        return {"error": str(e), "success": False}, 500
-
-    return {"message": "Challenge launched", "success": True, "entrypoints": accessible_networks}, 200
+    finally:
+        if 'db_conn' in locals():
+            db_pool.putconn(db_conn)
 
 
 @app.route('/stop-challenge', methods=['POST'])
 def stop_challenge():
     try:
-        db_conn = psycopg2.connect(
-            host=DB_HOST,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
+        db_conn = db_pool.getconn()
+
+        try:
+            data = request.json
+            user_id = data['user_id']
+            _ = int(user_id)
+        except Exception as e:
+            print("Invalid input data", e, flush=True)
+            return {"error": "Invalid input data", "success": False}, 500
+
+        try:
+            stop_challenge_backend(user_id, db_conn)
+        except Exception as e:
+            print("Error stopping challenge", e, flush=True)
+            return {"error": str(e), "success": False}, 500
+
+        return {"message": "Challenge stopped", "success": True}, 200
+
     except Exception as e:
         print("Database connection error", e, flush=True)
         return {"error": "Database connection error", "success": False}, 500
 
-    try:
-        data = request.json
-        user_id = data['user_id']
-        _ = int(user_id)
-    except Exception as e:
-        print("Invalid input data", e, flush=True)
-        return {"error": "Invalid input data", "success": False}, 500
-
-    try:
-        stop_challenge_backend(user_id, db_conn)
-    except Exception as e:
-        print("Error stopping challenge", e, flush=True)
-        return {"error": str(e), "success": False}, 500
-
-    return {"message": "Challenge stopped", "success": True}, 200
+    finally:
+        if 'db_conn' in locals():
+            db_pool.putconn(db_conn)
 
 
 @app.route('/import-machine-templates', methods=['POST'])
 def import_machine_template():
     try:
-        db_conn = psycopg2.connect(
-            host=DB_HOST,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
+        db_conn = db_pool.getconn()
+
+        try:
+            data = request.json
+            challenge_template_id = data['challenge_template_id']
+            _ = int(challenge_template_id)
+        except Exception as e:
+            print("Invalid input data", e, flush=True)
+            return {"error": "Invalid input data", "success": False}, 500
+
+        try:
+            import_machine_template_backend(challenge_template_id, db_conn)
+        except Exception as e:
+            print("Error importing machine templates", e, flush=True)
+            return {"error": str(e), "success": False}, 500
+
+        return {"message": "Machine template imported", "success": True}, 200
+
     except Exception as e:
         print("Database connection error", e, flush=True)
         return {"error": "Database connection error", "success": False}, 500
 
-    try:
-        data = request.json
-        challenge_template_id = data['challenge_template_id']
-        _ = int(challenge_template_id)
-    except Exception as e:
-        print("Invalid input data", e, flush=True)
-        return {"error": "Invalid input data", "success": False}, 500
-
-    try:
-        import_machine_template_backend(challenge_template_id, db_conn)
-    except Exception as e:
-        print("Error importing machine templates", e, flush=True)
-        return {"error": str(e), "success": False}, 500
-
-    return {"message": "Machine template imported", "success": True}, 200
+    finally:
+        if 'db_conn' in locals():
+            db_pool.putconn(db_conn)
 
 
 @app.route('/delete-machine-templates', methods=['POST'])
 def delete_machine_templates():
     try:
-        db_conn = psycopg2.connect(
-            host=DB_HOST,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
+        db_conn = db_pool.getconn()
+
+        try:
+            data = request.json
+            challenge_id = data['challenge_id']
+            _ = int(challenge_id)
+        except Exception as e:
+            print("Invalid input data", e, flush=True)
+            return {"error": "Invalid input data", "success": False}, 500
+
+        try:
+            delete_machine_template_backend(challenge_id, db_conn)
+        except Exception as e:
+            print("Error deleting machine templates", e, flush=True)
+            return {"error": str(e), "success": False}, 500
+
+        return {"message": "Machine templates deleted", "success": True}, 200
+
     except Exception as e:
         print("Database connection error", e, flush=True)
         return {"error": "Database connection error", "success": False}, 500
 
-    try:
-        data = request.json
-        challenge_id = data['challenge_id']
-        _ = int(challenge_id)
-    except Exception as e:
-        print("Invalid input data", e, flush=True)
-        return {"error": "Invalid input data", "success": False}, 500
-
-    try:
-        delete_machine_template_backend(challenge_id, db_conn)
-    except Exception as e:
-        print("Error deleting machine templates", e, flush=True)
-        return {"error": str(e), "success": False}, 500
-
-    return {"message": "Machine templates deleted", "success": True}, 200
+    finally:
+        if 'db_conn' in locals():
+            db_pool.putconn(db_conn)
 
 
 @app.route('/create-user-config', methods=['POST'])
 def create_user_config():
     try:
-        db_conn = psycopg2.connect(
-            host=DB_HOST,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
+        db_conn = db_pool.getconn()
+
+        try:
+            data = request.json
+            user_id = data['user_id']
+            _ = int(user_id)
+        except Exception as e:
+            print("Invalid input data", e, flush=True)
+            return {"error": "Invalid input data", "success": False}, 500
+
+        try:
+            user_config_path = create_user_config_backend(user_id, db_conn)
+        except Exception as e:
+            print("Error creating user config", e, flush=True)
+            return {"error": str(e), "success": False}, 500
+
+        return send_file(user_config_path, as_attachment=True)
+
     except Exception as e:
         print("Database connection error", e, flush=True)
         return {"error": "Database connection error", "success": False}, 500
 
-    try:
-        data = request.json
-        user_id = data['user_id']
-        _ = int(user_id)
-    except Exception as e:
-        print("Invalid input data", e, flush=True)
-        return {"error": "Invalid input data", "success": False}, 500
-
-    try:
-        user_config_path = create_user_config_backend(user_id, db_conn)
-    except Exception as e:
-        print("Error creating user config", e, flush=True)
-        return {"error": str(e), "success": False}, 500
-
-    return send_file(user_config_path, as_attachment=True)
+    finally:
+        if 'db_conn' in locals():
+            db_pool.putconn(db_conn)
 
 
 @app.route('/delete-user-config', methods=['POST'])

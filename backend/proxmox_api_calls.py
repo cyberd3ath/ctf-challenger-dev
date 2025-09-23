@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import requests
+import subprocess
 
 load_dotenv()
 node = os.getenv("PROXMOX_HOSTNAME", "pve")
@@ -112,18 +113,30 @@ def stop_vm_api_call(machine):
     """
     Stop a virtual machine in Proxmox.
     """
+
+    subprocess.run(["qm", "stop", str(machine.id), "--skiplock"], check=True, capture_output=True)
+
+    """
     endpoint = f"api2/json/nodes/{node}/qemu/{machine.id}/status/stop"
     return make_api_call("POST", endpoint)
+    """
+
 
 
 def vm_is_stopped_api_call(machine):
     """
     Check if a virtual machine is stopped in Proxmox.
     """
+
+    out = subprocess.run(["qm", "status", str(machine.id)], check=True, capture_output=True, text=True)
+    return "stopped" in out.stdout
+
+    """
     endpoint = f"api2/json/nodes/{node}/qemu/{machine.id}/status/current"
     response = make_api_call("GET", endpoint)
 
     return response["data"]["status"] == "stopped"
+    """
 
 
 def initial_configuration_api_call(machine_template):

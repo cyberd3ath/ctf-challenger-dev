@@ -2,6 +2,7 @@ from DatabaseClasses import *
 from proxmox_api_calls import *
 import subprocess
 import os
+import time
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances"
@@ -128,7 +129,6 @@ def stop_machines(challenge):
         try:
             if not vm_is_stopped_api_call(machine):
                 all_machines_stopped = False
-                break
         except Exception:
             all_machines_stopped = False
 
@@ -180,6 +180,30 @@ def delete_network_devices(challenge):
             pass
 
     reload_network_api_call()
+
+
+def wait_for_network_devices_deletion(challenge, try_timeout=3, max_tries=10):
+    """
+    Wait for the networks for a challenge to be deleted.
+    """
+
+    all_networks_deleted = False
+    tries = 0
+    while not all_networks_deleted and tries < max_tries:
+        tries += 1
+        try_start = time.time()
+
+        while not time.time() - try_start < try_timeout:
+            all_networks_deleted = True
+            for network in challenge.networks.values():
+                if os.path.exists(f"/sys/class/net/{network.host_device}"):
+                    all_networks_deleted = False
+                    break
+
+        reload_network_api_call()
+
+    if not all_networks_deleted:
+        raise Exception(f"Not all network devices could be deleted. Existing devices: {', '.join(str(n.host_device) for n in challenge.networks.values() if network_device_exists_api_call(n))}.")
 
 
 def delete_iptables_rules(challenge, user_vpn_ip):

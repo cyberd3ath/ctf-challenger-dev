@@ -19,7 +19,7 @@ def get_authenticated_session(username, password, prints=False):
     if prints:
         print("\tInitiating session")
     session = requests.Session()
-    session.verify = False # download_certificate()
+    session.verify = download_certificate()
 
     if prints:
         print("\tRetrieving CSRF token")

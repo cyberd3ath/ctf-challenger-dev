@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from delete_user_config import delete_user_config
 import fcntl
+import time
 
 load_dotenv()
 
@@ -44,11 +45,25 @@ def create_user_config(user_id, db_conn):
         env["EASYRSA_PKI"] = "/etc/openvpn/easy-rsa/pki"
         env['EASYRSA_BATCH'] = '1'
 
+        timeout = 30
+        start = time.time()
         with open(LOCK_FILE, 'w') as lock_file:
-            fcntl.flock(lock_file, fcntl.LOCK_EX)
-            subprocess.run([easy_rsa_binary, "--batch", "build-client-full", str(user_id), "nopass"], cwd=easy_rsa_dir,
-                           check=True, env=env, capture_output=True)
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
+            while True:
+                try:
+                    fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break  # acquired
+                except BlockingIOError:
+                    if time.time() - start > timeout:
+                        raise TimeoutError(f"Could not acquire lock within {timeout}s")
+                    time.sleep(0.1)  # back off a bit
+
+            try:
+                subprocess.run(
+                    [easy_rsa_binary, "--batch", "build-client-full", str(user_id), "nopass"],
+                    cwd=easy_rsa_dir, check=True, env=env, capture_output=True
+                )
+            finally:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
 
         # Assign static IP to the client
         with open(ccd_file, 'w') as f:

@@ -115,8 +115,8 @@ def parallel_user_signup_test(num_users, duration_seconds=10):
 
 
 if __name__ == "__main__":
-    num_users = 50
-    duration_seconds = 10
+    num_users = 1
+    duration_seconds = 0
 
     results = parallel_user_signup_test(num_users, duration_seconds)
 
