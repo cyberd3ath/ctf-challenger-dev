@@ -383,14 +383,15 @@ def wait_for_networks_to_be_up(challenge, try_timeout=3, max_tries=10):
     while not all_devices_up and tries < max_tries:
         tries += 1
         try_start = time.time()
+
         while time.time() - try_start < try_timeout and not all_devices_up:
             all_devices_up = True
             for device in host_devices:
                 if not os.path.exists(f"/sys/class/net/{device}"):
                     all_devices_up = False
-                    break
 
-        reload_network_api_call()
+        if not all_devices_up:
+            reload_network_api_call()
 
     if not all_devices_up:
         raise TimeoutError("Timed out waiting for networks to be up")

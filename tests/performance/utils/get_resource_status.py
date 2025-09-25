@@ -21,7 +21,7 @@ def get_resource_status():
         url,
         headers=headers,
         verify=os.path.join(os.path.dirname(__file__), "pve-root-ca.pem"),
-        timeout=1
+        timeout=5
     )
 
     if response.status_code == 200:
@@ -31,6 +31,11 @@ def get_resource_status():
 
 
 if __name__ == "__main__":
+    root_ca_cert = os.path.join(os.path.dirname(__file__), "pve-root-ca.pem")
+    if not os.path.isfile(root_ca_cert):
+        raise Exception(f"Root CA certificate not found at {root_ca_cert}. Please ensure the file exists.")
+
+
     status = get_resource_status()
     print(f"CPU Usage: {status['cpu'] * 100:.2f}%")
     print(f"RAM Usage: {status['memory']['used'] / status['memory']['total'] * 100:.2f}%")

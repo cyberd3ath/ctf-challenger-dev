@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import requests
 import subprocess
+import fcntl
 
 load_dotenv()
 node = os.getenv("PROXMOX_HOSTNAME", "pve")
@@ -60,10 +61,18 @@ def reload_network_api_call():
     """
     Reload a network in Proxmox.
     """
-    endpoint = f"api2/json/nodes/{node}/network"
-    data = {}
+    RELOAD_LOCK_FILE = "/var/lock/reload_network.lock"
+    with open(RELOAD_LOCK_FILE, "w") as lock_file:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
-    return make_api_call("PUT", endpoint, data)
+            endpoint = f"api2/json/nodes/{node}/network"
+            data = {}
+            make_api_call("PUT", endpoint, data)
+
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+        except BlockingIOError:
+            pass
 
 
 def delete_vm_api_call(machine):

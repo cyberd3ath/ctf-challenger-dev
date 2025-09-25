@@ -31,7 +31,7 @@ def delete_user(username, password, prints=False):
 
 
 if __name__ == "__main__":
-    for i in range(100):
+    for i in range(50):
         try:
             username = "testuser_" + str(i+1)
             password = "testpass"

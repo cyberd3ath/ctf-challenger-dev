@@ -190,14 +190,14 @@ def wait_for_network_devices_deletion(challenge, try_timeout=3, max_tries=10):
         tries += 1
         try_start = time.time()
 
-        while not time.time() - try_start < try_timeout:
+        while not time.time() - try_start < try_timeout and not all_networks_deleted:
             all_networks_deleted = True
             for network in challenge.networks.values():
                 if os.path.exists(f"/sys/class/net/{network.host_device}"):
                     all_networks_deleted = False
-                    break
 
-        reload_network_api_call()
+        if not all_networks_deleted:
+            reload_network_api_call()
 
     if not all_networks_deleted:
         raise Exception(f"Not all network devices could be deleted. Existing devices: {', '.join(str(n.host_device) for n in challenge.networks.values() if network_device_exists_api_call(n))}.")

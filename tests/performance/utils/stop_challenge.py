@@ -31,7 +31,7 @@ def stop_challenge(session, challenge_id, prints=False):
 if __name__ == "__main__":
     from get_authenticated_session import get_authenticated_session
 
-    for i in range(100):
+    for i in range(10):
         try:
             username = "testuser_" + str(i+1)
             password = "testpass"
