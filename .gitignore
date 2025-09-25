@@ -12,5 +12,4 @@ yaml/ctf-config.yaml
 yaml/ubuntu-cloudimg.yaml
 yaml/dc1.yaml
 tests/performance/utils/**.pem
-BUGS.md
 tests/security
