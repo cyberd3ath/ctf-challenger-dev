@@ -157,7 +157,7 @@ def initial_configuration_api_call(machine_template):
         "memory": machine_template.ram,
         "cores": machine_template.cores,
         "sockets": 1,
-        "cpu": "host",
+        "cpu": "kvm64",
     }
     return make_api_call("PUT", endpoint, data)
 

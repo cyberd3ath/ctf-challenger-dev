@@ -569,8 +569,9 @@ def setup_web_and_database_server(api_token):
     print("\tConfiguring webserver")
     proxmox.nodes(PROXMOX_HOSTNAME).qemu(webserver_id).config.put(
         name='WebServer',
-        cores=1,
-        memory=2048,
+        cpu='kvm64',
+        cores=4,
+        memory=1024 * 16,
         net0=f'virtio,bridge={BACKEND_NETWORK_DEVICE},macaddr={WEBSERVER_MAC_ADDRESS}',
         ipconfig0=f'ip={WEBSERVER_HOST}/24,gw={BACKEND_NETWORK_ROUTER}',
     )
@@ -579,8 +580,9 @@ def setup_web_and_database_server(api_token):
     print("\tConfiguring database server")
     proxmox.nodes(PROXMOX_HOSTNAME).qemu(database_id).config.put(
         name='DatabaseServer',
-        cores=1,
-        memory=2048,
+        cpu='kvm64',
+        cores=4,
+        memory=1024 * 32,
         net0=f'virtio,bridge={BACKEND_NETWORK_DEVICE},macaddr={DATABASE_MAC_ADDRESS}',
         ipconfig0=f'ip={DATABASE_HOST}/24,gw={BACKEND_NETWORK_ROUTER}',
     )
@@ -999,6 +1001,31 @@ def setup_webserver():
         "/tmp/default-ssl.conf"
     )
     execute_command("sudo mv /tmp/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf")
+
+    print("\tHardening Apache headers to hide version and X-Powered-By")
+    # 1) Set ServerTokens Prod and ServerSignature Off
+    execute_command(
+        "sudo sed -i 's/^ServerTokens.*/ServerTokens Prod/' /etc/apache2/conf-available/security.conf || echo 'ServerTokens Prod' | sudo tee -a /etc/apache2/conf-available/security.conf")
+    execute_command(
+        "sudo sed -i 's/^ServerSignature.*/ServerSignature Off/' /etc/apache2/conf-available/security.conf || echo 'ServerSignature Off' | sudo tee -a /etc/apache2/conf-available/security.conf")
+
+    # 2) Disable PHP X-Powered-By for all installed PHP versions
+    execute_command(
+        "for f in /etc/php/*/apache2/php.ini; do sudo sed -i 's/^expose_php.*/expose_php = Off/' \"$f\" || echo 'expose_php = Off' | sudo tee -a \"$f\"; done")
+
+    # 3) Enable mod_headers and unset extra headers
+    execute_command("sudo a2enmod headers")
+    execute_command("""sudo tee /etc/apache2/conf-available/headers-hardening.conf > /dev/null <<'EOF'
+    <IfModule mod_headers.c>
+        Header unset X-Powered-By
+        Header unset X-AspNet-Version
+        Header unset X-AspNetMvc-Version
+    </IfModule>
+    EOF""")
+    execute_command("sudo a2enconf headers-hardening")
+
+    # 4) Reload Apache to apply changes
+    execute_command("sudo systemctl reload apache2")
 
     # Restart Apache
     print("\tRestarting Apache")
