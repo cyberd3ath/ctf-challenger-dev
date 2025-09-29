@@ -1015,13 +1015,15 @@ def setup_webserver():
 
     # 3) Enable mod_headers and unset extra headers
     execute_command("sudo a2enmod headers")
-    execute_command("""sudo tee /etc/apache2/conf-available/headers-hardening.conf > /dev/null <<'EOF'
-    <IfModule mod_headers.c>
-        Header unset X-Powered-By
-        Header unset X-AspNet-Version
-        Header unset X-AspNetMvc-Version
-    </IfModule>
-    EOF""")
+    execute_command("""
+sudo tee /etc/apache2/conf-available/headers-hardening.conf <<'EOF'
+<IfModule mod_headers.c>
+   Header unset X-Powered-By
+   Header unset X-AspNet-Version
+   Header unset X-AspNetMvc-Version
+</IfModule>
+EOF
+    """)
     execute_command("sudo a2enconf headers-hardening")
 
     # 4) Reload Apache to apply changes
