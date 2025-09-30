@@ -90,7 +90,6 @@ class BadgesHandler
             $this->sendResponse($badges, $stats);
         } catch (PDOException $e) {
             $this->logger->logError("Database error in badges route: " . $e->getMessage());
-            print_r($e->getMessage());
             throw new Exception('Database error occurred', 500);
         }
     }
