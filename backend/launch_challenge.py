@@ -7,6 +7,14 @@ import os
 from stop_challenge import delete_iptables_rules, remove_database_entries, stop_dnsmasq_instances
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 import time
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
+
+CHALLENGES_ROOT_SUBNET = os.getenv("CHALLENGES_ROOT_SUBNET", "10.128.0.0")
+CHALLENGES_ROOT_SUBNET_MASK = os.getenv("CHALLENGES_ROOT_SUBNET_MASK", "255.128.0.0")
+CHALLENGES_ROOT_SUBNET_MASK_INT = sum(bin(int(x)).count('1') for x in CHALLENGES_ROOT_SUBNET_MASK.split('.'))
+CHALLENGES_ROOT_SUBNET_CIDR = f"{CHALLENGES_ROOT_SUBNET}/{CHALLENGES_ROOT_SUBNET_MASK_INT}"
 
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances/"
 os.makedirs(DNSMASQ_INSTANCES_DIR, exist_ok=True)
@@ -338,8 +346,7 @@ def add_iptables_rules(challenge, user_vpn_ip):
              "53", "-j", "ACCEPT"], check=True)
 
         # Disallow traffic to the router IP
-        subprocess.run(["iptables", "-A", "INPUT", "-i", network.host_device, "-d", network.router_ip, "-j", "DROP"],
-                       check=True)
+        subprocess.run(["iptables", "-A", "INPUT", "-d", network.router_ip, "-j", "DROP"], check=True)
 
         if network.accessible:
             for network_connection in network.connections.values():
@@ -353,21 +360,19 @@ def add_iptables_rules(challenge, user_vpn_ip):
                      network_connection.client_ip, "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
                      "ACCEPT"], check=True)
 
-            # Disallow traffic to the router IP
-            subprocess.run(["iptables", "-A", "INPUT", "-i", "tun0", "-d", network.router_ip, "-j", "DROP"],
-                           check=True)
-
         if network.is_dmz:
             # Allow traffic from the DMZ to the outside
             subprocess.run(
-                ["iptables", "-t", "nat", "-A", "POSTROUTING", "-s", network.subnet, "-o", "vmbr0", "-j", "MASQUERADE"],
-                check=True)
+                ["iptables", "-t", "nat", "-A", "POSTROUTING", "-o", "vmbr0", "-s", network.subnet, "!", "-d",
+                 CHALLENGES_ROOT_SUBNET_CIDR, "-j", "MASQUERADE"], check=True)
             subprocess.run(
-                ["iptables", "-A", "FORWARD", "-i", network.host_device, "-o", "vmbr0", "-s", network.subnet, "-m",
-                 "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j", "ACCEPT"], check=True)
+                ["iptables", "-A", "FORWARD", "-i", network.host_device, "-o", "vmbr0", "-s", network.subnet, "!",
+                 "-d", CHALLENGES_ROOT_SUBNET_CIDR, "-m","conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
+                 "ACCEPT"], check=True)
             subprocess.run(
-                ["iptables", "-A", "FORWARD", "-i", "vmbr0", "-o", network.host_device, "-d", network.subnet, "-m",
-                 "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"], check=True)
+                ["iptables", "-A", "FORWARD", "-i", "vmbr0", "-o", network.host_device, "-d", network.subnet, "!",
+                 "-s", CHALLENGES_ROOT_SUBNET_CIDR, "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j",
+                 "ACCEPT"], check=True)
 
 
 def wait_for_networks_to_be_up(challenge, try_timeout=3, max_tries=10):

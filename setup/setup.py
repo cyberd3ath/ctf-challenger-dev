@@ -438,6 +438,9 @@ iptables -P INPUT ACCEPT
 iptables -P FORWARD DROP
 iptables -P OUTPUT ACCEPT
 
+# Disallow traffic to the host from the VPN
+iptables -A INPUT -i tun0 -j DROP
+
 # Enable forwarding of internal connections
 iptables -A FORWARD -i {BACKEND_NETWORK_DEVICE} -o {BACKEND_NETWORK_DEVICE} -j ACCEPT
 
@@ -463,7 +466,7 @@ iptables -A FORWARD -p tcp -s {WEBSERVER_HOST} --sport 443 -m state --state ESTA
 
 # Allow internet access for the webserver and database server
 iptables -t nat -A POSTROUTING -s {BACKEND_NETWORK_SUBNET} -o vmbr0 -j MASQUERADE
-iptables -A FORWARD -i vmbr0 -o {BACKEND_NETWORK_DEVICE} -m conntrack --ctstate RELATEDESTABLISHED -j ACCEPT
+iptables -A FORWARD -i vmbr0 -o {BACKEND_NETWORK_DEVICE} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 iptables -A FORWARD -i {BACKEND_NETWORK_DEVICE} -o vmbr0 -j ACCEPT
 """
 

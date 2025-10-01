@@ -4,6 +4,14 @@ import subprocess
 import os
 import time
 from tenacity import retry, stop_after_attempt, wait_fixed
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
+
+CHALLENGES_ROOT_SUBNET = os.getenv("CHALLENGES_ROOT_SUBNET", "10.128.0.0")
+CHALLENGES_ROOT_SUBNET_MASK = os.getenv("CHALLENGES_ROOT_SUBNET_MASK", "255.128.0.0")
+CHALLENGES_ROOT_SUBNET_MASK_INT = sum(bin(int(x)).count('1') for x in CHALLENGES_ROOT_SUBNET_MASK.split('.'))
+CHALLENGES_ROOT_SUBNET_CIDR = f"{CHALLENGES_ROOT_SUBNET}/{CHALLENGES_ROOT_SUBNET_MASK_INT}"
 
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances"
 
@@ -209,49 +217,48 @@ def delete_iptables_rules(challenge, user_vpn_ip):
     """
 
     for network in challenge.networks.values():
-        if network.is_dmz:
-            # Allow traffic from the DMZ to the outside
-            subprocess.run(
-                ["iptables", "-D", "FORWARD", "-i", "vmbr0", "-o", network.host_device, "-d", network.subnet, "-m",
-                 "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"], capture_output=True)
-            subprocess.run(
-                ["iptables", "-D", "FORWARD", "-i", network.host_device, "-o", "vmbr0", "-s", network.subnet, "-m",
-                 "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j", "ACCEPT"], capture_output=True)
-            subprocess.run(
-                ["iptables", "-t", "nat", "-D", "POSTROUTING", "-s", network.subnet, "-o", "vmbr0", "-j", "MASQUERADE"],
-                capture_output=True)
-
-        if network.accessible:
-            # Disallow traffic to the router IP
-            subprocess.run(["iptables", "-D", "INPUT", "-i", "tun0", "-d", network.router_ip, "-j", "DROP"],
-                           capture_output=True)
-            for network_connection in network.connections.values():
-                # Allow traffic from the user VPN IP to the client IP
-                subprocess.run(
-                    ["iptables", "-D", "FORWARD", "-i", network.host_device, "-o", "tun0", "-d", user_vpn_ip, "-s",
-                     network_connection.client_ip, "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
-                     "ACCEPT"], capture_output=True)
-                subprocess.run(
-                    ["iptables", "-D", "FORWARD", "-i", "tun0", "-o", network.host_device, "-s", user_vpn_ip, "-d",
-                     network_connection.client_ip, "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
-                     "ACCEPT"], capture_output=True)
-
-        # Disallow traffic to the router IP
-        subprocess.run(["iptables", "-D", "INPUT", "-i", network.host_device, "-d", network.router_ip, "-j", "DROP"],
-                       capture_output=True)
+        # Allow intra-network traffic
         subprocess.run(
-            ["iptables", "-D", "INPUT", "-i", network.host_device, "-d", network.router_ip, "-p", "tcp", "--dport",
-             "53", "-j", "ACCEPT"], capture_output=True)
+            ["iptables", "-D", "FORWARD", "-i", network.host_device, "-o", network.host_device, "-j", "ACCEPT"],
+            check=False, capture_output=True)
 
         # Allow DNS traffic to the router IP
         subprocess.run(
             ["iptables", "-D", "INPUT", "-i", network.host_device, "-d", network.router_ip, "-p", "udp", "--dport",
-             "53", "-j", "ACCEPT"], capture_output=True)
-
-        # Allow intra-network traffic
+             "53", "-j", "ACCEPT"], check=False, capture_output=True)
         subprocess.run(
-            ["iptables", "-D", "FORWARD", "-i", network.host_device, "-o", network.host_device, "-j", "ACCEPT"],
-            capture_output=True)
+            ["iptables", "-D", "INPUT", "-i", network.host_device, "-d", network.router_ip, "-p", "tcp", "--dport",
+             "53", "-j", "ACCEPT"], check=False, capture_output=True)
+
+        # Disallow traffic to the router IP
+        subprocess.run(["iptables", "-D", "INPUT", "-d", network.router_ip, "-j", "DROP"], check=False,
+                       capture_output=True)
+
+        if network.accessible:
+            for network_connection in network.connections.values():
+                # Allow traffic from the user VPN IP to the client IP
+                subprocess.run(
+                    ["iptables", "-D", "FORWARD", "-i", "tun0", "-o", network.host_device, "-s", user_vpn_ip, "-d",
+                     network_connection.client_ip, "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
+                     "ACCEPT"], check=False, capture_output=True)
+                subprocess.run(
+                    ["iptables", "-D", "FORWARD", "-i", network.host_device, "-o", "tun0", "-d", user_vpn_ip, "-s",
+                     network_connection.client_ip, "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
+                     "ACCEPT"], check=False, capture_output=True)
+
+        if network.is_dmz:
+            # Allow traffic from the DMZ to the outside
+            subprocess.run(
+                ["iptables", "-t", "nat", "-D", "POSTROUTING", "-o", "vmbr0", "-s", network.subnet, "!", "-d",
+                 CHALLENGES_ROOT_SUBNET_CIDR, "-j", "MASQUERADE"], check=False, capture_output=True)
+            subprocess.run(
+                ["iptables", "-D", "FORWARD", "-i", network.host_device, "-o", "vmbr0", "-s", network.subnet, "!",
+                 "-d", CHALLENGES_ROOT_SUBNET_CIDR, "-m","conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j",
+                 "ACCEPT"], check=False, capture_output=True)
+            subprocess.run(
+                ["iptables", "-D", "FORWARD", "-i", "vmbr0", "-o", network.host_device, "-d", network.subnet, "!",
+                 "-s", CHALLENGES_ROOT_SUBNET_CIDR, "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j",
+                 "ACCEPT"], check=False, capture_output=True)
 
 
 def stop_dnsmasq_instances(challenge):

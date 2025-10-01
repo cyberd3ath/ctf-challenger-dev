@@ -32,7 +32,7 @@
 ## Proxmox
 - (MODERATE, FIXED) Only 1 core and 2GB RAM assigned to webserver and database VMs, which may be insufficient under load.
 - (LOW, FIXED, updated to 8.4.14, upgrade to 9.x if possible) Used Proxmox Version 8.4.0 which misses some recent security patches relating to containers being created as privileged by default through the API and CLI and used 154 upgradable packages.
-
+- (HIGH, FIXED) A firewall rule was missing to restrict access to the Proxmox host through the VPN network, allowing access to the same ports as through the secure internal network
 ## Challenge VM Breakout
 - (HIGH, FIXED) CPU: host passthrough in Challenge VM import might expose host CPU vulnerabilities to the VM. Also using kvm64 future-proofs for possible cluster migration.
 
