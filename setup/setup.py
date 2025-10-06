@@ -1358,7 +1358,7 @@ def setup_database(conn=None, create_admin_config=True):
         sql_dir=database_functions_path,
         output_file=udf_migration_path,
         target_schema="api",
-        owner_role="app_owner",
+        owner_role="postgres",
         limited_user=WEBSERVER_DATABASE_USER,
         limited_user_password=WEBSERVER_DATABASE_PASSWORD,
         database_name=DATABASE_NAME
