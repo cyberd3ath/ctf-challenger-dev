@@ -790,6 +790,13 @@ def setup_database_server():
         except Exception:
             pass
 
+    print("\tStopping unattended-upgrades service on database server")
+    try:
+        execute_command("sudo systemctl stop unattended-upgrades")
+        execute_command("sudo systemctl disable unattended-upgrades")
+    except Exception as e:
+        print(f"\tFailed to stop unattended-upgrades: {e}")
+
     # Synchronize the time with NTP server
     print("\tSynchronizing server time with NTP server")
     execute_command("sudo timedatectl set-timezone Europe/Berlin")
@@ -911,6 +918,13 @@ def setup_webserver():
 
         except Exception:
             pass
+
+    print("\tStopping unattended-upgrades service on webserver")
+    try:
+        execute_command("sudo systemctl stop unattended-upgrades")
+        execute_command("sudo systemctl disable unattended-upgrades")
+    except Exception as e:
+        print(f"\tFailed to stop unattended-upgrades: {e}")
 
     os.makedirs(f"{WEBSERVER_FILES_DIR}/html/uploads", exist_ok=True)
     os.makedirs(f"{WEBSERVER_FILES_DIR}/html/uploads/avatars", exist_ok=True)
