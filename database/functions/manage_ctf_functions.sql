@@ -32,7 +32,7 @@ $$;
 
 CREATE FUNCTION get_challenge_template_id_by_name_with_possible_exclude(
     p_name TEXT,
-    p_exclude_challenge_template_id INT DEFAULT NULL
+    p_exclude_challenge_template_id INT
 ) RETURNS INT
 LANGUAGE plpgsql
 AS $$
