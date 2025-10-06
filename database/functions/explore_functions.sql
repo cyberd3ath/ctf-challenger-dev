@@ -17,7 +17,9 @@ RETURNS TABLE (
     is_active BOOLEAN,
     solved_count INT,
     attempted_count INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH solved_challenges AS (
@@ -90,7 +92,7 @@ BEGIN
         ct.id
     LIMIT p_limit OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION explore_challenges_count(
@@ -98,7 +100,9 @@ CREATE FUNCTION explore_challenges_count(
     p_difficulty challenge_difficulty,
     p_search TEXT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(*)
@@ -112,14 +116,16 @@ BEGIN
         )
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_solved_challenge(
     p_user_id INT,
     p_challenge_template_id INT
 )
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         WITH challenge_total_points AS (
@@ -148,5 +154,5 @@ BEGIN
         WHERE ct.id = p_challenge_template_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 

@@ -1,9 +1,11 @@
 CREATE FUNCTIOn get_total_announcement_count()
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (SELECT COUNT(*) FROM announcements);
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_announcements(
@@ -20,14 +22,16 @@ RETURNS TABLE (
     author TEXT,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT * FROM announcements
     ORDER BY created_at DESC
     LIMIT p_limit OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_announcement(
@@ -38,7 +42,9 @@ CREATE FUNCTION create_announcement(
     p_category announcement_category,
     p_author TEXT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO announcements (
         title,
@@ -60,7 +66,7 @@ BEGIN
         CURRENT_TIMESTAMP
     ) RETURNING id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION update_announcement(
@@ -71,7 +77,9 @@ CREATE FUNCTION update_announcement(
     p_importance announcement_importance,
     p_category announcement_category
 )
-RETURNS VOID AS $$
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE announcements
     SET
@@ -83,23 +91,27 @@ BEGIN
         updated_at = CURRENT_TIMESTAMP
     WHERE id = p_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION announcement_exists(p_id INT)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN EXISTS (SELECT 1 FROM announcements WHERE id = p_id);
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION delete_announcement(p_id INT)
-RETURNS VOID AS $$
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     DELETE FROM announcements WHERE id = p_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_filtered_announcements(
@@ -118,7 +130,9 @@ RETURNS TABLE (
     author TEXT,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 DECLARE
     v_start_date TIMESTAMP;
 BEGIN
@@ -141,14 +155,16 @@ BEGIN
     ORDER BY a.created_at DESC, a.id ASC
     LIMIT p_limit OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_filtered_announcements_count(
     p_importance announcement_importance,
     p_date_range TEXT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN COUNT(*) FROM get_filtered_announcements(
         p_importance,
@@ -157,4 +173,4 @@ BEGIN
         NULL
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;

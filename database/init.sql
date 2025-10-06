@@ -2,16 +2,20 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 
 CREATE OR REPLACE FUNCTION generate_random_default_avatar()
-RETURNS VARCHAR AS $$
+RETURNS VARCHAR
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN '/assets/avatars/avatar' || (FLOOR(1 + RANDOM() * 3))::INT::TEXT || '.png';
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 
 CREATE OR REPLACE FUNCTION assign_lowest_vpn_ip(user_id_param INT)
-RETURNS INET AS $$
+RETURNS INET
+LANGUAGE plpgsql
+AS $$
 DECLARE
     selected_ip INET;
 BEGIN
@@ -31,12 +35,14 @@ BEGIN
 
     RETURN selected_ip;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 
 CREATE OR REPLACE FUNCTION assign_challenge_subnet()
-RETURNS INET AS $$
+RETURNS INET
+LANGUAGE plpgsql
+AS $$
 DECLARE
     selected_subnet INET;
 BEGIN
@@ -56,7 +62,7 @@ BEGIN
 
     RETURN selected_subnet;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 
@@ -70,7 +76,9 @@ CREATE TABLE user_id_reclaim (
 );
 
 CREATE OR REPLACE FUNCTION allocate_user_id()
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
 DECLARE
     new_id INTEGER;
 BEGIN
@@ -89,16 +97,18 @@ BEGIN
 
     RETURN new_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE FUNCTION reclaim_user_id()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO user_id_reclaim (id) VALUES (OLD.id)
         ON CONFLICT DO NOTHING;
     RETURN OLD;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 
@@ -113,7 +123,9 @@ CREATE TABLE machine_id_reclaim (
 );
 
 CREATE OR REPLACE FUNCTION allocate_machine_id()
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
 DECLARE
     new_id INTEGER;
 BEGIN
@@ -131,16 +143,18 @@ BEGIN
 
     RETURN new_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE FUNCTION reclaim_machine_id()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO machine_id_reclaim (id) VALUES (OLD.id)
         ON CONFLICT DO NOTHING;
     RETURN OLD;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 
@@ -155,7 +169,9 @@ CREATE TABLE machine_template_id_reclaim (
 );
 
 CREATE OR REPLACE FUNCTION allocate_machine_template_id()
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
 DECLARE
     new_id INTEGER;
 BEGIN
@@ -173,16 +189,18 @@ BEGIN
 
     RETURN new_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE FUNCTION reclaim_machine_template_id()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO machine_template_id_reclaim (id) VALUES (OLD.id)
         ON CONFLICT DO NOTHING;
     RETURN OLD;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 
@@ -196,7 +214,9 @@ CREATE TABLE network_id_reclaim (
 );
 
 CREATE OR REPLACE FUNCTION allocate_network_id()
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
 DECLARE
     new_id INTEGER;
 BEGIN
@@ -214,16 +234,18 @@ BEGIN
 
     RETURN new_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE FUNCTION reclaim_network_id()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO network_id_reclaim (id) VALUES (OLD.id)
         ON CONFLICT DO NOTHING;
     RETURN OLD;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 
@@ -237,7 +259,9 @@ CREATE TABLE challenge_id_reclaim (
 );
 
 CREATE OR REPLACE FUNCTION allocate_challenge_id()
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
 DECLARE
     new_id INTEGER;
 BEGIN
@@ -255,16 +279,18 @@ BEGIN
 
     RETURN new_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE FUNCTION reclaim_challenge_id()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO challenge_id_reclaim (id) VALUES (OLD.id)
         ON CONFLICT DO NOTHING;
     RETURN OLD;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 

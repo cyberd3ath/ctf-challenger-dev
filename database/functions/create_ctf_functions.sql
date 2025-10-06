@@ -1,14 +1,16 @@
 CREATE FUNCTION count_user_challenges_with_same_name(
     p_name TEXT,
     p_user_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(*) FROM challenge_templates
         WHERE LOWER(name) = LOWER(p_name) AND creator_id = p_user_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_challenge_template(
@@ -21,7 +23,9 @@ CREATE FUNCTION create_challenge_template(
     p_creator_id INT,
     p_hint TEXT,
     p_solution TEXT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 DECLARE
     new_challenge_id INT;
 BEGIN
@@ -48,13 +52,15 @@ BEGIN
      ) RETURNING id INTO new_challenge_id;
     RETURN new_challenge_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_proxmox_filename_for_user_disk_file(
     p_user_id INT,
     p_filename TEXT
-) RETURNS TEXT AS $$
+) RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT proxmox_filename FROM disk_files
@@ -62,7 +68,7 @@ BEGIN
         LIMIT 1
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_machine_template(
@@ -71,7 +77,9 @@ CREATE FUNCTION create_machine_template(
     p_disk_file_path TEXT,
     p_cores INT,
     p_ram_gb INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 DECLARE
     new_machine_id INT;
 BEGIN
@@ -90,13 +98,15 @@ BEGIN
     ) RETURNING id INTO new_machine_id;
     RETURN new_machine_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_domain_template(
     p_machine_template_id INT,
     p_domain_name TEXT,
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO domain_templates (
         machine_template_id,
@@ -106,14 +116,16 @@ BEGIN
         p_domain_name
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_network_template(
     p_name TEXT,
     p_accessible BOOLEAN,
     p_is_dmz BOOLEAN
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 DECLARE
     new_network_id INT;
 BEGIN
@@ -128,13 +140,15 @@ BEGIN
     ) RETURNING id INTO new_network_id;
     RETURN new_network_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_machine_template_id_by_name_and_challenge_id(
     p_name TEXT,
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT id FROM machine_templates
@@ -142,13 +156,15 @@ BEGIN
         LIMIT 1
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_network_connection_template(
     p_machine_template_id INT,
     p_network_template_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO network_connection_templates (
         machine_template_id,
@@ -158,7 +174,7 @@ BEGIN
         p_network_template_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_challenge_flag(
@@ -167,7 +183,9 @@ CREATE FUNCTION create_challenge_flag(
     p_description TEXT,
     p_points INT,
     p_order_index INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO challenge_flags (
         challenge_template_id,
@@ -183,7 +201,7 @@ BEGIN
         p_order_index
     ) RETURNING id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_challenge_hint(
@@ -191,7 +209,9 @@ CREATE FUNCTION create_challenge_hint(
     p_hint_text TEXT,
     p_unlock_points INT,
     p_order_index INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO challenge_hints (
         challenge_template_id,
@@ -205,7 +225,7 @@ BEGIN
         p_order_index
     ) RETURNING id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_available_disk_files(
@@ -214,7 +234,9 @@ CREATE FUNCTION get_user_available_disk_files(
     id INT,
     display_name TEXT,
     upload_date TIMESTAMP
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -225,7 +247,7 @@ BEGIN
     WHERE user_id = p_user_id
     ORDER BY upload_date DESC, id ASC;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 

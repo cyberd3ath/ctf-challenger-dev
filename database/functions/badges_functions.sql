@@ -10,7 +10,9 @@ RETURNS TABLE (
     requirements TEXT,
     earned_at TIMESTAMP,
     earned BOOLEAN
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -26,13 +28,15 @@ BEGIN
     LEFT JOIN user_badges ub ON ub.badge_id = b.id AND ub.user_id = p_user_id
     ORDER BY b.rarity DESC, b.name, b.id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_solved_challenge_count(
     p_user_id INT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH user_completed_flags AS (
@@ -63,14 +67,16 @@ BEGIN
     FROM user_solved_challenges
     WHERE user_id = p_user_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_solved_challenge_count_in_category(
     p_user_id INT,
     p_category challenge_category
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH user_completed_flags AS (
@@ -103,13 +109,15 @@ BEGIN
     FROM user_solved_challenges
     WHERE user_id = p_user_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_total_points(
     p_user_id INT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT COALESCE(SUM(cf.points), 0)
@@ -117,14 +125,16 @@ BEGIN
     JOIN challenge_flags cf ON cf.id = cc.flag_id
     WHERE cc.user_id = p_user_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_earned_badges_count_exclude_one(
     p_user_id INT,
     p_exclude_badge_id INT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT COUNT(*)
@@ -133,17 +143,19 @@ BEGIN
     WHERE ub.user_id = p_user_id
     AND b.id != p_exclude_badge_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_total_badge_count_exclude_one(
     p_exclude_badge_id INT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (SELECT COUNT(*) FROM badges WHERE id != p_exclude_badge_id);
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_total_badge_count_and_user_earned_count(
@@ -152,14 +164,16 @@ CREATE FUNCTION get_total_badge_count_and_user_earned_count(
 RETURNS TABLE (
     total_badges INT,
     earned_badges INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
         (SELECT COUNT(*) FROM badges) AS total_badges,
         (SELECT COUNT(*) FROM user_badges WHERE user_id = p_user_id) AS earned_badges;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 

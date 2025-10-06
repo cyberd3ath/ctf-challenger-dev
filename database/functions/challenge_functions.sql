@@ -1,11 +1,13 @@
 CREATE FUNCTIOn get_user_running_challenge(
     p_user_id INT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN ( SELECT running_challenge FROM users WHERE id = p_user_id );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_deployable_conditions(
@@ -14,7 +16,9 @@ CREATE FUNCTION get_deployable_conditions(
 RETURNS TABLE (
     marked_for_deletion BOOLEAN,
     is_active BOOLEAN
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -23,26 +27,30 @@ BEGIN
     FROM challenge_templates
     WHERE id = p_challenge_template_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_creator_id_by_challenge_template(
     p_challenge_template_id INT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT creator_id FROM challenge_templates
         WHERE id = p_challenge_template_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_new_challenge_attempt(
     p_user_id INT,
     p_challenge_template_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO completed_challenges (
         user_id,
@@ -54,13 +62,15 @@ BEGIN
         CURRENT_TIMESTAMP
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION mark_attempt_completed(
     p_user_id INT,
     p_challenge_template_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE completed_challenges
     SET completed_at = CURRENT_TIMESTAMP
@@ -68,13 +78,15 @@ BEGIN
     AND challenge_template_id = p_challenge_template_id
     AND completed_at IS NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION challenge_template_should_be_deleted(
     p_challenge_template_id INT
 )
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 DECLARE
     v_count INT;
     v_marked_for_deletion BOOLEAN;
@@ -89,17 +101,19 @@ BEGIN
 
     RETURN v_count = 0 AND v_marked_for_deletion;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION delete_challenge_template(
     p_challenge_template_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     DELETE FROM challenge_templates
     WHERE id = p_challenge_template_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION validate_and_lock_flag(
@@ -108,7 +122,9 @@ CREATE FUNCTION validate_and_lock_flag(
 ) RETURNS TABLE (
     id INT,
     points INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT id, points FROM challenge_flags
@@ -116,14 +132,16 @@ BEGIN
     AND flag = p_submitted_flag
     FOR UPDATE;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION is_duplicate_flag_submission(
     p_user_id INT,
     p_challenge_template_id INT,
     p_flag_id INT
-) RETURNS BOOLEAN AS $$
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN EXISTS (
         SELECT 1 FROM completed_challenges
@@ -133,13 +151,15 @@ BEGIN
         FOR UPDATE
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_submitted_flags_count_for_challenge(
     p_user_id INT,
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(DISTINCT flag_id)
@@ -149,25 +169,29 @@ BEGIN
         AND flag_id IS NOT NULL
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_total_flags_count_for_challenge(
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(*) FROM challenge_flags
         WHERE challenge_template_id = p_challenge_template_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_active_attempt_id(
     p_user_id INT,
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT id FROM completed_challenges
@@ -177,13 +201,15 @@ BEGIN
         FOR UPDATE
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION update_running_attempt(
     p_flag_id INT,
     p_attempt_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE completed_challenges
     SET
@@ -191,14 +217,16 @@ BEGIN
         completed_at = CURRENT_TIMESTAMP
     WHERE id = p_attempt_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION create_new_completed_attempt(
     p_user_id INT,
     p_challenge_template_id INT,
     p_flag_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO completed_challenges (
         user_id,
@@ -214,13 +242,15 @@ BEGIN
         CURRENT_TIMESTAMP
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTIOn get_recent_unflagged_attempt(
     p_user_id INT,
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT id FROM completed_challenges
@@ -233,19 +263,21 @@ BEGIN
         FOR UPDATE
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION update_recent_attempt(
     p_flag_id INT,
     p_attempt_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE completed_challenges
     SET flag_id = p_flag_id
     WHERE id = p_attempt_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_challenge_template_details(
@@ -266,7 +298,9 @@ RETURNS TABLE (
     creator_username TEXT,
     creator_id INT,
     solve_count INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -305,14 +339,16 @@ BEGIN
     WHERE ct.id = p_challenge_template_id
     GROUP BY ct.id, u.username, ct.creator_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_challenge_user_status(
     p_user_id INT,
     p_challenge_template_id INT
 )
-RETURNS TEXT AS $$
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT
@@ -362,12 +398,14 @@ BEGIN
         WHERE id = p_user_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_challenge_solution(
     p_challenge_template_id INT
-) RETURNS TEXT AS $$
+) RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT
@@ -376,13 +414,15 @@ BEGIN
         WHERE id = p_challenge_template_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_remaining_seconds_for_user_challenge(
     p_user_id INT,
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT EXTRACT(EPOCH FROM (c.expires_at - CURRENT_TIMESTAMP))::INT AS remaining_seconds
@@ -392,7 +432,7 @@ BEGIN
         AND c.challenge_template_id = p_challenge_template_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_challenge_flags(
@@ -405,7 +445,9 @@ RETURNS TABLE (
     description TEXT,
     points INT,
     order_index INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -419,7 +461,7 @@ BEGIN
     WHERE challenge_template_id = p_challenge_template_id
     ORDER BY order_index, id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_unlocked_challenge_hints(
@@ -432,7 +474,9 @@ RETURNS TABLE (
     hint_text TEXT,
     unlock_points INT,
     order_index INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -446,7 +490,7 @@ BEGIN
     AND unlock_points <= p_user_points
     ORDER BY order_index, id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTIOn get_completed_flag_ids_for_user(
@@ -454,21 +498,25 @@ CREATE FUNCTIOn get_completed_flag_ids_for_user(
     p_challenge_template_id INT
 ) RETURNS TABLE (
     flag_id INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT flag_id FROM completed_challenges
     WHERE user_id = p_user_id AND challenge_template_id = p_challenge_template_id
     AND flag_id IS NOT NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_entrypoints_for_user_challenge(
     p_user_id INT
 ) RETURNS TABLE (
     subnet INET
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT DISTINCT n.subnet
@@ -480,13 +528,15 @@ BEGIN
     WHERE u.id = p_user_id
     AND nt.accessible = TRUE;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION is_first_blood(
     p_challenge_template_id INT,
     p_user_id INT
-) RETURNS BOOLEAN AS $$
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 BEGIN
     SELECT NOT EXISTS (
         SELECT 1 FROM (
@@ -503,13 +553,15 @@ BEGIN
         ) AS is_first_blood
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_remaining_extensions_for_user_challenge(
     p_user_id INT,
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT used_extensions
@@ -519,25 +571,29 @@ BEGIN
         AND c.challenge_template_id = p_challenge_template_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_category_of_challenge_instance(
     p_challenge_id INT
-) RETURNS challenge_category AS $$
+) RETURNS challenge_category
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT category FROM challenge_templates WHERE id = p_challenge_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_solved_challenges_in_category(
     p_user_id INT,
     p_category challenge_category
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(DISTINCT ct.id)
@@ -556,13 +612,15 @@ BEGIN
             WHERE ct.category::text ILIKE p_category
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION count_user_badges_excluding_one(
     p_user_id INT,
     p_excluded_badge_id INT
-) RETURNS BOOLEAN AS $$
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(DISTINCT b.id) FROM badges b
@@ -570,41 +628,47 @@ BEGIN
         WHERE b.id != p_excluded_badge_id AND ub.user_id IS NULL
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION badge_with_id_exists(
     p_badge_id INT
-) RETURNS BOOLEAN AS $$
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN EXISTS (SELECT 1 FROM badges WHERE id = p_badge_id);
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION user_already_has_badge(
     p_user_id INT,
     p_badge_id INT
-) RETURNS BOOLEAN AS $$
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN EXISTS (
         SELECT 1 FROM user_badges
         WHERE user_id = p_user_id AND badge_id = p_badge_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION award_badge_to_user(
     p_user_id INT,
     p_badge_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     INSERT INTO user_badges (user_id, badge_id, earned_at)
     VALUES (p_user_id, p_badge_id, CURRENT_TIMESTAMP)
     ON CONFLICT (user_id, badge_id) DO NOTHING;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_id_and_used_extensions_of_running_challenge(
@@ -613,7 +677,9 @@ CREATE FUNCTION get_id_and_used_extensions_of_running_challenge(
 ) RETURNS TABLE (
     id INT,
     used_extensions INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -625,13 +691,15 @@ BEGIN
     AND c.challenge_template_id = p_challenge_template_id
     FOR UPDATE;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION extend_user_challenge_time(
     p_challenge_id INT,
     p_extend_scalar INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE challenges
     SET
@@ -639,7 +707,7 @@ BEGIN
         used_extensions = used_extensions + 1
     WHERE id = p_challenge_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 

@@ -5,7 +5,9 @@ CREATE FUNCTION get_user_data_dashboard(
     total_points INT,
     solved_count INT,
     user_rank INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH user_points AS (
@@ -45,7 +47,7 @@ BEGIN
     FROM users u
     WHERE u.id = p_user_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_progress_data_dashboard(
@@ -55,7 +57,9 @@ CREATE FUNCTION get_progress_data_dashboard(
     failed_count INT,
     total_attempts INT,
     avg_time_seconds INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH solved_challenges AS (
@@ -91,17 +95,19 @@ BEGIN
     FROM completed_challenges
     WHERE user_id = p_user_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_total_active_challenges_count_dashboard()
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(*) AS total_challenges FROM challenge_templates WHERE is_active = true
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_activity_dashboard(
@@ -119,7 +125,9 @@ CREATE FUNCTION get_user_activity_dashboard(
     completed_at TIMESTAMP,
     status TEXT,
     time_ago TEXT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH user_completed_flags AS (
@@ -207,7 +215,7 @@ BEGIN
     ORDER BY COALESCE(sc.completed_at, ca.completed_at, ca.started_at) DESC
     LIMIT p_limit;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_badges_data_dashboard(
@@ -218,7 +226,9 @@ CREATE FUNCTION get_user_badges_data_dashboard(
     description TEXT,
     icon TEXT,
     color badge_color
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT b.id, b.name, b.description, b.icon, b.color
@@ -226,7 +236,7 @@ BEGIN
     JOIN badges b ON b.id = ub.badge_id
     WHERE ub.user_id = p_user_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_progress_data_dashboard(
@@ -235,7 +245,9 @@ CREATE FUNCTION get_user_progress_data_dashboard(
     solved_count INT,
     total_badges INT,
     earned_badges INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH user_completed_flags AS (
@@ -264,7 +276,7 @@ BEGIN
         (SELECT COUNT(*) FROM user_badges WHERE user_id = p_user_id) AS earned_badges
     FROM user_solved_challenges;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTIOn get_challenges_data_dashboard(
@@ -277,7 +289,9 @@ CREATE FUNCTIOn get_challenges_data_dashboard(
     difficulty challenge_difficulty,
     solved_count INT,
     attempted_count INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH user_solved_challenges AS (
@@ -337,7 +351,7 @@ BEGIN
         COALESCE(gsc.solved_count, 0)::float / NULLIF(COALESCE(ac.attempted_count, 0), 0) DESC
     LIMIT 5;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTIOn get_timeline_data_dashboard(
@@ -351,7 +365,9 @@ CREATE FUNCTIOn get_timeline_data_dashboard(
     points_sum INT,
     challenge_count INT,
     challenge_details TEXT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH date_series AS (
@@ -403,7 +419,7 @@ BEGIN
         challenge_details
     FROM daily_points;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_announcements_data_dashboard()
@@ -415,7 +431,9 @@ RETURNS TABLE (
     category announcement_category,
     author TEXT,
     created_at TEXT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -430,12 +448,14 @@ BEGIN
     ORDER BY created_at DESC
     LIMIT 3;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_challenge_template_id_from_challenge_id(
     p_challenge_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT challenge_template_id
@@ -444,7 +464,7 @@ BEGIN
         LIMIT 1
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_running_challenge_data_dashboard(
@@ -459,7 +479,9 @@ RETURNS TABLE (
     points INT,
     current_attempt_started_at TIMESTAMP,
     completed_challenge_id INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -478,5 +500,5 @@ BEGIN
     WHERE ct.id = p_challenge_template_id
     LIMIT 1;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 

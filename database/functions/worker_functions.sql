@@ -5,7 +5,7 @@ RETURNS TABLE (
     challenge_id INT,
     challenge_template_id INT,
     expires_at TIMESTAMP
-) AS $$
+)
 BEGIN
     RETURN QUERY
     SELECT
@@ -18,4 +18,4 @@ BEGIN
     JOIN challenges c ON u.running_challenge = c.id
     WHERE c.expires_at <= CURRENT_TIMESTAMP;
 END;
-$$ LANGUAGE plpgsql;
+$$;

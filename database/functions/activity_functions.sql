@@ -23,7 +23,9 @@ RETURNS TABLE (
     description TEXT,
     item_type TEXT,
     flag_id INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 DECLARE
     v_date_start TIMESTAMP;
 BEGIN
@@ -162,7 +164,7 @@ BEGIN
     ORDER BY activity_date DESC, item_id
     LIMIT p_limit OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_user_activities_total_count(
@@ -171,7 +173,9 @@ CREATE FUNCTION get_user_activities_total_count(
     p_type_filter TEXT,
     p_date_range TEXT
 )
-RETURNS INT AS $$
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(*) FROM get_user_activities(
@@ -184,6 +188,6 @@ BEGIN
         )
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 

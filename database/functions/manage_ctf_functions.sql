@@ -1,6 +1,8 @@
 CREATE FUNCTION get_creator_id_by_challenge_id(
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT creator_id
@@ -8,12 +10,14 @@ BEGIN
         WHERE id = p_challenge_template_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_total_leaderboard_entries_for_author(
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(DISTINCT cc.user_id) AS total
@@ -23,13 +27,15 @@ BEGIN
         AND cf.points > 0
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_challenge_template_id_by_name_with_possible_exclude(
     p_name TEXT,
     p_exclude_challenge_template_id INT DEFAULT NULL
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT id FROM challenge_templates
@@ -38,7 +44,7 @@ BEGIN
         LIMIT 1
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_challenge_template_data_for_deletion(
@@ -47,19 +53,23 @@ CREATE FUNCTION get_challenge_template_data_for_deletion(
 ) RETURNS TABLE (
     id INT,
     marked_for_deletion BOOLEAN
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT id, marked_for_deletion
     FROM challenge_templates
     WHERE id = p_challenge_template_id AND creator_id = p_user_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION challenge_template_is_marked_for_deletion(
     p_challenge_template_id INT
-) RETURNS BOOLEAN AS $$
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT marked_for_deletion
@@ -67,7 +77,7 @@ BEGIN
         WHERE id = p_challenge_template_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION update_challenge_template(
@@ -79,7 +89,9 @@ CREATE FUNCTION update_challenge_template(
     p_hint TEXT,
     p_solution TEXT,
     p_is_active BOOLEAN
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE challenge_templates SET
         name = p_name,
@@ -92,19 +104,21 @@ BEGIN
         updated_at = CURRENT_TIMESTAMP
     WHERE id = p_challenge_template_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION restore_challenge_template(
     p_challenge_template_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE challenge_templates SET
         marked_for_deletion = FALSE,
         is_active = TRUE
     WHERE id = p_challenge_template_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION verify_challenge_template_ownership_for_deletion(
@@ -113,24 +127,28 @@ CREATE FUNCTION verify_challenge_template_ownership_for_deletion(
 ) RETURNS TABLE (
     id INT,
     name TEXT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT id, name FROM challenge_templates
     WHERE id = p_challenge_template_id AND creator_id = p_user_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION mark_challenge_template_for_deletion(
     p_challenge_template_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE challenge_templates SET
         marked_for_deletion = TRUE
     WHERE id = p_challenge_template_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_running_instances_of_challenge_template(
@@ -139,7 +157,9 @@ CREATE FUNCTION get_running_instances_of_challenge_template(
     id INT,
     user_id INT,
     challenge_id INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT u.id AS user_id, c.id AS challenge_id
@@ -147,12 +167,14 @@ BEGIN
     JOIN challenges c ON u.running_challenge = c.id
     WHERE c.challenge_template_id = p_challenge_template_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION count_active_deployments_of_challenge_template(
     p_challenge_template_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(c.id) AS active_count
@@ -162,19 +184,21 @@ BEGIN
         AND u.running_challenge IS NOT NULL
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION mark_challenge_template_for_soft_deletion(
     p_challenge_template_id INT
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE challenge_templates SET
         marked_for_deletion = TRUE,
         is_active = FALSE
     WHERE id = p_challenge_template_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_challenge_templates_for_management(
@@ -195,7 +219,9 @@ CREATE FUNCTION get_challenge_templates_for_management(
     active_deployments INT,
     solve_count INT,
     avg_completion_minutes INT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     WITH flag_counts AS (
@@ -305,24 +331,28 @@ BEGIN
     WHERE ct.creator_id = p_user_id
     ORDER BY ct.created_at DESC;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_challenge_template_count_for_user(
     p_user_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(*) FROM challenge_templates
         WHERE creator_id = p_user_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_active_deployments_of_challenge_templates_by_user(
     p_user_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COUNT(DISTINCT c.id)
@@ -332,12 +362,14 @@ BEGIN
         WHERE ct.creator_id = p_user_id AND u.running_challenge IS NOT NULL
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_total_deployments_of_challenge_templates_by_user(
     p_user_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         SELECT COALESCE(SUM(total_count), 0)
@@ -351,12 +383,14 @@ BEGIN
         WHERE ct.creator_id = p_user_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 CREATE FUNCTION get_average_completion_time_of_challenge_templates_by_user(
     p_user_id INT
-) RETURNS INT AS $$
+) RETURNS INT
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN (
         WITH flag_counts AS (
@@ -408,5 +442,5 @@ BEGIN
             WHERE ct.creator_id = p_user_id
     );
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
