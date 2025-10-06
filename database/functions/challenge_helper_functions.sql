@@ -27,7 +27,7 @@ $$;
 CREATE FUNCTION get_elapsed_seconds_for_challenge(
     p_user_id INT,
     p_challenge_template_id INT
-) RETURNS INT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -80,7 +80,7 @@ CREATE FUNCTION get_solved_leaderboard(
 ) RETURNS TABLE (
     username TEXT,
     avatar_url TEXT,
-    total_seconds INT,
+    total_seconds BIGINT,
     rank INT
 )
 LANGUAGE plpgsql
@@ -150,7 +150,7 @@ CREATE FUNCTION get_challenge_leaderboard(
     username TEXT,
     avatar_url TEXT,
     total_points INT,
-    total_seconds INT,
+    total_seconds BIGINT,
     rank INT
 )
 LANGUAGE plpgsql
