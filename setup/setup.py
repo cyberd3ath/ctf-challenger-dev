@@ -1331,7 +1331,7 @@ def setup_database(conn=None, create_admin_config=True):
     with conn.cursor() as cursor:
         cursor.execute(init_script)
 
-    for functions_file in os.listdir(os.join(DATABASE_FILES_DIR, "functions")):
+    for functions_file in os.listdir(os.path.join(DATABASE_FILES_DIR, "functions")):
         if functions_file.endswith(".sql"):
             if not connection_managed_externally:
                 print(f"\tExecuting functions/{functions_file} script")
