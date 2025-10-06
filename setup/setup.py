@@ -279,6 +279,7 @@ def setup_api_token():
 
     print("\tSetting up web server API token")
 
+    user_id = f"{PROXMOX_USER}"
     token_id = f"webserver-token"
     comment = "Webserver API token"
     privsep = 1
@@ -291,7 +292,7 @@ def setup_api_token():
     print("\tRestricting web server API token permissions")
 
     permissions = [
-        {"path": f"/storage/local-lvm", "roles": "Datastore.AllocateTemplate", "tokens": token_id},
+        {"path": f"/storage/local-lvm", "roles": "Datastore.AllocateTemplate", "tokens": f"{user_id}!{token_id}"},
     ]
 
     for perm in permissions:
