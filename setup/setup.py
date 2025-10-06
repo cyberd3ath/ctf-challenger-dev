@@ -295,7 +295,7 @@ def setup_api_token():
     ]
 
     for perm in permissions:
-        proxmox.access.acl.post(
+        proxmox.access.acl.put(
             path=perm["path"],
             roles=perm["roles"],
             tokens=perm["tokens"],
