@@ -371,7 +371,7 @@ class ProfileHandler
             }
 
             $rankStmt = $this->pdo->prepare("
-                SELECT user_rank FROM get_user_rank(:user_id, :user_points)
+                SELECT get_user_rank(:user_id, :user_points) AS user_rank
             ");
             $rankStmt->execute([
                 'user_id' => $this->userId,
@@ -480,7 +480,7 @@ class ProfileHandler
                 ];
             }, $badges);
 
-            $totalStmt = $this->pdo->query("SELECT total FROM get_total_badges_count()");
+            $totalStmt = $this->pdo->query("SELECT get_total_badges_count() AS total");
             $totalBadges = (int)$totalStmt->fetch(PDO::FETCH_ASSOC)['total'];
 
             $earnedCount = count($sanitizedBadges);
@@ -1157,7 +1157,7 @@ class ProfileHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT ova_id, proxmox_filename FROM get_user_disk_files(:user_id)
+                SELECT ova_id, proxmox_filename FROM get_user_disk_files_display_data(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $ovas = $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -6,6 +6,8 @@ RETURNS TABLE (
     challenge_template_id INT,
     expires_at TIMESTAMP
 )
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT

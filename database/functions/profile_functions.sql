@@ -472,7 +472,7 @@ END;
 $$;
 
 
-CREATE FUNCTION get_user_disk_files(p_user_id INT)
+CREATE FUNCTION get_user_disk_files_display_data(p_user_id INT)
 RETURNS TABLE(
     ova_id           INT,
     proxmox_filename TEXT

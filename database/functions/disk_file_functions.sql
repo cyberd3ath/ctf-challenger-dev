@@ -1,4 +1,4 @@
-CREATE FUNCTIOn get_user_disk_files(
+CREATE FUNCTION get_user_disk_files(
     p_user_id INT
 )
 RETURNS TABLE (
