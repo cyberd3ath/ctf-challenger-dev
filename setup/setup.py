@@ -109,13 +109,13 @@ def setup():
     allow_ova_upload_to_proxmox()
 
     print("\nSetting up Proxmox API token")
-    api_token = setup_api_token()
+    backend_api_token, web_server_api_token = setup_api_token()
 
     print("\nSetting up backend network")
-    setup_backend_network(api_token)
+    setup_backend_network(backend_api_token)
 
     print("\nGenerating and distributing environment files")
-    generate_and_distribute_env_files(api_token)
+    generate_and_distribute_env_files(backend_api_token, web_server_api_token)
 
     print("\nSetting up backend DNSMasq")
     setup_backend_dnsmasq()
@@ -124,7 +124,7 @@ def setup():
     setup_openvpn_server()
 
     print("\nSetting up web and database server")
-    webserver_id, database_id = setup_web_and_database_server(api_token)
+    webserver_id, database_id = setup_web_and_database_server(backend_api_token)
 
     print("\nSetting up iptables")
     setup_iptables()
@@ -136,7 +136,7 @@ def setup():
     setup_webserver()
 
     print("\nSetting up OpenVPN server")
-    validate_running_and_reachable(webserver_id, database_id, api_token)
+    validate_running_and_reachable(webserver_id, database_id, backend_api_token)
 
     print("\nSetting up database")
     setup_database()
@@ -248,8 +248,10 @@ lvmthin: local-lvm
 
 def setup_api_token():
     """
-    Setup the Proxmox API token.
+    Setup the Backend API token.
     """
+
+    print("\tSetting up setup API token")
 
     proxmox = ProxmoxAPI("localhost", user=PROXMOX_USER, password=PROXMOX_PASSWORD, verify_ssl=False)
 
@@ -263,9 +265,38 @@ def setup_api_token():
         privsep=privsep
     )
 
-    token = {"user": user_id, "token_name": token_id, "token_value": result["value"]}
+    backend_token = {"user": user_id, "token_name": token_id, "token_value": result["value"]}
 
-    return token
+
+    print("\tSetting up web server API token")
+
+    token_id = f"webserver-token"
+    comment = "Webserver API token"
+    privsep = 1
+
+    result = proxmox.access.users(user_id).token(token_id).post(
+        comment=comment,
+        privsep=privsep
+    )
+
+    print("\tRestricting web server API token permissions")
+
+    permissions = [
+        {"path": f"/storage/local-lvm", "roles": "Datastore.AllocateTemplate", "tokens": token_id},
+    ]
+
+    for perm in permissions:
+        proxmox.access.acl.post(
+            path=perm["path"],
+            roles=perm["roles"],
+            tokens=perm["tokens"],
+        )
+
+    web_server_token = {"user": user_id, "token_name": token_id, "token_value": result["value"]}
+
+
+
+    return backend_token, web_server_token
 
 
 def setup_backend_network(api_token):
@@ -291,18 +322,18 @@ def setup_backend_network(api_token):
         pass
 
 
-def generate_and_distribute_env_files(api_token):
+def generate_and_distribute_env_files(backend_api_token, web_server_api_token):
     """
     Generate and distribute the environment files.
     """
 
-    api_token_string = f"{api_token['user']}!{api_token['token_name']}={api_token['token_value']}"
+    backend_api_token_string = f"{backend_api_token['user']}!{backend_api_token['token_name']}={backend_api_token['token_value']}"
+    web_server_api_token_string = f"{web_server_api_token['user']}!{web_server_api_token['token_name']}={web_server_api_token['token_value']}"
 
     # Generate the .env files for the database and webserver
     print("\tGenerating webserver .env file")
     with open(os.path.join(WEBSERVER_FILES_DIR, ".env"), "w") as web_env_file:
-        web_env_file.write(f"PROXMOX_USER='{PROXMOX_USER}'\n")
-        web_env_file.write(f"PROXMOX_PASSWORD='{PROXMOX_PASSWORD}'\n")
+        web_env_file.write(f"PROXMOX_API_TOKEN='{web_server_api_token_string}'\n")
         web_env_file.write(f"PROXMOX_HOST='{PROXMOX_HOST}'\n")
         web_env_file.write(f"PROXMOX_PORT='{PROXMOX_PORT}'\n")
         web_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
@@ -316,6 +347,7 @@ def generate_and_distribute_env_files(api_token):
         web_env_file.write(f"DB_USER='{DATABASE_USER}'\n")
         web_env_file.write(f"DB_PASSWORD='{DATABASE_PASSWORD}'\n")
         web_env_file.write(f"DB_PORT='{DATABASE_PORT}'\n")
+
 
     print("\tGenerating backend .env file")
     with open(os.path.join(BACKEND_FILES_DIR, ".env"), "w") as backend_env_file:
@@ -333,7 +365,7 @@ def generate_and_distribute_env_files(api_token):
         backend_env_file.write(f"DB_PORT='{DATABASE_PORT}'\n")
 
         backend_env_file.write(f"PROXMOX_URL='https://localhost:8006'\n")
-        backend_env_file.write(f"PROXMOX_API_TOKEN='{api_token_string}'\n")
+        backend_env_file.write(f"PROXMOX_API_TOKEN='{backend_api_token_string}'\n")
         backend_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
 
         backend_env_file.write(f"VPN_SERVER_IP='{PROXMOX_EXTERNAL_IP}'\n")
@@ -346,7 +378,7 @@ def generate_and_distribute_env_files(api_token):
         testing_env_file.write(f"PROXMOX_PORT='{PROXMOX_PORT}'\n")
         testing_env_file.write(f"PROXMOX_HOSTNAME='{PROXMOX_HOSTNAME}'\n")
         testing_env_file.write(f"PROXMOX_URL='https://localhost:8006'\n")
-        testing_env_file.write(f"PROXMOX_API_TOKEN='{api_token_string}'\n")
+        testing_env_file.write(f"PROXMOX_API_TOKEN='{backend_api_token_string}'\n")
 
         testing_env_file.write(f"DB_HOST='{DATABASE_HOST}'\n")
         testing_env_file.write(f"DB_NAME='{DATABASE_NAME}'\n")
@@ -942,13 +974,18 @@ def setup_webserver():
     # Transfer ownership of the webserver files to the webserver user
     print("\tSetting ownership of webserver files")
     execute_command("sudo chown root:root /etc/apache2/mods-available/mpm_event.conf")
-    execute_command("sudo chmod 755 /etc/apache2/mods-available/mpm_event.conf")
+    execute_command("sudo chmod 644 /etc/apache2/mods-available/mpm_event.conf")
 
     execute_command(f"sudo chown root:root /etc/php/{php_version}/apache2/php.ini")
-    execute_command("sudo chmod 755 /etc/apache2/apache2.conf")
+    execute_command("sudo chmod 644 /etc/apache2/apache2.conf")
 
     execute_command("sudo chown -R root:root /var/www/html/")
-    execute_command("sudo chmod -R 755 /var/www/html/")
+    execute_command("sudo chmod -R 644 /var/www/html/")
+    execute_command("sudo chmod -R 755 /var/www/html/vendor")
+
+    execute_command("sudo chown -R www-data:www-data /var/www/html/uploads")
+    execute_command("sudo chmod -R 755 /var/www/html/uploads")
+
 
     execute_command("sudo chown root:root /var/www/.env")
     execute_command("sudo chmod 644 /var/www/.env")
@@ -1180,6 +1217,15 @@ def setup_database(conn=None, create_admin_config=True):
         print("\tExecuting init.sql script")
     with conn.cursor() as cursor:
         cursor.execute(init_script)
+
+    for functions_file in os.listdir(os.join(DATABASE_FILES_DIR, "functions")):
+        if functions_file.endswith(".sql"):
+            if not connection_managed_externally:
+                print(f"\tExecuting functions/{functions_file} script")
+            with open(os.path.join(DATABASE_FILES_DIR, "functions", functions_file), "r") as file:
+                functions_script = file.read()
+            with conn.cursor() as cursor:
+                cursor.execute(functions_script)
 
     conn.commit()
 
