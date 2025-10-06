@@ -1308,9 +1308,6 @@ def generate_udf_migration(
         out.write(f"ALTER DEFAULT PRIVILEGES FOR ROLE {owner_role} IN SCHEMA {target_schema}\n")
         out.write(f"GRANT EXECUTE ON FUNCTIONS TO {limited_user};\n")
 
-    print(f"[+] Generated migration script with {len(all_funcs)} functions → {output_file}")
-
-
 
 def setup_database(conn=None, create_admin_config=True):
     """
