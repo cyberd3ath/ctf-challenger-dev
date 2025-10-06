@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 
 CREATE OR REPLACE FUNCTION generate_random_default_avatar()
-RETURNS VARCHAR
+RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -364,15 +364,15 @@ CREATE TABLE vpn_static_ips (
 
 CREATE TABLE users (
     id INT PRIMARY KEY DEFAULT allocate_user_id(),
-    username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    password_salt VARCHAR(255) NOT NULL,
-    avatar_url VARCHAR(255) DEFAULT generate_random_default_avatar(),
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
+    avatar_url TEXT DEFAULT generate_random_default_avatar(),
     email_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP NULL,
-    last_ip VARCHAR(45),
+    last_ip TEXT,
     running_challenge INT,
     is_admin BOOLEAN DEFAULT FALSE,
     vpn_static_ip INET REFERENCES vpn_static_ips(vpn_static_ip) ON DELETE SET NULL
@@ -393,11 +393,11 @@ REFERENCES users(id) ON DELETE SET NULL;
 
 CREATE TABLE challenge_templates (
     id INTEGER PRIMARY KEY DEFAULT nextval('challenge_templates_id_seq'),
-    name VARCHAR(100) NOT NULL,
+    name TEXT NOT NULL,
     description TEXT,
     category challenge_category NOT NULL,
     difficulty challenge_difficulty NOT NULL,
-    image_path VARCHAR(255),
+    image_path TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -439,13 +439,13 @@ REFERENCES challenges(id) ON DELETE SET NULL;
 
 CREATE TABLE user_profiles (
     user_id INT PRIMARY KEY,
-    full_name VARCHAR(100),
+    full_name TEXT,
     bio TEXT,
-    github_url VARCHAR(255),
-    twitter_url VARCHAR(255),
-    website_url VARCHAR(255),
-    country VARCHAR(50),
-    timezone VARCHAR(50),
+    github_url TEXT,
+    twitter_url TEXT,
+    website_url TEXT,
+    country TEXT,
+    timezone TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -453,8 +453,8 @@ CREATE TABLE user_profiles (
 CREATE TABLE machine_templates (
     id INTEGER PRIMARY KEY DEFAULT allocate_machine_template_id(),
     challenge_template_id INT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    disk_file_path VARCHAR(255) NOT NULL,
+    name TEXT NOT NULL,
+    disk_file_path TEXT NOT NULL,
     cores INT NOT NULL CHECK (cores > 0),
     ram_gb INT NOT NULL CHECK (ram_gb > 0)
 );
@@ -468,7 +468,7 @@ EXECUTE FUNCTION reclaim_machine_template_id();
 
 CREATE TABLE network_templates (
     id INTEGER PRIMARY KEY DEFAULT nextval('network_templates_id_seq'),
-    name VARCHAR(100) NOT NULL,
+    name TEXT NOT NULL,
     accessible BOOLEAN NOT NULL,
     is_dmz BOOLEAN NOT NULL DEFAULT FALSE
 );
@@ -476,7 +476,7 @@ CREATE TABLE network_templates (
 
 CREATE TABLE domain_templates (
     machine_template_id INT NOT NULL REFERENCES machine_templates(id) ON DELETE CASCADE,
-    domain_name VARCHAR(255) NOT NULL,
+    domain_name TEXT NOT NULL,
     PRIMARY KEY (machine_template_id, domain_name)
 );
 
@@ -491,7 +491,7 @@ CREATE TABLE network_connection_templates (
 CREATE TABLE challenge_flags (
     id INTEGER PRIMARY KEY DEFAULT nextval('challenge_flags_id_seq'),
     challenge_template_id INT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
-    flag VARCHAR(255) NOT NULL,
+    flag TEXT NOT NULL,
     description TEXT,
     points INT NOT NULL,
     order_index INT DEFAULT 0
@@ -522,9 +522,9 @@ CREATE TABLE completed_challenges (
 
 CREATE TABLE badges (
     id INTEGER PRIMARY KEY DEFAULT nextval('badges_id_seq'),
-    name VARCHAR(50) NOT NULL,
+    name TEXT NOT NULL,
     description TEXT,
-    icon VARCHAR(20),
+    icon TEXT,
     color badge_color,
     rarity badge_rarity NOT NULL,
     requirements TEXT NOT NULL
@@ -543,12 +543,12 @@ CREATE TABLE user_badges (
 
 CREATE TABLE announcements (
     id INTEGER PRIMARY KEY DEFAULT nextval('announcements_id_seq'),
-    title VARCHAR(255) NOT NULL,
+    title TEXT NOT NULL,
     content TEXT NOT NULL,
-    short_description VARCHAR(255),
+    short_description TEXT,
     importance announcement_importance NOT NULL,
     category announcement_category NOT NULL,
-    author VARCHAR(50) NOT NULL REFERENCES users(username) ON DELETE SET NULL,
+    author TEXT NOT NULL REFERENCES users(username) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -557,8 +557,8 @@ CREATE TABLE announcements (
 CREATE TABLE disk_files (
     id INTEGER PRIMARY KEY DEFAULT nextval('disk_files_id_seq'),
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    display_name VARCHAR(100) NOT NULL,
-    proxmox_filename VARCHAR(255) NOT NULL,
+    display_name TEXT NOT NULL,
+    proxmox_filename TEXT NOT NULL,
     upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, display_name)
 );
@@ -583,7 +583,7 @@ CREATE TABLE networks
     id INTEGER NOT NULL PRIMARY KEY DEFAULT allocate_network_id(),
     network_template_id INTEGER NOT NULL REFERENCES network_templates(id) ON DELETE CASCADE,
     subnet INET NOT NULL,
-    host_device VARCHAR NOT NULL
+    host_device TEXT NOT NULL
 );
 
 
@@ -606,7 +606,7 @@ CREATE TABLE network_connections
 CREATE TABLE domains
 (
     machine_id  INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
-    domain_name VARCHAR(255) NOT NULL,
+    domain_name TEXT NOT NULL,
     PRIMARY KEY (machine_id, domain_name)
 );
 

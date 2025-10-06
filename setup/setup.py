@@ -1303,6 +1303,8 @@ def generate_udf_migration(
         out.write(f"-- Grant restricted permissions\n")
         out.write(f"GRANT USAGE ON SCHEMA {target_schema} TO {limited_user};\n")
         out.write(f"GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {target_schema} TO {limited_user};\n\n")
+        out.write(f"GRANT CONNECT ON DATABASE {database_name} TO {limited_user};\n\n")
+        out.write(f"ALTER ROLE {limited_user} SET search_path = {target_schema}, public;\n\n")
 
         out.write(f"-- Ensure future functions inherit EXECUTE for limited user\n")
         out.write(f"ALTER DEFAULT PRIVILEGES FOR ROLE {owner_role} IN SCHEMA {target_schema}\n")
