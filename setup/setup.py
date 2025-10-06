@@ -1210,13 +1210,13 @@ def validate_running_and_reachable(webserver_id, database_id, api_token, timeout
 
 
 def generate_udf_migration(
-    sql_dir: str = os.join(DATABASE_FILES_DIR, "functions"),
-    output_file: str = os.join(DATABASE_FILES_DIR, "migrate_functions.sql"),
-    target_schema: str = "api",
-    owner_role: str = "app_owner",
-    limited_user: str = "limited_user",
-    limited_user_password: str = "strongpassword",
-    database_name: str = "mydb",
+    sql_dir: str,
+    output_file: str,
+    target_schema: str,
+    owner_role: str,
+    limited_user: str,
+    limited_user_password: str,
+    database_name: str,
 ):
     """
     Generate a migration SQL script that:
