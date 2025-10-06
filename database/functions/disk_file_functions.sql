@@ -4,7 +4,7 @@ CREATE FUNCTIOn get_user_disk_files(
 RETURNS TABLE (
     id INT,
     display_name TEXT,
-    upload_date TIMESTAMP,
+    upload_date TIMESTAMP
 )
 LANGUAGE plpgsql
 AS $$

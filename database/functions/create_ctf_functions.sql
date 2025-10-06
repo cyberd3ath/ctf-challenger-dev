@@ -103,7 +103,7 @@ $$;
 
 CREATE FUNCTION create_domain_template(
     p_machine_template_id INT,
-    p_domain_name TEXT,
+    p_domain_name TEXT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
