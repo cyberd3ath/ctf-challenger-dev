@@ -1000,6 +1000,13 @@ def setup_webserver():
     execute_command("sudo rm -rf /var/www/html")
     execute_command("sudo mv /tmp/html /var/www/html")
 
+    execute_command("sudo chown -R www-data:www-data /var/www/html")
+
+    print("\tSetting up vendor directory using composer")
+    execute_command("sudo -u www-data composer update --working-dir=/var/www/html")
+    execute_command("sudo -u www-data composer install --working-dir=/var/www/html")
+    execute_command("sudo -u www-data composer dump-autoload --working-dir=/var/www/html")
+
     # Transfer ownership of the webserver files to the webserver user
     print("\tSetting ownership of webserver files")
     execute_command("sudo chown root:root /etc/apache2/mods-available/mpm_event.conf")
@@ -1010,11 +1017,12 @@ def setup_webserver():
 
     execute_command("sudo chown -R root:root /var/www/html/")
     execute_command("sudo chmod -R 644 /var/www/html/")
+
+    execute_command("sudo chown -R www-data:www-data /var/www/html/vendor")
     execute_command("sudo chmod -R 755 /var/www/html/vendor")
 
     execute_command("sudo chown -R www-data:www-data /var/www/html/uploads")
     execute_command("sudo chmod -R 755 /var/www/html/uploads")
-
 
     execute_command("sudo chown root:root /var/www/.env")
     execute_command("sudo chmod 644 /var/www/.env")
@@ -1030,10 +1038,7 @@ def setup_webserver():
     execute_command("sudo chmod 755 /var/lib/ctf-challenger/vpn-configs")
     execute_command("sudo chmod 755 /var/log/ctf-challenger")
 
-    print("\tSetting up vendor directory using composer")
-    execute_command("sudo -u www-data composer update --working-dir=/var/www/html")
-    execute_command("sudo -u www-data composer install --working-dir=/var/www/html")
-    execute_command("sudo -u www-data composer dump-autoload --working-dir=/var/www/html")
+
 
     # Copy the backend certificate as trusted
     print("\tCopying backend certificate as trusted")
