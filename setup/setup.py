@@ -1,3 +1,7 @@
+import hashlib
+import random
+import string
+
 import requests
 from dotenv import load_dotenv
 import os
@@ -5,6 +9,7 @@ from proxmoxer import ProxmoxAPI
 import subprocess
 import datetime
 import sys
+import re
 
 load_dotenv()
 
@@ -77,6 +82,10 @@ TESTING_DATABASE_USER = os.getenv("TESTING_DATABASE_USER", "postgres")
 TESTING_DATABASE_PASSWORD = os.getenv("TESTING_DATABASE_PASSWORD")
 TESTING_DATABASE_PORT = os.getenv("TESTING_DATABASE_PORT", "5432")
 TESTING_DATABASE_HOST = os.getenv("TESTING_DATABASE_HOST", "localhost")
+
+WEBSERVER_DATABASE_USER = os.getenv("WEBSERVER_DATABASE_USER", "api_user")
+WEBSERVER_DATABASE_PASSWORD = os.getenv("WEBSERVER_DATABASE_PASSWORD")
+
 
 REUSE_DOWNLOADED_OVA = True
 
@@ -344,8 +353,8 @@ def generate_and_distribute_env_files(backend_api_token, web_server_api_token):
 
         web_env_file.write(f"DB_HOST='{DATABASE_HOST}'\n")
         web_env_file.write(f"DB_NAME='{DATABASE_NAME}'\n")
-        web_env_file.write(f"DB_USER='{DATABASE_USER}'\n")
-        web_env_file.write(f"DB_PASSWORD='{DATABASE_PASSWORD}'\n")
+        web_env_file.write(f"DB_USER='{WEBSERVER_DATABASE_USER}'\n")
+        web_env_file.write(f"DB_PASSWORD='{WEBSERVER_DATABASE_PASSWORD}'\n")
         web_env_file.write(f"DB_PORT='{DATABASE_PORT}'\n")
 
 
@@ -1186,6 +1195,96 @@ def validate_running_and_reachable(webserver_id, database_id, api_token, timeout
         raise Exception("Database server is not reachable.")
 
 
+def generate_udf_migration(
+    sql_dir: str = os.join(DATABASE_FILES_DIR, "functions"),
+    output_file: str = os.join(DATABASE_FILES_DIR, "migrate_functions.sql"),
+    target_schema: str = "api",
+    owner_role: str = "app_owner",
+    limited_user: str = "limited_user",
+    limited_user_password: str = "strongpassword",
+    database_name: str = "mydb",
+):
+    """
+    Generate a migration SQL script that:
+      - Moves functions from 'public' schema to a dedicated schema.
+      - Sets the owner and SECURITY DEFINER.
+      - Creates and configures a restricted user with limited access.
+
+    Args:
+        sql_dir: Directory containing .sql files with function definitions.
+        output_file: Path for the generated migration SQL file.
+        target_schema: Schema to move the functions into.
+        owner_role: Database role that will own and define the functions.
+        limited_user: Name of the restricted user to create.
+        limited_user_password: Password for the restricted user.
+        database_name: Target database for privilege revocation and grants.
+    """
+    func_pattern = re.compile(
+        r"CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([\w\.]+)\s*\(([^)]*)\)",
+        re.IGNORECASE
+    )
+
+    def parse_functions(sql_text):
+        funcs = []
+        for match in func_pattern.finditer(sql_text):
+            fullname = match.group(1).strip()
+            args = match.group(2).strip()
+            args = re.sub(r"\s+", " ", args)
+            funcs.append((fullname, args))
+        return funcs
+
+    all_funcs = []
+
+    for root, _, files in os.walk(sql_dir):
+        for file in files:
+            if file.endswith(".sql"):
+                with open(os.path.join(root, file), "r", encoding="utf-8") as f:
+                    sql = f.read()
+                    funcs = parse_functions(sql)
+                    if funcs:
+                        all_funcs.extend(funcs)
+
+    with open(output_file, "w", encoding="utf-8") as out:
+        out.write(f"-- Auto-generated migration script\n")
+        out.write(f"-- Moves functions to schema '{target_schema}', "
+                  f"sets owner '{owner_role}', and configures restricted user '{limited_user}'\n\n")
+
+        # 1. Create target schema
+        out.write(f"CREATE SCHEMA IF NOT EXISTS {target_schema} AUTHORIZATION {owner_role};\n\n")
+
+        # 2. Alter functions
+        for fullname, args in all_funcs:
+            func_name = fullname.split(".")[-1]
+            out.write(f"ALTER FUNCTION public.{func_name}({args}) SET SCHEMA {target_schema};\n")
+            out.write(f"ALTER FUNCTION {target_schema}.{func_name}({args}) OWNER TO {owner_role};\n")
+            out.write(f"ALTER FUNCTION {target_schema}.{func_name}({args}) SECURITY DEFINER;\n\n")
+
+        # 3. Create restricted user and configure privileges
+        out.write(f"-- Create restricted user if not exists\n")
+        out.write(f"DO $$ BEGIN\n")
+        out.write(f"   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{limited_user}') THEN\n")
+        out.write(f"      CREATE USER {limited_user} WITH PASSWORD '{limited_user_password}' "
+                  f"NOCREATEDB NOCREATEROLE NOINHERIT;\n")
+        out.write(f"   END IF;\n")
+        out.write(f"END $$;\n\n")
+
+        out.write(f"-- Revoke public privileges\n")
+        out.write(f"REVOKE ALL ON DATABASE {database_name} FROM PUBLIC;\n")
+        out.write(f"REVOKE ALL ON SCHEMA public FROM PUBLIC;\n")
+        out.write(f"REVOKE ALL ON SCHEMA {target_schema} FROM PUBLIC;\n\n")
+
+        out.write(f"-- Grant restricted permissions\n")
+        out.write(f"GRANT USAGE ON SCHEMA {target_schema} TO {limited_user};\n")
+        out.write(f"GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {target_schema} TO {limited_user};\n\n")
+
+        out.write(f"-- Ensure future functions inherit EXECUTE for limited user\n")
+        out.write(f"ALTER DEFAULT PRIVILEGES FOR ROLE {owner_role} IN SCHEMA {target_schema}\n")
+        out.write(f"GRANT EXECUTE ON FUNCTIONS TO {limited_user};\n")
+
+    print(f"[+] Generated migration script with {len(all_funcs)} functions → {output_file}")
+
+
+
 def setup_database(conn=None, create_admin_config=True):
     """
     Setup the database.
@@ -1226,6 +1325,24 @@ def setup_database(conn=None, create_admin_config=True):
                 functions_script = file.read()
             with conn.cursor() as cursor:
                 cursor.execute(functions_script)
+
+    if not connection_managed_externally:
+        print("\tGenerating and executing UDF migration script")
+    database_functions_path = os.path.join(DATABASE_FILES_DIR, "functions")
+    udf_migration_path = os.path.join(DATABASE_FILES_DIR, "migrate_functions.sql")
+    generate_udf_migration(
+        sql_dir=database_functions_path,
+        output_file=udf_migration_path,
+        target_schema="api",
+        owner_role="app_owner",
+        limited_user=WEBSERVER_DATABASE_USER,
+        limited_user_password=WEBSERVER_DATABASE_PASSWORD,
+        database_name=DATABASE_NAME
+    )
+    with open(udf_migration_path, "r") as file:
+        udf_migration_script = file.read()
+    with conn.cursor() as cursor:
+        cursor.execute(udf_migration_script)
 
     conn.commit()
 
