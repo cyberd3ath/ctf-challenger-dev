@@ -289,10 +289,17 @@ def setup_api_token():
         privsep=privsep
     )
 
+    role_id = "webserver-role"
+
+    proxmox.access.roles.post(
+        roleid=role_id,
+        privs="Datastore.AllocateTemplate"
+    )
+
     print("\tRestricting web server API token permissions")
 
     permissions = [
-        {"path": f"/storage/local-lvm", "roles": "Datastore.AllocateTemplate", "tokens": f"{user_id}!{token_id}"},
+        {"path": f"/storage/local-lvm", "roles": role_id, "tokens": f"{user_id}!{token_id}"},
     ]
 
     for perm in permissions:
@@ -303,8 +310,6 @@ def setup_api_token():
         )
 
     web_server_token = {"user": user_id, "token_name": token_id, "token_value": result["value"]}
-
-
 
     return backend_token, web_server_token
 
