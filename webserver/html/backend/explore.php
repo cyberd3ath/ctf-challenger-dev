@@ -144,32 +144,40 @@ class ExploreHandler
 
     private function fetchChallenges($params): array
     {
-        $withClauses = $this->buildBaseQuery();
-        $selectQuery = $this->buildSelectQuery();
+        $offset = ($params['page'] - 1) * $this->perPage;
 
-        $whereConditions = $this->buildWhereConditions($params);
-        $params['limit'] = $this->perPage;
-        $params['offset'] = ($params['page'] - 1) * $this->perPage;
-
-        if (!empty($whereConditions)) {
-            $selectQuery .= " WHERE " . implode(" AND ", $whereConditions);
-        }
-
-        $countQuery = "$withClauses, base AS ($selectQuery) SELECT COUNT(*) FROM base";
-        $countStmt = $this->pdo->prepare($countQuery);
-        $this->bindCommonParams($countStmt, $params);
-        $countStmt->execute();
+        $countStmt = $this->pdo->prepare("
+            SELECT explore_challenges_count(:category, :difficulty, :search) AS total
+        ");
+        $countStmt->execute([
+            ':category' => $params['category'] === 'all' ? null : $params['category'],
+            ':difficulty' => $params['difficulty'] === 'all' ? null : $params['difficulty'],
+            ':search' => $params['search_param'] === '' ? null : $params['search_param']
+        ]);
         $totalItems = (int)$countStmt->fetchColumn();
 
-        $selectQuery .= $this->buildOrderBy($params['sort']);
-        $selectQuery .= " LIMIT :limit OFFSET :offset";
-
-        $finalQuery = "$withClauses $selectQuery";
-        $stmt = $this->pdo->prepare($finalQuery);
-        $this->bindCommonParams($stmt, $params);
-        $stmt->bindValue(':limit', $params['limit'], PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $params['offset'], PDO::PARAM_INT);
-        $stmt->execute();
+        $stmt = $this->pdo->prepare("
+            SELECT 
+                id,
+                name,
+                description,
+                category,
+                difficulty,
+                created_at,
+                image_path,
+                is_active,
+                solved_count,
+                attempted_count
+            FROM explore_challenges(:category, :difficulty, :search, :order_by, :limit, :offset)
+        ");
+        $stmt->execute([
+            ':category' => $params['category'] === 'all' ? null : $params['category'],
+            ':difficulty' => $params['difficulty'] === 'all' ? null : $params['difficulty'],
+            ':search' => $params['search_param'] === '' ? null : $params['search_param'],
+            ':order_by' => $params['sort'],
+            ':limit' => $this->perPage,
+            ':offset' => $offset
+        ]);
         $challenges = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return [
@@ -178,111 +186,6 @@ class ExploreHandler
             'current_page' => $params['page'],
             'total_pages' => ceil($totalItems / $this->perPage)
         ];
-    }
-    private function buildBaseQuery(): string
-    {
-        return "
-WITH solved_challenges AS (
-    SELECT 
-        cc.user_id,
-        cc.challenge_template_id
-    FROM completed_challenges cc 
-    WHERE NOT EXISTS (
-        SELECT 1 
-        FROM challenge_flags cf 
-        WHERE cf.challenge_template_id = cc.challenge_template_id 
-        AND NOT EXISTS (
-            SELECT 1 
-            FROM completed_challenges ccf 
-            WHERE ccf.user_id = cc.user_id 
-            AND ccf.flag_id = cf.id
-        )
-    )
-),
-solve_counts AS (
-    SELECT 
-        challenge_template_id,
-        COUNT(DISTINCT user_id) AS unique_solvers
-    FROM solved_challenges
-    GROUP BY challenge_template_id
-),
-attempt_counts AS (
-    SELECT 
-        challenge_template_id,
-        COUNT(DISTINCT user_id) AS unique_attempts
-    FROM completed_challenges
-    GROUP BY challenge_template_id
-)";
-    }
-
-    private function buildSelectQuery(): string
-    {
-        return "
-SELECT 
-    ct.id,
-    ct.name,
-    ct.description,
-    ct.category,
-    ct.difficulty,
-    ct.created_at,
-    ct.image_path,
-    ct.is_active,
-    COALESCE(s.unique_solvers, 0) AS solved_count,
-    COALESCE(a.unique_attempts, 0) AS attempted_count
-FROM challenge_templates ct
-LEFT JOIN solve_counts s ON ct.id = s.challenge_template_id
-LEFT JOIN attempt_counts a ON ct.id = a.challenge_template_id";
-    }
-
-    private function buildWhereConditions($params): array
-    {
-        $conditions = [];
-
-        if ($params['category'] !== 'all') {
-            $conditions[] = "ct.category = :category";
-        }
-
-        if ($params['difficulty'] !== 'all') {
-            $conditions[] = "ct.difficulty = :difficulty";
-        }
-
-        if (!empty($params['search'])) {
-            $conditions[] = "(ct.name ILIKE :search OR ct.description ILIKE :search)";
-        }
-
-        return $conditions;
-    }
-
-    private function buildOrderBy($sort): string
-    {
-        $primary = match ($sort) {
-            'date' => " ORDER BY ct.created_at DESC",
-            'difficulty' => " ORDER BY 
-                    CASE ct.difficulty
-                        WHEN 'easy' THEN 1
-                        WHEN 'medium' THEN 2
-                        WHEN 'hard' THEN 3
-                        ELSE 0
-                    END",
-            default => " ORDER BY solved_count DESC, attempted_count DESC",
-        };
-        $secondary = ", ct.id";
-        return $primary . $secondary;
-    }
-
-    private function bindCommonParams($stmt, $params): void
-    {
-        if ($params['category'] !== 'all') {
-            $stmt->bindValue(':category', $params['category']);
-        }
-
-        if ($params['difficulty'] !== 'all') {
-            $stmt->bindValue(':difficulty', $params['difficulty']);
-        }
-
-        if (!empty($params['search'])) {
-            $stmt->bindValue(':search', $params['search_param']);
-        }
     }
 
     private function buildResponse($challenges, $params): array
@@ -327,31 +230,8 @@ LEFT JOIN attempt_counts a ON ct.id = a.challenge_template_id";
     {
         try {
             $stmt = $this->pdo->prepare("
-            WITH challenge_total_points AS (
-                SELECT 
-                    challenge_template_id,
-                    SUM(points) AS total_points
-                FROM challenge_flags
-                GROUP BY challenge_template_id
-            ),
-            user_completed_points AS (
-                SELECT 
-                    cc.user_id,
-                    cc.challenge_template_id,
-                    SUM(cf.points) AS user_points
-                FROM completed_challenges cc
-                JOIN challenge_flags cf ON cc.flag_id = cf.id
-                WHERE cc.user_id = :user_id
-                GROUP BY cc.user_id, cc.challenge_template_id
-            )
-            SELECT 
-                COALESCE(ucp.user_points, 0) >= COALESCE(ctp.total_points, 0) AS solved
-            FROM challenge_templates ct
-            LEFT JOIN challenge_total_points ctp ON ctp.challenge_template_id = ct.id
-            LEFT JOIN user_completed_points ucp 
-                ON ucp.challenge_template_id = ct.id AND ucp.user_id = :user_id
-            WHERE ct.id = :challenge_template_id
-        ");
+                SELECT get_user_solved_challenge(:user_id, :challenge_template_id)::INT AS solved
+            ");
             $stmt->execute([
                 ':user_id' => $this->userId,
                 ':challenge_template_id' => $challengeId
@@ -362,7 +242,7 @@ LEFT JOIN attempt_counts a ON ct.id = a.challenge_template_id";
                 return null;
             }
 
-            return $data['solved'];
+            return $data['solved'] === 1;
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getUserChallengeData for user $this->userId and challenge $challengeId: " . $e->getMessage());
             return null;

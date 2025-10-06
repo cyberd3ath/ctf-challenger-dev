@@ -99,20 +99,18 @@ class BadgesHandler
      */
     private function fetchBadges(): array
     {
-        $query = "SELECT 
-            b.id,
-            b.name,
-            b.description,
-            b.icon,
-            b.rarity,
-            b.requirements,
-            ub.earned_at,
-            CASE WHEN ub.user_id IS NULL THEN false ELSE true END as earned
-        FROM badges b
-        LEFT JOIN user_badges ub ON ub.badge_id = b.id AND ub.user_id = :user_id
-        ORDER BY b.rarity DESC, b.name";
-
-        $stmt = $this->pdo->prepare($query);
+        $stmt = $this->pdo->prepare("
+            SELECT
+                id,
+                name,
+                description,
+                icon,
+                rarity,
+                requirements,
+                earned_at,
+                earned
+            FROM get_user_badges_data(:user_id)
+        ");
         $stmt->bindValue(':user_id', $this->userId, PDO::PARAM_INT);
 
         if (!$stmt->execute()) {
@@ -183,37 +181,10 @@ class BadgesHandler
 
     private function calculateChallengeProgress($required): array
     {
-        $query = "
-            WITH user_completed_flags AS (
-                SELECT 
-                    user_id,
-                    challenge_template_id,
-                    flag_id
-                FROM completed_challenges
-                WHERE user_id = ?
-            ),
-            challenge_total_flags AS (
-                SELECT 
-                    challenge_template_id, 
-                    COUNT(*) as total_flags
-                FROM challenge_flags
-                GROUP BY challenge_template_id
-            ),
-            user_solved_challenges AS (
-                SELECT 
-                    ucf.user_id,
-                    ucf.challenge_template_id
-                FROM user_completed_flags ucf
-                JOIN challenge_total_flags ctf ON ucf.challenge_template_id = ctf.challenge_template_id
-                GROUP BY ucf.user_id, ucf.challenge_template_id
-                HAVING COUNT(DISTINCT ucf.flag_id) = MAX(ctf.total_flags)
-            )
-            SELECT COUNT(*) 
-            FROM user_solved_challenges
-            WHERE user_id = ?";
-
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute([$this->userId, $this->userId]);
+        $stmt = $this->pdo->prepare("
+            SELECT get_user_solved_challenge_count(:user_id)
+        ");
+        $stmt->execute(['user_id' => $this->userId]);
         $current = $stmt->fetchColumn();
 
         return ['current' => (int)$current, 'max' => $required];
@@ -221,39 +192,11 @@ class BadgesHandler
 
     private function calculateCategoryProgress($required, $category): array
     {
-        $query = "
-            WITH user_completed_flags AS (
-                SELECT 
-                    cc.user_id,
-                    cc.challenge_template_id,
-                    cc.flag_id
-                FROM completed_challenges cc
-                WHERE cc.user_id = ?
-            ),
-            challenge_total_flags AS (
-                SELECT 
-                    cf.challenge_template_id, 
-                    COUNT(*) as total_flags
-                FROM challenge_flags cf
-                JOIN challenge_templates ct ON ct.id = cf.challenge_template_id
-                WHERE ct.category = ?
-                GROUP BY cf.challenge_template_id
-            ),
-            user_solved_challenges AS (
-                SELECT 
-                    ucf.user_id,
-                    ucf.challenge_template_id
-                FROM user_completed_flags ucf
-                JOIN challenge_total_flags ctf ON ucf.challenge_template_id = ctf.challenge_template_id
-                GROUP BY ucf.user_id, ucf.challenge_template_id
-                HAVING COUNT(DISTINCT ucf.flag_id) = MAX(ctf.total_flags)
-            )
-            SELECT COUNT(*) 
-            FROM user_solved_challenges
-            WHERE user_id = ?";
+        $stmt = $this->pdo->prepare("
+            SELECT get_user_solved_challenge_count_in_category(:user_id, :category) AS count
+        ");
 
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute([$this->userId, $category, $this->userId]);
+        $stmt->execute(['user_id' => $this->userId, 'category' => $category]);
         $current = $stmt->fetchColumn();
 
         return ['current' => (int)$current, 'max' => $required];
@@ -261,14 +204,10 @@ class BadgesHandler
 
     private function calculatePointsProgress($required): array
     {
-        $query = "
-            SELECT COALESCE(SUM(cf.points), 0) 
-            FROM completed_challenges cc
-            JOIN challenge_flags cf ON cf.id = cc.flag_id
-            WHERE cc.user_id = ?";
-
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute([$this->userId]);
+        $stmt = $this->pdo->prepare("
+            SELECT get_user_total_points(:user_id)
+        ");
+        $stmt->execute(['user_id' => $this->userId]);
         $current = $stmt->fetchColumn();
 
         return ['current' => (int)$current, 'max' => $required];
@@ -276,19 +215,16 @@ class BadgesHandler
 
     private function calculateAllBadgesProgress($badgeId): array
     {
-        $totalQuery = "SELECT COUNT(*) FROM badges WHERE id != ?";
-        $totalStmt = $this->pdo->prepare($totalQuery);
-        $totalStmt->execute([$badgeId]);
+        $totalStmt = $this->pdo->prepare("
+            SELECT get_total_badge_count_exclude_one(:badge_id)
+        ");
+        $totalStmt->execute(['badge_id' => $badgeId]);
         $total = $totalStmt->fetchColumn();
 
-        $earnedQuery = "
-            SELECT COUNT(*) 
-            FROM user_badges ub
-            JOIN badges b ON b.id = ub.badge_id
-            WHERE ub.user_id = ? AND b.id != ?";
-
-        $earnedStmt = $this->pdo->prepare($earnedQuery);
-        $earnedStmt->execute([$this->userId, $badgeId]);
+        $earnedStmt = $this->pdo->prepare("
+            get_user_earned_badges_count_exclude_one(:user_id, :badge_id)
+        ");
+        $earnedStmt->execute(['user_id' => $this->userId, 'badge_id' => $badgeId]);
         $earned = $earnedStmt->fetchColumn();
 
         return ['current' => (int)$earned, 'max' => (int)$total];
@@ -299,12 +235,12 @@ class BadgesHandler
      */
     private function fetchBadgeStats(): array
     {
-        $query = "
-            SELECT 
-                (SELECT COUNT(*) FROM badges) as total_badges,
-                (SELECT COUNT(*) FROM user_badges WHERE user_id = ?) as earned_badges";
-
-        $stmt = $this->pdo->prepare($query);
+        $stmt = $this->pdo->prepare("
+            SELECT
+                total_badges,
+                earned_badges
+            FROM get_total_badge_count_and_user_earned_count(:user_id)
+        ");
         $stmt->execute([$this->userId]);
         $stats = $stmt->fetch(PDO::FETCH_ASSOC);
 

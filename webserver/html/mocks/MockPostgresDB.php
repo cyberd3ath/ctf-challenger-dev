@@ -13,7 +13,9 @@ class MockPostgresDB
     private StartedGenericContainer $postgresContainer;
     private GenericContainer $container;
     private PDO $pdo;
-    private string $initScriptPath;
+    private string $dbInitScript;
+    private array $dbFunctionsScripts;
+    private string $dbPermissionsScript;
     private ISystem $system;
 
     private string $dbName;
@@ -24,7 +26,7 @@ class MockPostgresDB
         string $dbName = 'ctf-challenger',
         string $dbUser = 'testuser',
         string $dbPassword = 'testpass',
-        string $initScriptPath = __DIR__ . '/../../../database/init.sql',
+        string $dbScriptsPath = __DIR__ . '/../../../database',
         ISystem $system = new SystemWrapper()
     )
     {
@@ -33,10 +35,14 @@ class MockPostgresDB
         $this->dbPassword = $dbPassword;
 
         $this->system = $system;
-        $this->initScriptPath = $initScriptPath;
+        $dbScriptsPath = rtrim($dbScriptsPath, '/');
+        $this->dbInitScript = $dbScriptsPath . '/init.sql';
+        $dbFunctionsDir = $dbScriptsPath . '/functions';
+        $this->dbFunctionsScripts = glob($dbFunctionsDir . '/*.sql');
+        $this->dbPermissionsScript = $dbScriptsPath . '/permissions.sql';
 
         if (PHP_OS_FAMILY === 'Windows') {
-            putenv("DOCKER_HOST=tcp://localhost:2375");
+            putenv("DOCKER_HOST=tcp://192.168.227.3:2375");
         } else {
             putenv("DOCKER_HOST=unix:///var/run/docker.sock");
         }
@@ -87,22 +93,36 @@ class MockPostgresDB
 
     private function initializeDatabase(): void
     {
-        if ($this->system->file_exists($this->initScriptPath)) {
-            $initSql = $this->system->file_get_contents($this->initScriptPath);
+        if ($this->system->file_exists($this->dbInitScript)) {
+            $initSql = $this->system->file_get_contents($this->dbInitScript);
             $this->pdo->exec($initSql);
+            foreach ($this->dbFunctionsScripts as $functionScript) {
+                if ($this->system->file_exists($functionScript)) {
+                    $functionSql = $this->system->file_get_contents($functionScript);
+                    $this->pdo->exec($functionSql);
+                }
+            }
+            if ($this->system->file_exists($this->dbPermissionsScript)) {
+                $permissionsSql = $this->system->file_get_contents($this->dbPermissionsScript);
+                $this->pdo->exec($permissionsSql);
+            }
 
             $this->insertTestData();
         } else {
-            throw new RuntimeException("Initialization script not found: " . $this->initScriptPath);
+            throw new RuntimeException("Initialization script not found: " . $this->dbInitScript);
         }
     }
 
     private function insertTestData(): void
     {
+        $salt = 'testsalt';
+        $adminHash = hash('sha512', $salt . 'adminpass');
+        $userHash = hash('sha512', $salt . 'testpass');
+
         $this->pdo->exec("
-            INSERT INTO users (username, email, password_hash, is_admin)
-            VALUES ('admin', 'admin@localhost.local', 'adminhash', true),
-                   ('testuser', 'test@test.test', crypt('testpass', gen_salt('bf')), false);
+            INSERT INTO users (username, email, password_hash, password_salt, is_admin)
+            VALUES ('admin', 'admin@localhost.local', '$adminHash', '$salt', true),
+                   ('testuser', 'test@test.test', '$userHash', '$salt', false);
         ");
 
         $this->pdo->exec("

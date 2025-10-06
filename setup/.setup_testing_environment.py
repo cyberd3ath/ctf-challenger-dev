@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import psycopg2
 import subprocess
+import random
 
 load_dotenv()
 
@@ -32,9 +33,12 @@ def insert_test_user(db_conn):
     """
 
     with db_conn.cursor() as cursor:
+        TESTUSER_PASSWORD_SALT = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+        TESTUSER_PASSWORD_HASH = hashlib.sha512((TESTUSER_SALT + TESTUSER_PASSWORD).encode('utf-8')).hexdigest()
+
         cursor.execute(
-            "INSERT INTO users (username, email, password_hash, vpn_static_ip) VALUES (%s, %s, crypt(%s, gen_salt('bf')), %s) RETURNING id",
-            (TESTUSER_USERNAME, TESTUSER_EMAIL, TESTUSER_PASSWORD, TESTUSER_VPN_STATIC_IP)
+            "INSERT INTO users (username, email, password_hash, password_salt, vpn_static_ip) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (TESTUSER_USERNAME, TESTUSER_EMAIL, TESTUSER_PASSWORD_HASH, TESTUSER_PASSWORD_SALT, TESTUSER_VPN_STATIC_IP
         )
         user_id = cursor.fetchone()[0]
         db_conn.commit()

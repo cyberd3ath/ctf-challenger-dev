@@ -103,8 +103,8 @@ class ExploreHandlerTest extends TestCase
 
                 for ($i = 0; $i < $attempts; $i++) {
                     $stmt = $this->pdo->prepare("
-                        INSERT INTO users (username, email, password_hash) 
-                        VALUES ('user_{$id}_$i', 'test_{$id}_$i@test.test', 'some_irrelevant_hash')
+                        INSERT INTO users (username, email, password_hash, password_salt)
+                        VALUES ('user_{$id}_$i', 'test_{$id}_$i@test.test', 'some_irrelevant_hash', 'some_irrelevant_salt')
                         RETURNING id;
                     ");
                     $stmt->execute();
@@ -142,8 +142,8 @@ class ExploreHandlerTest extends TestCase
     private function setupSolvingUser(array &$idToAttributeMapping): array
     {
         $stmt = $this->pdo->prepare("
-            INSERT INTO users (username, email, password_hash) 
-            VALUES ('solving_user', 'solving_user@test.test', 'some_irrelevant_hash')
+            INSERT INTO users (username, email, password_hash, password_salt)
+            VALUES ('solving_user', 'solving_user@test.test', 'some_irrelevant_hash', 'some_irrelevant_salt')
             RETURNING id;
         ");
         $stmt->execute();

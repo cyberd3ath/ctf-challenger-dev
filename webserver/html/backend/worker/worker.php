@@ -63,14 +63,12 @@ class ChallengeWorker
     {
         $stmt = $this->pdo->prepare("
             SELECT
-                u.id AS user_id,
-                u.username,
-                c.id AS challenge_id,
-                c.challenge_template_id,
-                c.expires_at
-            FROM users u
-            JOIN challenges c ON u.running_challenge = c.id
-            WHERE c.expires_at <= CURRENT_TIMESTAMP
+                user_id,
+                username,
+                challenge_id,
+                challenge_template_id,
+                expires_at
+            FROM get_expired_challenge_data()
         ");
 
         $stmt->execute();
@@ -122,11 +120,7 @@ class ChallengeWorker
     private function markAttemptAsCompleted($userId, $challengeTemplateId): void
     {
         $stmt = $this->pdo->prepare("
-            UPDATE completed_challenges
-            SET completed_at = CURRENT_TIMESTAMP
-            WHERE user_id = :user_id
-            AND challenge_template_id = :challenge_id
-            AND completed_at IS NULL
+            SELECT * FROM mark_attempt_completed(:user_id, :challenge_id)
         ");
         $stmt->execute([
             'user_id' => $userId,
@@ -137,22 +131,10 @@ class ChallengeWorker
     private function shouldDeleteChallengeTemplate($challengeTemplateId): bool
     {
         $stmt = $this->pdo->prepare("
-            SELECT COUNT(*)
-            FROM challenges
-            WHERE challenge_template_id = :template_id
+            SELECT challenge_template_should_be_deleted(:template_id)::INT AS remaining_instances
         ");
         $stmt->execute(['template_id' => $challengeTemplateId]);
-        $remainingInstances = $stmt->fetchColumn();
-
-        $stmt = $this->pdo->prepare("
-            SELECT marked_for_deletion
-            FROM challenge_templates
-            WHERE id = :template_id
-        ");
-        $stmt->execute(['template_id' => $challengeTemplateId]);
-        $markedForDeletion = $stmt->fetchColumn();
-
-        return $markedForDeletion && $remainingInstances === 0;
+        return $stmt->fetchColumn() == 1;
     }
 
     /**
@@ -160,11 +142,6 @@ class ChallengeWorker
      */
     private function deleteChallengeTemplate($challengeTemplateId): void
     {
-        $stmt = $this->pdo->prepare("
-            DELETE FROM completed_challenges
-            WHERE challenge_template_id = :challenge_id
-        ");
-        $stmt->execute(['challenge_id' => $challengeTemplateId]);
         $result = $this->curlHelper->makeBackendRequest(
             '/delete-machine-templates',
             'POST',
@@ -177,20 +154,7 @@ class ChallengeWorker
         }
 
         $stmt = $this->pdo->prepare("
-            DELETE FROM network_templates nt
-            WHERE EXISTS(
-                SELECT 1
-                FROM network_connection_templates nct
-                JOIN machine_templates mt ON nct.machine_template_id = mt.id
-                WHERE nct.network_template_id = nt.id
-                AND mt.challenge_template_id = :challenge_id
-            )
-        ");
-        $stmt->execute(['challenge_id' => $challengeTemplateId]);
-
-        $stmt = $this->pdo->prepare("
-            DELETE FROM challenge_templates
-            WHERE id = :challenge_id
+            SELECT delete_challenge_template(:challenge_id)
         ");
         $stmt->execute(['challenge_id' => $challengeTemplateId]);
 

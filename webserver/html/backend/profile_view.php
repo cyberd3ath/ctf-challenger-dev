@@ -97,7 +97,9 @@ class ProfileHandlerPublic
     private function initializeUserData(): void
     {
         try {
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = :username");
+            $stmt = $this->pdo->prepare("
+                SELECT get_id_by_username(:username) AS id
+            ");
             $stmt->execute(['username' => $this->requestedUsername]);
             $user = $stmt->fetch();
 
@@ -139,44 +141,18 @@ class ProfileHandlerPublic
     {
         try {
             $stmt = $this->pdo->prepare("
-                WITH flag_counts AS (
-                    SELECT challenge_template_id, COUNT(*) AS total_flags
-                    FROM challenge_flags
-                    GROUP BY challenge_template_id
-                ),
-                user_flags AS (
-                    SELECT cc.challenge_template_id, COUNT(DISTINCT cc.flag_id) AS user_flag_count
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                    GROUP BY cc.challenge_template_id
-                ),
-                solved AS (
-                    SELECT uf.challenge_template_id
-                    FROM user_flags uf
-                    JOIN flag_counts fc ON uf.challenge_template_id = fc.challenge_template_id
-                    WHERE uf.user_flag_count = fc.total_flags
-                ),
-                total_points AS (
-                    SELECT COALESCE(SUM(cf.points), 0) AS total_points
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                )
-                SELECT
-                    u.username,
-                    u.created_at,
-                    u.avatar_url,
-                    p.full_name,
-                    p.bio,
-                    p.github_url,
-                    p.twitter_url,
-                    p.website_url,
-                    (SELECT COUNT(*) FROM solved) AS solved_count,
-                    (SELECT total_points FROM total_points) AS total_points
-                FROM users u
-                LEFT JOIN user_profiles p ON p.user_id = u.id
-                WHERE u.id = :user_id
+                SELECT 
+                    username,
+                    created_at,
+                    avatar_url,
+                    full_name,
+                    bio,
+                    github_url,
+                    twitter_url,
+                    website_url,
+                    solved_count,
+                    total_points
+                FROM get_public_profile_data(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $profileData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -187,16 +163,7 @@ class ProfileHandlerPublic
             }
 
             $rankStmt = $this->pdo->prepare("
-                SELECT COUNT(*) + 1 AS user_rank
-                FROM (
-                    SELECT u.id, COALESCE(SUM(cf.points), 0) AS points
-                    FROM users u
-                    LEFT JOIN completed_challenges cc ON cc.user_id = u.id
-                    LEFT JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    GROUP BY u.id
-                    HAVING COALESCE(SUM(cf.points), 0) > :user_points
-                        OR (COALESCE(SUM(cf.points), 0) = :user_points AND u.id < :user_id)
-                ) ranked_users
+                SELECT get_user_rank(:user_id, :user_points)::INT AS user_rank
             ");
             $rankStmt->execute([
                 'user_points' => $profileData['total_points'],
@@ -229,34 +196,11 @@ class ProfileHandlerPublic
     {
         try {
             $successStmt = $this->pdo->prepare("
-                WITH flag_counts AS (
-                    SELECT challenge_template_id, COUNT(*) AS total_flags
-                    FROM challenge_flags
-                    GROUP BY challenge_template_id
-                ),
-                user_flags AS (
-                    SELECT cc.challenge_template_id, COUNT(DISTINCT cc.flag_id) AS user_flag_count
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                    GROUP BY cc.challenge_template_id
-                ),
-                solved AS (
-                    SELECT uf.challenge_template_id
-                    FROM user_flags uf
-                    JOIN flag_counts fc ON uf.challenge_template_id = fc.challenge_template_id
-                    WHERE uf.user_flag_count = fc.total_flags
-                ),
-                total_points AS (
-                    SELECT COALESCE(SUM(cf.points), 0) AS total_points
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                )
-                SELECT
-                    (SELECT COUNT(*) FROM solved) AS solved,
-                    (SELECT COUNT(DISTINCT challenge_template_id) FROM completed_challenges WHERE user_id = :user_id) AS attempts,
-                    (SELECT total_points FROM total_points) AS total_points
+                SELECT 
+                    solved,
+                    total_points,
+                    attempts
+                FROM get_profile_stats(:user_id)
             ");
             $successStmt->execute(['user_id' => $this->userId]);
             $successData = $successStmt->fetch(PDO::FETCH_ASSOC);
@@ -291,7 +235,9 @@ class ProfileHandlerPublic
     private function getCategoryData(): array
     {
         try {
-            $stmt = $this->pdo->query("SELECT unnest(enum_range(NULL::challenge_category)) AS category ORDER BY category");
+            $stmt = $this->pdo->query("
+                SELECT category FROM get_all_challenge_categories()
+            ");
             $allCategories = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
             if (empty($allCategories)) {
@@ -301,32 +247,14 @@ class ProfileHandlerPublic
 
             $totals = [];
             $stmt = $this->pdo->query("
-                SELECT category, COUNT(*) as total 
-                FROM challenge_templates 
-                WHERE is_active = true
-                GROUP BY category
+                SELECT category, total FROM get_active_challenge_templates_by_category()
             ");
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $totals[$row['category']] = (int)$row['total'];
             }
 
             $stmt = $this->pdo->prepare("
-                WITH solved_challenges AS (
-                    SELECT cc.challenge_template_id
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                    GROUP BY cc.challenge_template_id
-                    HAVING COUNT(DISTINCT cf.id) = (
-                        SELECT COUNT(*) 
-                        FROM challenge_flags 
-                        WHERE challenge_template_id = cc.challenge_template_id
-                    )
-                )
-                SELECT ct.category, COUNT(sc.challenge_template_id) as solved
-                FROM solved_challenges sc
-                JOIN challenge_templates ct ON ct.id = sc.challenge_template_id
-                GROUP BY ct.category
+                SELECT category, solved FROM get_user_solved_challenge_count_by_categories(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $solved = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -353,11 +281,13 @@ class ProfileHandlerPublic
     {
         try {
             $badgeStmt = $this->pdo->prepare("
-                SELECT b.id, b.name, b.description, b.icon, b.color
-                FROM user_badges ub
-                JOIN badges b ON b.id = ub.badge_id
-                WHERE ub.user_id = :user_id
-                ORDER BY b.rarity DESC, ub.earned_at DESC
+                SELECT
+                    id,
+                    name,
+                    description,
+                    icon,
+                    color
+                FROM get_user_earned_badges_data(:user_id)
             ");
             $badgeStmt->execute(['user_id' => $this->userId]);
             $badges = $badgeStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -372,7 +302,9 @@ class ProfileHandlerPublic
                 ];
             }, $badges);
 
-            $totalStmt = $this->pdo->query("SELECT COUNT(*) AS total FROM badges");
+            $totalStmt = $this->pdo->query("
+                SELECT get_total_badges_count() AS total
+            ");
             $totalBadges = (int)$totalStmt->fetch(PDO::FETCH_ASSOC)['total'];
 
             $earnedCount = count($sanitizedBadges);

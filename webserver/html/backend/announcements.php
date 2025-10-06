@@ -105,21 +105,8 @@ class AnnouncementsHandler
     public function handleRequest(): void
     {
         try {
-            $dateRange = $this->getDateRange();
-            $params = [];
-            $whereConditions = $this->buildWhereConditions($dateRange, $params);
-
-            $baseQuery = "SELECT * FROM announcements";
-            $countQuery = "SELECT COUNT(*) FROM announcements";
-
-            if (!empty($whereConditions)) {
-                $whereClause = " WHERE " . implode(" AND ", $whereConditions);
-                $baseQuery .= $whereClause;
-                $countQuery .= $whereClause;
-            }
-
-            $total = $this->getTotalCount($countQuery, $params);
-            $announcements = $this->getPaginatedResults($baseQuery, $params);
+            $total = $this->getTotalCount();
+            $announcements = $this->getPaginatedResults();
 
             $this->sendResponse($announcements, $total);
         } catch (PDOException $e) {
@@ -128,73 +115,47 @@ class AnnouncementsHandler
         }
     }
 
-    private function getDateRange(): ?string
+    private function getTotalCount(): int
     {
-        if ($this->rangeFilter === 'all') {
-            return null;
-        }
+        $stmt = $this->pdo->prepare("
+            SELECT get_filtered_announcements_count(:importance, :date_range) AS total
+        ");
 
-        $date = new DateTime();
-        switch ($this->rangeFilter) {
-            case 'today':
-                $date->setTime(0, 0);
-                break;
-            case 'week':
-                $date->modify('-1 week');
-                break;
-            case 'month':
-                $date->modify('-1 month');
-                break;
-            case 'year':
-                $date->modify('-1 year');
-                break;
-        }
-        return $date->format('Y-m-d H:i:s');
-    }
-
-    private function buildWhereConditions($dateRange, &$params): array
-    {
-        $conditions = [];
-
-        if ($this->importanceFilter !== 'all') {
-            $conditions[] = "importance = :importance";
-            $params['importance'] = $this->importanceFilter;
-        }
-
-        if ($dateRange) {
-            $conditions[] = "created_at >= :date_range";
-            $params['date_range'] = $dateRange;
-        }
-
-        return $conditions;
-    }
-
-    private function getTotalCount($query, $params)
-    {
-        $stmt = $this->pdo->prepare($query);
-
-        foreach ($params as $key => $val) {
-            $stmt->bindValue($key, $val);
-        }
-
-        $stmt->execute();
+        $stmt->execute(
+            [
+                'importance' => $this->importanceFilter === 'all' ? null : $this->importanceFilter,
+                'date_range' => $this->rangeFilter === 'all' ? null : $this->rangeFilter
+            ]
+        );
         return $stmt->fetchColumn();
     }
 
-    private function getPaginatedResults($query, $params): array
+    private function getPaginatedResults(): array
     {
         $offset = ($this->page - 1) * $this->perPage;
-        $query .= " ORDER BY created_at DESC, id ASC LIMIT :limit OFFSET :offset";
 
-        $stmt = $this->pdo->prepare($query);
+        $stmt = $this->pdo->prepare("
+            SELECT 
+                id,
+                title,
+                content,
+                short_description,
+                importance,
+                category,
+                author,
+                created_at,
+                updated_at
+            FROM get_filtered_announcements(:importance, :date_range, :limit, :offset)
+        ");
 
-        foreach ($params as $key => $val) {
-            $stmt->bindValue($key, $val);
-        }
-
-        $stmt->bindValue(':limit', $this->perPage, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-        $stmt->execute();
+        $stmt->execute(
+            [
+                'importance' => $this->importanceFilter === 'all' ? null : $this->importanceFilter,
+                'date_range' => $this->rangeFilter === 'all' ? null : $this->rangeFilter,
+                'limit' => $this->perPage,
+                'offset' => $offset
+            ]
+        );
 
         $announcements = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {

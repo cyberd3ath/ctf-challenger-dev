@@ -94,8 +94,9 @@ class RegistrationHandler
             $this->validateInput();
             $this->validateCsrfToken();
             $this->checkCredentialsAvailability();
-            $userId = $this->createUserAccount();
-            $vpnIp = $this->assignVpnIp($userId);
+            $create_data = $this->createUserAccount();
+            $userId = $create_data['user_id'];
+            $vpnIp = $create_data['vpn_static_ip'];
             $this->generateAndSaveVpnConfig($userId);
             $this->updateLastLogin($userId);
             $this->initializeUserSession($userId);
@@ -155,16 +156,16 @@ class RegistrationHandler
     {
         $this->pdo = $this->databaseHelper->getPDO();
 
-        $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = :username");
+        $stmt = $this->pdo->prepare("SELECT is_username_taken(:username)::INT");
         $stmt->execute(['username' => $this->username]);
-        if ($stmt->fetch()) {
+        if ($stmt->fetch(PDO::FETCH_COLUMN) == 1) {
             $this->logger->logWarning("Registration attempt with existing username: $this->username");
             throw new Exception('Username already taken', 400);
         }
 
-        $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = :email");
+        $stmt = $this->pdo->prepare("SELECT is_email_taken(:email)::INT");
         $stmt->execute(['email' => $this->email]);
-        if ($stmt->fetch()) {
+        if ($stmt->fetch(PDO::FETCH_COLUMN) == 1) {
             $this->logger->logWarning("Registration attempt with existing email: $this->email");
             throw new Exception('Email already registered', 400);
         }
@@ -175,7 +176,8 @@ class RegistrationHandler
      */
     private function createUserAccount()
     {
-        $passwordHash = password_hash($this->password, PASSWORD_DEFAULT);
+        $passwordSalt = bin2hex(random_bytes(16));
+        $passwordHash = hash('sha512', $passwordSalt . $this->password);
         if (!$passwordHash) {
             // @codeCoverageIgnoreStart
             // This should never happen unless the server is misconfigured
@@ -186,51 +188,24 @@ class RegistrationHandler
         $this->pdo->beginTransaction();
 
         try {
-            $stmt = $this->pdo->prepare("
-                INSERT INTO users (username, email, password_hash)
-                VALUES (:username, :email, :password_hash)
-                RETURNING id
-            ");
+            $stmt = $this->pdo->prepare("SELECT id AS user_id, vpn_static_ip FROM create_user(:username, :email, :password_hash, :password_salt)");
             $stmt->execute([
                 'username' => $this->username,
                 'email' => $this->email,
-                'password_hash' => $passwordHash
+                'password_hash' => $passwordHash,
+                'password_salt' => $passwordSalt
             ]);
-            $userId = $stmt->fetchColumn();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$userId) {
+            if (!$result || empty($result['user_id']) || empty($result['vpn_static_ip'])) {
                 throw new Exception('Account creation failed', 500);
             }
 
-            return $userId;
+            return $result;
         } catch (Exception $e) {
             $this->pdo->rollBack();
             $this->logger->logError("Database transaction failed: " . $e->getMessage());
             throw new Exception('Account creation failed', 500);
-        }
-    }
-
-    /**
-     * @throws Exception
-     */
-    private function assignVpnIp($userId)
-    {
-        try {
-            $stmt = $this->pdo->prepare("SELECT assign_lowest_vpn_ip(:user_id)");
-            $stmt->execute(['user_id' => $userId]);
-            $vpnIp = $stmt->fetchColumn();
-
-            if ($vpnIp) {
-                $stmt = $this->pdo->prepare("UPDATE users SET vpn_static_ip = :vpn_ip WHERE id = :id");
-                $stmt->execute(['vpn_ip' => $vpnIp, 'id' => $userId]);
-            }
-
-            $this->pdo->commit();
-            return $vpnIp;
-        } catch (Exception $e) {
-            $this->pdo->rollBack();
-            $this->logger->logError("VPN IP assignment failed: " . $e->getMessage());
-            throw new Exception('VPN setup failed', 500);
         }
     }
 
@@ -334,7 +309,7 @@ class RegistrationHandler
 
     private function updateLastLogin(int $userId): void
     {
-        $update = $this->pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = :id");
+        $update = $this->pdo->prepare("SELECT update_last_login(:id)");
         $update->execute(['id' => $userId]);
     }
 

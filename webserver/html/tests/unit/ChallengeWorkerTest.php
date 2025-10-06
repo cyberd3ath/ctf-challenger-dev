@@ -210,7 +210,6 @@ class ChallengeWorkerTest extends TestCase
             if($count > 0){
                 $stmt = $this->pdo->query("SELECT * FROM $table");
                 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                print_r($rows);
             }
 
             $this->assertEquals(0, $count, "Table $table should be empty after deletion.");

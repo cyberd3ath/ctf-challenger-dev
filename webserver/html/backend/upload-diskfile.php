@@ -479,13 +479,11 @@ class OvaUploadHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT 
-                    id,
-                    display_name,
+                SELECT
+                    id, 
+                    display_name, 
                     upload_date
-                FROM disk_files
-                WHERE user_id = :user_id
-                ORDER BY upload_date DESC
+                FROM get_user_disk_files(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $ovas = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -537,21 +535,19 @@ class OvaUploadHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT COUNT(*) as count 
-                FROM disk_files 
-                WHERE user_id = :user_id AND display_name = :display_name
+                SELECT is_duplicate_file_name(:user_id, :display_name)::INT AS count
             ");
             $stmt->execute([
                 'user_id' => $this->userId,
                 'display_name' => $displayName
             ]);
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            $result = $stmt->fetchColumn();
         } catch (PDOException $e) {
             $this->logger->logError("Database error checking duplicate file name: " . $e->getMessage());
             throw new RuntimeException('Could not verify file name', 500);
         }
 
-        if ($result['count'] > 0) {
+        if ($result != 0) {
             $this->logger->logError("Duplicate file name attempt by user $this->userId: $displayName");
             throw new RuntimeException('File name already exists', 400);
         }
@@ -667,15 +663,7 @@ class OvaUploadHandler
         $this->pdo->beginTransaction();
         try {
             $stmt = $this->pdo->prepare("
-                INSERT INTO disk_files (
-                    user_id, 
-                    display_name, 
-                    proxmox_filename
-                ) VALUES (
-                    :user_id, 
-                    :display_name, 
-                    :proxmox_filename
-                )
+                SELECT add_user_disk_file(:user_id, :display_name, :proxmox_filename)
             ");
             $stmt->execute([
                 'user_id' => $this->userId,
@@ -694,9 +682,7 @@ class OvaUploadHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT proxmox_filename 
-                FROM disk_files 
-                WHERE id = :ova_id AND user_id = :user_id
+                SELECT get_filename_by_ids(:ova_id, :user_id) AS proxmox_filename
             ");
             $stmt->execute(['ova_id' => $ovaId, 'user_id' => $this->userId]);
             $ova = $stmt->fetch();
@@ -729,8 +715,7 @@ class OvaUploadHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                DELETE FROM disk_files 
-                WHERE id = :ova_id AND user_id = :user_id
+                SELECT delete_user_disk_file(:ova_id, :user_id)
             ");
             $stmt->execute(['ova_id' => $ovaId, 'user_id' => $this->userId]);
         } catch (PDOException $e) {

@@ -64,11 +64,11 @@ class ActivitiesHandlerTest extends TestCase
     private function makeDateForRange(string $range): string
     {
         return match ($range) {
-            'today' => date("Y-m-d H:i:s", strtotime("now")),
-            'week'  => date("Y-m-d H:i:s", strtotime("-3 days")),
-            'month' => date("Y-m-d H:i:s", strtotime("-15 days")),
-            'year'  => date("Y-m-d H:i:s", strtotime("-6 months")),
-            'all'   => date("Y-m-d H:i:s", strtotime("-5 years")),
+            'today' => 'CURRENT_TIMESTAMP - INTERVAL \'2 hours\'',
+            'week'  => 'CURRENT_TIMESTAMP - INTERVAL \'3 days\'',
+            'month' => 'CURRENT_TIMESTAMP - INTERVAL \'15 days\'',
+            'year'  => 'CURRENT_TIMESTAMP - INTERVAL \'6 months\'',
+            'all'   => 'CURRENT_TIMESTAMP - INTERVAL \'5 years\'',
             default => throw new InvalidArgumentException("Unknown range: $range"),
         };
     }
@@ -154,7 +154,7 @@ class ActivitiesHandlerTest extends TestCase
             ")->execute([$cid, $cid, 100]);
 
                     $startedAt = $this->makeDateForRange($range);
-                    $completedAt = null;
+                    $completedAt = "NULL";
                     $flagId = null;
 
                     if ($type === "solved") {
@@ -175,8 +175,8 @@ class ActivitiesHandlerTest extends TestCase
                     $this->pdo->prepare("
                 INSERT INTO completed_challenges
                 (id, challenge_template_id, user_id, flag_id, started_at, completed_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ")->execute([$cid, $cid, $this->userId, $flagId, $startedAt, $completedAt]);
+                VALUES (?, ?, ?, ?, $startedAt, $completedAt)
+            ")->execute([$cid, $cid, $this->userId, $flagId]);
                 }
             }
         }
@@ -194,8 +194,8 @@ class ActivitiesHandlerTest extends TestCase
             $earnedAt = $this->makeDateForRange($range);
             $this->pdo->prepare("
                 INSERT INTO user_badges (badge_id, user_id, earned_at)
-                VALUES (?, ?, ?)
-            ")->execute([$cid, $this->userId, $earnedAt]);
+                VALUES (?, ?, $earnedAt)
+            ")->execute([$cid, $this->userId]);
         }
     }
 

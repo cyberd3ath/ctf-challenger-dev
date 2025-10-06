@@ -941,19 +941,19 @@ def setup_webserver():
 
     # Transfer ownership of the webserver files to the webserver user
     print("\tSetting ownership of webserver files")
-    execute_command("sudo chown www-data:www-data /etc/apache2/mods-available/mpm_event.conf")
+    execute_command("sudo chown root:root /etc/apache2/mods-available/mpm_event.conf")
     execute_command("sudo chmod 755 /etc/apache2/mods-available/mpm_event.conf")
 
-    execute_command(f"sudo chown www-data:www-data /etc/php/{php_version}/apache2/php.ini")
+    execute_command(f"sudo chown root:root /etc/php/{php_version}/apache2/php.ini")
     execute_command("sudo chmod 755 /etc/apache2/apache2.conf")
 
-    execute_command("sudo chown -R www-data:www-data /var/www/html/")
+    execute_command("sudo chown -R root:root /var/www/html/")
     execute_command("sudo chmod -R 755 /var/www/html/")
 
-    execute_command("sudo chown www-data:www-data /var/www/.env")
+    execute_command("sudo chown root:root /var/www/.env")
     execute_command("sudo chmod 644 /var/www/.env")
 
-    execute_command("sudo chown www-data:www-data /etc/apache2/sites-available/000-default.conf")
+    execute_command("sudo chown root:root /etc/apache2/sites-available/000-default.conf")
     execute_command("sudo chmod 644 /etc/apache2/sites-available/000-default.conf")
 
     print("\tCreating directories for the vpn-configs and logs")
@@ -1187,9 +1187,12 @@ def setup_database(conn=None, create_admin_config=True):
     if not connection_managed_externally:
         print("\tSetting up website admin user")
     with conn.cursor() as cursor:
+        WEBSITE_ADMIN_PASSWORD_SALT = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+        WEBSITE_ADMIN_PASSWORD_HASH = hashlib.sha512((WEBSITE_ADMIN_PASSWORD_SALT + WEBSITE_ADMIN_PASSWORD).encode()).hexdigest()
+
         cursor.execute(
-            f"INSERT INTO users (username, email, password_hash, is_admin) VALUES (%s, %s, crypt(%s, gen_salt('bf')), %s)",
-            (WEBSITE_ADMIN_USER, "admin@localhost.local", WEBSITE_ADMIN_PASSWORD, True))
+            f"INSERT INTO users (username, email, password_hash, password_salt, is_admin) VALUES (%s, %s, %s, %s, %s)",
+            (WEBSITE_ADMIN_USER, "admin@localhost.local", WEBSITE_ADMIN_PASSWORD_HASH, WEBSITE_ADMIN_PASSWORD_SALT, True))
 
     conn.commit()
 

@@ -144,15 +144,6 @@ class ProfileHandler
     /**
      * @throws RandomException
      * @throws Exception
-     * @throws Exception
-     * @throws Exception
-     * @throws Exception
-     * @throws Exception
-     * @throws Exception
-     * @throws Exception
-     * @throws Exception
-     * @throws Exception
-     * @throws Exception
      */
     private function handlePostRequest(): void
     {
@@ -356,46 +347,20 @@ class ProfileHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                WITH flag_counts AS (
-                    SELECT challenge_template_id, COUNT(*) AS total_flags
-                    FROM challenge_flags
-                    GROUP BY challenge_template_id
-                ),
-                user_flags AS (
-                    SELECT cc.challenge_template_id, COUNT(DISTINCT cc.flag_id) AS user_flag_count
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                    GROUP BY cc.challenge_template_id
-                ),
-                solved AS (
-                    SELECT uf.challenge_template_id
-                    FROM user_flags uf
-                    JOIN flag_counts fc ON uf.challenge_template_id = fc.challenge_template_id
-                    WHERE uf.user_flag_count = fc.total_flags
-                ),
-                total_points AS (
-                    SELECT COALESCE(SUM(cf.points), 0) AS total_points
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                )
-                SELECT
-                    u.username,
-                    u.email,
-                    u.created_at,
-                    u.last_login,
-                    u.avatar_url,
-                    p.full_name,
-                    p.bio,
-                    p.github_url,
-                    p.twitter_url,
-                    p.website_url,
-                    (SELECT COUNT(*) FROM solved) AS solved_count,
-                    (SELECT total_points FROM total_points) AS total_points
-                FROM users u
-                LEFT JOIN user_profiles p ON p.user_id = u.id
-                WHERE u.id = :user_id
+                SELECT 
+                    username,
+                    email,
+                    created_at,
+                    last_login,
+                    avatar_url,
+                    full_name,
+                    bio,
+                    github_url,
+                    twitter_url,
+                    website_url,
+                    solved_count,
+                    total_points
+                FROM get_basic_profile_data(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $profileData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -406,20 +371,11 @@ class ProfileHandler
             }
 
             $rankStmt = $this->pdo->prepare("
-                SELECT COUNT(*) + 1 AS user_rank
-                FROM (
-                    SELECT u.id, COALESCE(SUM(cf.points), 0) AS points
-                    FROM users u
-                    LEFT JOIN completed_challenges cc ON cc.user_id = u.id
-                    LEFT JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    GROUP BY u.id
-                    HAVING COALESCE(SUM(cf.points), 0) > :user_points
-                        OR (COALESCE(SUM(cf.points), 0) = :user_points AND u.id < :user_id)
-                ) ranked_users
+                SELECT user_rank FROM get_user_rank(:user_id, :user_points)
             ");
             $rankStmt->execute([
-                'user_points' => $profileData['total_points'],
-                'user_id' => $this->userId
+                'user_id' => $this->userId,
+                'user_points' => $profileData['total_points']
             ]);
             $rankData = $rankStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -462,34 +418,11 @@ class ProfileHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                WITH flag_counts AS (
-                    SELECT challenge_template_id, COUNT(*) AS total_flags
-                    FROM challenge_flags
-                    GROUP BY challenge_template_id
-                ),
-                user_flags AS (
-                    SELECT cc.challenge_template_id, COUNT(DISTINCT cc.flag_id) AS user_flag_count
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                    GROUP BY cc.challenge_template_id
-                ),
-                solved AS (
-                    SELECT uf.challenge_template_id
-                    FROM user_flags uf
-                    JOIN flag_counts fc ON uf.challenge_template_id = fc.challenge_template_id
-                    WHERE uf.user_flag_count = fc.total_flags
-                ),
-                total_points AS (
-                    SELECT COALESCE(SUM(cf.points), 0) AS total_points
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                )
-                SELECT
-                    (SELECT COUNT(*) FROM solved) AS solved,
-                    (SELECT COUNT(DISTINCT challenge_template_id) FROM completed_challenges WHERE user_id = :user_id) AS attempts,
-                    (SELECT total_points FROM total_points) AS total_points
+                SELECT 
+                    solved,
+                    attempts,
+                    total_points
+                FROM get_profile_stats(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $statsData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -526,11 +459,13 @@ class ProfileHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT b.id, b.name, b.description, b.icon, b.color
-                FROM user_badges ub
-                JOIN badges b ON b.id = ub.badge_id
-                WHERE ub.user_id = :user_id
-                ORDER BY b.rarity DESC, ub.earned_at DESC
+                SELECT 
+                    id,
+                    name,
+                    description,
+                    icon,
+                    color
+                FROM get_profile_badges(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $badges = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -545,7 +480,7 @@ class ProfileHandler
                 ];
             }, $badges);
 
-            $totalStmt = $this->pdo->query("SELECT COUNT(*) AS total FROM badges");
+            $totalStmt = $this->pdo->query("SELECT total FROM get_total_badges_count()");
             $totalBadges = (int)$totalStmt->fetch(PDO::FETCH_ASSOC)['total'];
 
             $earnedCount = count($sanitizedBadges);
@@ -570,72 +505,18 @@ class ProfileHandler
             }
 
             $stmt = $this->pdo->prepare("
-                WITH solved_challenges AS (
-                    SELECT cc.challenge_template_id, MAX(cc.completed_at) as completed_at
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                    GROUP BY cc.challenge_template_id
-                    HAVING COUNT(DISTINCT cf.id) = (
-                        SELECT COUNT(*) 
-                        FROM challenge_flags 
-                        WHERE challenge_template_id = cc.challenge_template_id
-                    )
-                ),
-                challenge_attempts AS (
-                    SELECT
-                        cc.challenge_template_id,
-                        COUNT(cc.id) AS attempts,
-                        MIN(cc.started_at) AS started_at,
-                        MAX(cc.completed_at) AS completed_at,
-                        BOOL_OR(cc.completed_at IS NOT NULL) AS has_completed_attempt
-                    FROM completed_challenges cc
-                    WHERE cc.user_id = :user_id
-                    GROUP BY cc.challenge_template_id
-                )
-                SELECT
-                    ct.id AS challenge_id,
-                    ct.name AS challenge_name,
-                    ct.category,
-                    (SELECT MAX(cf.points) FROM challenge_flags cf WHERE cf.challenge_template_id = ct.id) AS points,
-                    sc.completed_at IS NOT NULL AS solved,
-                    ca.attempts,
-                    ca.started_at,
-                    ca.completed_at,
-                    CASE
-                        WHEN sc.completed_at IS NOT NULL THEN 'solved'
-                        WHEN ca.has_completed_attempt THEN 'failed'
-                        ELSE 'started'
-                    END AS status,
-                    CASE
-                        WHEN sc.completed_at IS NOT NULL THEN
-                            CASE
-                                WHEN EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - sc.completed_at)) < 24
-                                THEN EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - sc.completed_at)) || ' hours ago'
-                                ELSE EXTRACT(DAY FROM (CURRENT_TIMESTAMP - sc.completed_at)) || ' days ago'
-                            END
-                        WHEN ca.completed_at IS NOT NULL THEN
-                            CASE
-                                WHEN EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.completed_at)) < 24
-                                THEN 'Failed ' || EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.completed_at)) || ' hours ago'
-                                ELSE 'Failed ' || EXTRACT(DAY FROM (CURRENT_TIMESTAMP - ca.completed_at)) || ' days ago'
-                            END
-                        ELSE
-                            CASE
-                                WHEN EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.started_at)) < 24
-                                THEN 'Started ' || EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.started_at)) || ' hours ago'
-                                ELSE 'Started ' || EXTRACT(DAY FROM (CURRENT_TIMESTAMP - ca.started_at)) || ' days ago'
-                            END
-                    END AS time_ago
-                FROM challenge_templates ct
-                JOIN challenge_attempts ca ON ca.challenge_template_id = ct.id
-                LEFT JOIN solved_challenges sc ON sc.challenge_template_id = ct.id
-                WHERE EXISTS (
-                    SELECT 1 FROM completed_challenges 
-                    WHERE user_id = :user_id AND challenge_template_id = ct.id
-                )
-                ORDER BY COALESCE(sc.completed_at, ca.completed_at, ca.started_at) DESC
-                LIMIT :limit
+                SELECT 
+                    challenge_id,
+                    challenge_name,
+                    category,
+                    points,
+                    solved,
+                    attempts,
+                    started_at,
+                    completed_at,
+                    status,
+                    time_ago
+                FROM get_recent_activity(:user_id, :limit)
             ");
             $stmt->bindValue(':user_id', $this->userId, PDO::PARAM_INT);
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
@@ -671,14 +552,14 @@ class ProfileHandler
     {
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = :username AND id != :user_id");
+            $stmt = $this->pdo->prepare("SELECT is_username_taken_by_other_user(:user_id, :username)::INT AS exists");
             $stmt->execute(['username' => $newUsername, 'user_id' => $this->userId]);
-            if ($stmt->fetch()) {
+            if ($stmt->fetchColumn() === 1) {
                 $this->logger->logWarning("Username already taken - Username: $newUsername, User ID: $this->userId");
                 throw new Exception('Username is already taken', 400);
             }
 
-            $updateStmt = $this->pdo->prepare("UPDATE users SET username = :username WHERE id = :user_id");
+            $updateStmt = $this->pdo->prepare("SELECT update_username(:user_id, :username)");
             $updateStmt->execute(['username' => $newUsername, 'user_id' => $this->userId]);
 
             $this->pdo->commit();
@@ -702,18 +583,16 @@ class ProfileHandler
     {
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = :email AND id != :user_id");
+            $stmt = $this->pdo->prepare("SELECT is_email_taken_by_other_user(:user_id, :email)::INT AS exists");
             $stmt->execute(['email' => $newEmail, 'user_id' => $this->userId]);
 
-            if ($stmt->fetch()) {
+            if ($stmt->fetchColumn() == 1) {
                 $this->logger->logWarning("Email already registered - User ID: $this->userId, Email: $newEmail");
                 throw new RuntimeException('Email is already registered', 400);
             }
 
             $updateStmt = $this->pdo->prepare("
-                UPDATE users 
-                SET email = :email
-                WHERE id = :user_id
+                SELECT update_email(:user_id, :email)
             ");
             $updateStmt->execute([
                 'email' => $newEmail,
@@ -747,15 +626,8 @@ class ProfileHandler
         $this->pdo->beginTransaction();
         try {
             $sanitizedFullName = htmlspecialchars($newFullName, ENT_QUOTES, 'UTF-8');
-            $stmt = $this->pdo->prepare("SELECT user_id FROM user_profiles WHERE user_id = :user_id");
-            $stmt->execute(['user_id' => $this->userId]);
-            if ($stmt->fetch()) {
-                $updatedStmt = $this->pdo->prepare("UPDATE user_profiles SET full_name = :full_name WHERE user_id = :user_id");
-            } else {
-                $updatedStmt = $this->pdo->prepare("INSERT INTO  user_profiles (user_id, full_name) VALUES (:user_id, :full_name)");
-            }
-
-            $updatedStmt->execute([
+            $stmt = $this->pdo->prepare("SELECT update_full_name(:user_id, :full_name)");
+            $stmt->execute([
                 'user_id' => $this->userId,
                 'full_name' => $sanitizedFullName
             ]);
@@ -781,18 +653,10 @@ class ProfileHandler
         try {
             $sanitizedBio = htmlspecialchars(trim($newBio), ENT_QUOTES, 'UTF-8');
 
-            $stmt = $this->pdo->prepare("SELECT user_id FROM user_profiles WHERE user_id = :user_id");
-            $stmt->execute(['user_id' => $this->userId]);
-
-            if ($stmt->fetch()) {
-                $updateStmt = $this->pdo->prepare("UPDATE user_profiles SET bio = :bio WHERE user_id = :user_id");
-            } else {
-                $updateStmt = $this->pdo->prepare("INSERT INTO user_profiles (user_id, bio) VALUES (:user_id, :bio)");
-            }
-
-            $updateStmt->execute([
-                'bio' => $sanitizedBio,
-                'user_id' => $this->userId
+            $stmt = $this->pdo->prepare("SELECT update_bio(:user_id, :bio)");
+            $stmt->execute([
+                'user_id' => $this->userId,
+                'bio' => $sanitizedBio
             ]);
 
             $this->pdo->commit();
@@ -840,30 +704,12 @@ class ProfileHandler
 
             $this->pdo->beginTransaction();
 
-            $stmt = $this->pdo->prepare("SELECT user_id FROM user_profiles WHERE user_id = :user_id");
-            $stmt->execute(['user_id' => $this->userId]);
-
-            if ($stmt->fetch()) {
-                $updateStmt = $this->pdo->prepare("
-                    UPDATE user_profiles
-                    SET github_url = :github, 
-                        twitter_url = :twitter, 
-                        website_url = :website
-                    WHERE user_id = :user_id
-                ");
-            } else {
-                $updateStmt = $this->pdo->prepare("
-                    INSERT INTO user_profiles
-                    (user_id, github_url, twitter_url, website_url)
-                    VALUES (:user_id, :github, :twitter, :website)
-                ");
-            }
-
-            $updateStmt->execute([
+            $stmt = $this->pdo->prepare("SELECT update_social_links(:user_id, :github, :twitter, :website)");
+            $stmt->execute([
+                'user_id' => $this->userId,
                 'github' => $sanitizedData['github'],
                 'twitter' => $sanitizedData['twitter'],
-                'website' => $sanitizedData['website'],
-                'user_id' => $this->userId
+                'website' => $sanitizedData['website']
             ]);
 
             $this->pdo->commit();
@@ -918,7 +764,7 @@ class ProfileHandler
                 );
             }
 
-            $stmt = $this->pdo->prepare("SELECT avatar_url FROM users WHERE id = :user_id");
+            $stmt = $this->pdo->prepare("SELECT get_user_avatar(:user_id) AS avatar_url");
             $stmt->execute(['user_id' => $this->userId]);
             $oldAvatar = $stmt->fetch();
             $oldAvatarUrl = $oldAvatar['avatar_url'] ?? '';
@@ -956,7 +802,7 @@ class ProfileHandler
 
             $this->system->chmod($fullPath, 0644);
 
-            $updateStmt = $this->pdo->prepare("UPDATE users SET avatar_url = :avatar_url WHERE id = :user_id");
+            $updateStmt = $this->pdo->prepare("SELECT update_user_avatar(:user_id, :avatar_url)");
             $updateStmt->execute([
                 'avatar_url' => $uploadPath,
                 'user_id' => $this->userId
@@ -999,7 +845,7 @@ class ProfileHandler
                 throw new InvalidArgumentException('Invalid avatar selection', 400);
             }
 
-            $stmt = $this->pdo->prepare("SELECT avatar_url FROM users WHERE id = :user_id");
+            $stmt = $this->pdo->prepare("SELECT get_user_avatar(:user_id) AS avatar_url");
             $stmt->execute(['user_id' => $this->userId]);
             $oldAvatar = $stmt->fetch();
             $oldAvatarUrl = $oldAvatar['avatar_url'] ?? '';
@@ -1016,7 +862,7 @@ class ProfileHandler
 
             $avatarPath = '/assets/avatars/' . basename($avatar) . '.png';
 
-            $updateStmt = $this->pdo->prepare("UPDATE users SET avatar_url = :avatar_url WHERE id = :user_id");
+            $updateStmt = $this->pdo->prepare("SELECT update_user_avatar(:user_id, :avatar_url)");
             $updateStmt->execute([
                 'avatar_url' => $avatarPath,
                 'user_id' => $this->userId
@@ -1052,33 +898,45 @@ class ProfileHandler
                 throw new InvalidArgumentException('Password is too long', 400);
             }
 
-            $stmt = $this->pdo->prepare("SELECT password_hash FROM users WHERE id = :user_id");
+            $stmt = $this->pdo->prepare("SELECT get_user_password_salt(:username) AS salt");
             $stmt->execute(['user_id' => $this->userId]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            $passwordSalt = $stmt->fetch(PDO::FETCH_ASSOC)['salt'];
 
-            if (!$user) {
+            if (!$passwordSalt) {
                 $this->logger->logError("User not found during password change - User ID: $this->userId");
                 throw new RuntimeException('User not found', 404);
             }
 
-            if (!password_verify($currentPassword, $user['password_hash'])) {
+            $oldPasswordHash = hash('sha256', $passwordSalt . $currentPassword);
+            $userStmt = $this->pdo->prepare("SELECT authenticate_user(:username, :password_hash) AS user_id");
+            $userStmt->execute([
+                'username' => $this->session['username'],
+                'password_hash' => $oldPasswordHash
+            ]);
+            $user_id = $userStmt->fetch(PDO::FETCH_ASSOC)['user_id'];
+
+
+            if (!$user_id) {
                 $this->logger->logWarning("Incorrect current password attempt - User ID: $this->userId");
                 throw new InvalidArgumentException('Current password is incorrect', 400);
             }
 
-            if (password_verify($newPassword, $user['password_hash'])) {
+            if (hash('sha256', $passwordSalt . $newPassword) === $oldPasswordHash) {
                 throw new InvalidArgumentException('New password must be different from current password', 400);
             }
 
-            $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-            if (!$newHash) {
+            $newSalt = bin2hex(random_bytes(16));
+            $newPasswordHash = hash('sha256', $newSalt . $newPassword);
+            if (!$newPasswordHash) {
                 throw new RuntimeException('Error hashing password', 500);
             }
 
-            $updateStmt = $this->pdo->prepare("UPDATE users SET password_hash = :password WHERE id = :user_id");
+            $updateStmt = $this->pdo->prepare("SELECT change_user_password(:user_id, :old_password_hash, :new_password_hash, :new_password_salt)");
             $updateStmt->execute([
-                'password' => $newHash,
-                'user_id' => $this->userId
+                'user_id' => $this->userId,
+                'old_password_hash' => $oldPasswordHash,
+                'new_password_hash' => $newPasswordHash,
+                'new_password_salt' => $newSalt
             ]);
 
             $this->pdo->commit();
@@ -1100,7 +958,7 @@ class ProfileHandler
     private function getCategoryData(): array
     {
         try {
-            $stmt = $this->pdo->query("SELECT unnest(enum_range(NULL::challenge_category)) AS category ORDER BY category");
+            $stmt = $this->pdo->query("SELECT get_all_challenge_categories() AS category");
             $allCategories = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
             if (empty($allCategories)) {
@@ -1109,32 +967,14 @@ class ProfileHandler
 
             $totals = [];
             $stmt = $this->pdo->query("
-                SELECT category, COUNT(*) as total 
-                FROM challenge_templates 
-                WHERE is_active = true
-                GROUP BY category
+                SELECT get_challenge_counts_by_categories()
             ");
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $totals[$row['category']] = (int)$row['total'];
             }
 
             $stmt = $this->pdo->prepare("
-                WITH solved_challenges AS (
-                    SELECT cc.challenge_template_id
-                    FROM completed_challenges cc
-                    JOIN challenge_flags cf ON cc.flag_id = cf.id
-                    WHERE cc.user_id = :user_id
-                    GROUP BY cc.challenge_template_id
-                    HAVING COUNT(DISTINCT cf.id) = (
-                        SELECT COUNT(*) 
-                        FROM challenge_flags 
-                        WHERE challenge_template_id = cc.challenge_template_id
-                    )
-                )
-                SELECT ct.category, COUNT(sc.challenge_template_id) as solved
-                FROM solved_challenges sc
-                JOIN challenge_templates ct ON ct.id = sc.challenge_template_id
-                GROUP BY ct.category
+                SELECT get_user_solved_challenge_count_by_categories(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $solved = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -1169,10 +1009,7 @@ class ProfileHandler
                 throw new RuntimeException('VPN configuration not found. Please contact support.', 404);
             }
 
-            $stmt = $this->pdo->prepare("SELECT username FROM users WHERE id = :user_id");
-            $stmt->execute(['user_id' => $this->userId]);
-            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
-            $username = $userData['username'] ?? 'user_' . $this->userId;
+            $username = $this->session['username'] ?? 'user_' . $this->userId;
 
             $safeUsername = preg_replace('/' . $this->generalConfig['user']['USERNAME_REGEX'] . '/', '', $username);
             $filename = 'vpn_config_' . $safeUsername . '.ovpn';
@@ -1213,11 +1050,11 @@ class ProfileHandler
             }
 
             $password = $input['password'] ?? '';
-            $this->verifyUserPassword($password);
+            $hashedPassword = $this->verifyUserPassword($password);
             $this->stopRunningChallenge();
             $this->deleteUserConfigurations();
-            $this->deleteUserOvaFiles();
-            $this->deleteAllUserData();
+            $this->deleteUserOvaFiles($hashedPassword);
+            $this->deleteAllUserData($hashedPassword);
             $this->destroyUserSession();
 
             $this->logger->logInfo("Account deleted successfully - User ID: $this->userId");
@@ -1229,21 +1066,38 @@ class ProfileHandler
         }
     }
 
-    private function verifyUserPassword(string $password): void
+    private function verifyUserPassword(string $password): string
     {
         try {
             if (empty($password)) {
                 throw new InvalidArgumentException('Password cannot be empty', 400);
             }
 
-            $stmt = $this->pdo->prepare("SELECT password_hash FROM users WHERE id = :user_id");
-            $stmt->execute(['user_id' => $this->userId]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$user || !password_verify($password, $user['password_hash'])) {
+
+            $stmt = $this->pdo->prepare("SELECT get_user_password_salt(:user_id) AS salt");
+            $stmt->execute(['user_id' => $this->userId]);
+            $passwordSalt = $stmt->fetch(PDO::FETCH_ASSOC)['salt'];
+
+            if (!$passwordSalt) {
                 $this->logger->logWarning("Incorrect password during verification - User ID: $this->userId");
                 throw new InvalidArgumentException('Incorrect password', 400);
             }
+
+            $hashedPassword = hash('sha256', $passwordSalt . $password);
+            $stmt = $this->pdo->prepare("SELECT authenticate_user(:username, :password_hash) AS user_id");
+            $stmt->execute([
+                'username' => $this->session['username'],
+                'password_hash' => $hashedPassword
+            ]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if(!$user || !$user['user_id']) {
+                $this->logger->logWarning("Incorrect password during verification - User ID: $this->userId");
+                throw new InvalidArgumentException('Incorrect password', 400);
+            }
+
+            return $hashedPassword;
 
         } catch (PDOException $e) {
             $this->logger->logError("Database error during password verification - User ID: $this->userId - " . $e->getMessage());
@@ -1254,7 +1108,7 @@ class ProfileHandler
     private function stopRunningChallenge(): void
     {
         try {
-            $stmt = $this->pdo->prepare("SELECT running_challenge FROM users WHERE id = :user_id");
+            $stmt = $this->pdo->prepare("SELECT get_running_challenge(:user_id) AS running_challenge");
             $stmt->execute(['user_id' => $this->userId]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1299,13 +1153,11 @@ class ProfileHandler
         }
     }
 
-    private function deleteUserOvaFiles(): void
+    private function deleteUserOvaFiles(string $hashedPassword): void
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT id AS ova_id, proxmox_filename 
-                FROM disk_files 
-                WHERE user_id = :user_id
+                SELECT ova_id, proxmox_filename FROM get_user_disk_files(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $ovas = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1320,8 +1172,12 @@ class ProfileHandler
                         throw new RuntimeException('Failed to delete virtual machine', 500);
                     }
 
-                    $this->pdo->prepare("DELETE FROM disk_files WHERE id = ? AND user_id = ?")
-                        ->execute([$ova['ova_id'], $this->userId]);
+                    $this->pdo->prepare("SELECT delete_user_disk_files(:user_id, :ova_id, :password_hash)")
+                        ->execute([
+                            'user_id' => $this->userId,
+                            'ova_id' => $ova['ova_id'],
+                            'password_hash' => $hashedPassword
+                        ]);
                 } catch (Exception $e) {
                     $this->logger->logError("Failed to delete OVA - User ID: $this->userId, OVA ID: {$ova['ova_id']} - " . $e->getMessage());
                 }
@@ -1333,28 +1189,16 @@ class ProfileHandler
         }
     }
 
-    private function deleteAllUserData(): void
+    private function deleteAllUserData(string $hashedPassword): void
     {
         try {
             $this->pdo->beginTransaction();
 
-            $tables = [
-                'user_badges',
-                'completed_challenges',
-                'user_profiles',
-                'disk_files'
-            ];
-
-            foreach ($tables as $table) {
-                $this->pdo->prepare("DELETE FROM $table WHERE user_id = ?")
-                    ->execute([$this->userId]);
-            }
-
-            $this->pdo->prepare("UPDATE vpn_static_ips SET user_id = NULL WHERE user_id = ?")
-                ->execute([$this->userId]);
-
-            $this->pdo->prepare("DELETE FROM users WHERE id = ?")
-                ->execute([$this->userId]);
+            $this->pdo->prepare("SELECT delete_user_account(:user_id, :password_hash)")
+                ->execute([
+                    'user_id' => $this->userId,
+                    'password_hash' => $hashedPassword
+                ]);
 
             $this->pdo->commit();
         } catch (Exception $e) {

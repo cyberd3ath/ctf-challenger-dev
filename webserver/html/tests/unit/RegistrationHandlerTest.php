@@ -598,8 +598,13 @@ class RegistrationHandlerTest extends TestCase
 
         $stmtMock = $this->createMock(PDOStatement::class);
         $stmtMock->method('execute')->willReturn(true);
-        $stmtMock->method('fetchColumn')->willReturn(1)->willReturnOnConsecutiveCalls(1, null); // First call returns user ID, second call returns null for VPN
-        $stmtMock->method('rowCount')->willReturn(1);
+        $stmtMock->method('fetch')->willReturnOnConsecutiveCalls(
+            false, // username duplicate check
+            false, // email duplicate check
+            [
+                'user_id' => 1,
+                'vpn_static_ip' => null
+        ]);
 
         $pdo = $this->createMock(PDO::class);
         $pdo->method('beginTransaction')->willReturn(true);
@@ -629,7 +634,7 @@ class RegistrationHandlerTest extends TestCase
         $json = json_decode($output, true);
 
         $this->assertFalse($json['success']);
-        $this->assertStringContainsString('VPN setup failed', $json['message']);
+        $this->assertStringContainsString('Account creation failed', $json['message']);
         $this->assertEquals(500, $json['error_code']);
     }
 
@@ -647,7 +652,7 @@ class RegistrationHandlerTest extends TestCase
 
         $stmtMock = $this->createMock(PDOStatement::class);
         $stmtMock->method('execute')->willReturn(true);
-        $stmtMock->method('fetchColumn')->willReturn(1)->willReturnOnConsecutiveCalls(1, null); // First call returns user ID, second call returns null for VPN
+        $stmtMock->method('fetch')->willReturnOnConsecutiveCalls(false, false, ['user_id' => 2, 'vpn_static_ip' => '1.2.3.4']); // First call returns user ID, second call returns null for VPN
         $stmtMock->method('rowCount')->willReturn(1);
 
         $pdo = $this->createMock(PDO::class);
@@ -693,7 +698,7 @@ class RegistrationHandlerTest extends TestCase
         $this->assertEquals(500, $json['error_code']);
     }
 
-    public function testErrorDuringVpnCOnfigDirCreationThrowsExceptionAndRollsBack(): void
+    public function testErrorDuringVpnConfigDirCreationThrowsExceptionAndRollsBack(): void
     {
         $this->server['REQUEST_METHOD'] = 'POST';
         $this->post['csrf_token'] = 'valid-token';
@@ -707,7 +712,7 @@ class RegistrationHandlerTest extends TestCase
 
         $stmtMock = $this->createMock(PDOStatement::class);
         $stmtMock->method('execute')->willReturn(true);
-        $stmtMock->method('fetchColumn')->willReturn(1)->willReturnOnConsecutiveCalls(1, null); // First call returns user ID, second call returns null for VPN
+        $stmtMock->method('fetch')->willReturnOnConsecutiveCalls(false, false, ['user_id' => 1, 'vpn_static_ip' => '1.2.3.4']); // First call returns user ID, second call returns null for VPN
         $stmtMock->method('rowCount')->willReturn(1);
 
         $pdo = $this->createMock(PDO::class);
@@ -767,8 +772,7 @@ class RegistrationHandlerTest extends TestCase
 
         $stmtMock = $this->createMock(PDOStatement::class);
         $stmtMock->method('execute')->willReturn(true);
-        $stmtMock->method('fetchColumn')->willReturn(1)->willReturnOnConsecutiveCalls(1, null); // First call returns user ID, second call returns null for VPN
-        $stmtMock->method('rowCount')->willReturn(1);
+        $stmtMock->method('fetch')->willReturnOnConsecutiveCalls(false, false, ['user_id' => 1, 'vpn_static_ip' => '1.2.3.4']); // First call returns user ID, second call returns null for VPN
 
         $pdo = $this->createMock(PDO::class);
         $pdo->method('beginTransaction')->willReturn(true);
@@ -829,9 +833,13 @@ class RegistrationHandlerTest extends TestCase
 
         $stmtMock = $this->createMock(PDOStatement::class);
         $stmtMock->method('execute')->willReturn(true);
-        $stmtMock->method('fetchColumn')->willReturn(1)->willReturnOnConsecutiveCalls(1, null); // First call returns user ID, second call returns null for VPN
-        $stmtMock->method('rowCount')->willReturn(1);
-
+        $stmtMock->method('fetch')->willReturnOnConsecutiveCalls(
+            false, // username duplicate check
+            false, // email duplicate check
+            [
+                'user_id' => 1,
+                'vpn_static_ip' => '1.2.3.4'
+        ]);
         $pdo = $this->createMock(PDO::class);
         $pdo->method('beginTransaction')->willReturn(true);
         $pdo->method('rollBack')->willReturn(true);
@@ -891,7 +899,13 @@ class RegistrationHandlerTest extends TestCase
 
         $stmtMock = $this->createMock(PDOStatement::class);
         $stmtMock->method('execute')->willReturn(true);
-        $stmtMock->method('fetchColumn')->willReturn(1)->willReturnOnConsecutiveCalls(1, null); // First call returns user ID, second call returns null for VPN
+        $stmtMock->method('fetch')->willReturnOnConsecutiveCalls(
+            false, // username duplicate check
+            false, // email duplicate check
+            [
+                'user_id' => 1,
+                'vpn_static_ip' => '1.2.3.4'
+        ]);
         $stmtMock->method('rowCount')->willReturn(1);
 
         $pdo = $this->createMock(PDO::class);
@@ -951,7 +965,13 @@ class RegistrationHandlerTest extends TestCase
 
         $stmtMock = $this->createMock(PDOStatement::class);
         $stmtMock->method('execute')->willReturn(true);
-        $stmtMock->method('fetchColumn')->willReturn(1)->willReturnOnConsecutiveCalls(1, null); // First call returns user ID, second call returns null for VPN
+        $stmtMock->method('fetch')->willReturnOnConsecutiveCalls(
+            false, // username duplicate check
+            false, // email duplicate check
+            [
+                'user_id' => 1,
+                'vpn_static_ip' => '1.2.3.4'
+        ]);
         $stmtMock->method('rowCount')->willReturn(1);
 
         $pdo = $this->createMock(PDO::class);
@@ -1000,8 +1020,8 @@ class RegistrationHandlerTest extends TestCase
         $this->requireMockDB();
 
         $this->pdo->exec("
-            INSERT INTO users (username, email, password_hash)
-            VALUES ('existinguser', 'test2@test.test', 'hashedpassword')
+            INSERT INTO users (username, email, password_hash, password_salt)
+            VALUES ('existinguser', 'test2@test.test', 'hashedpassword', 'somesalt')
         ");
 
         $this->server['REQUEST_METHOD'] = 'POST';
@@ -1042,8 +1062,8 @@ class RegistrationHandlerTest extends TestCase
         $this->requireMockDB();
 
         $this->pdo->exec("
-            INSERT INTO users (username, email, password_hash)
-            VALUES ('existinguser', 'test2@test.test', 'hashedpassword')
+            INSERT INTO users (username, email, password_hash, password_salt)
+            VALUES ('existinguser', 'test2@test.test', 'hashedpassword', 'somesalt')
         ");
 
         $this->server['REQUEST_METHOD'] = 'POST';

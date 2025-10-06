@@ -87,7 +87,7 @@ class ProfileStatusHandler
     private function getUserProfileData(): array
     {
         try {
-            $stmt = $this->pdo->prepare("SELECT avatar_url, is_admin FROM users WHERE id = :user_id");
+            $stmt = $this->pdo->prepare("SELECT avatar_url, is_admin FROM get_header_data(:user_id)");
             $stmt->execute(['user_id' => $this->userId]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 

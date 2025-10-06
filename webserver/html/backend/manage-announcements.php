@@ -56,7 +56,7 @@ class AdminAnnouncementsHandler
         $this->initSession();
         $this->validateRequest();
         $this->userId = $this->session['user_id'];
-        $this->username = $this->getUsername();
+        $this->username = $this->session['username'];
         $this->action = $this->get['action'] ?? '';
         $this->logger->logDebug("Initialized AdminAnnouncementsHandler for user ID: $this->userId, Action: $this->action");
     }
@@ -89,23 +89,6 @@ class AdminAnnouncementsHandler
             $this->logger->logWarning("Non-admin access attempt to admin announcements - User ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new Exception('Unauthorized - Admin access only', 403);
         }
-    }
-
-    /**
-     * @throws Exception
-     */
-    private function getUsername()
-    {
-        $stmt = $this->pdo->prepare("SELECT username FROM users WHERE id = :user_id");
-        $stmt->execute(['user_id' => $this->userId]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$user) {
-            $this->logger->logError("User not found during admin announcement access - User ID: $this->userId");
-            throw new Exception('User not found', 404);
-        }
-
-        return $user['username'];
     }
 
     /**
@@ -157,7 +140,7 @@ class AdminAnnouncementsHandler
 
     private function getTotalAnnouncements()
     {
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM announcements");
+        $stmt = $this->pdo->prepare("SELECT get_total_announcement_count() AS total");
         $stmt->execute();
         return $stmt->fetchColumn();
     }
@@ -165,9 +148,17 @@ class AdminAnnouncementsHandler
     private function getPaginatedAnnouncements(int $perPage, int $offset): array
     {
         $stmt = $this->pdo->prepare("
-            SELECT * FROM announcements 
-            ORDER BY created_at DESC 
-            LIMIT :limit OFFSET :offset
+            SELECT
+                id,
+                title,
+                content,
+                short_description,
+                importance,
+                category,
+                author,
+                created_at,
+                updated_at
+            FROM get_announcements(:limit, :offset)
         ");
         $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
@@ -278,25 +269,14 @@ class AdminAnnouncementsHandler
         $category = strtolower(trim($data['category'] ?? ''));
 
         $stmt = $this->pdo->prepare("
-            INSERT INTO announcements (
-                title, 
-                content, 
-                short_description, 
-                importance, 
-                category, 
-                author,
-                created_at,
-                updated_at
-            ) VALUES (
-                :title, 
-                :content, 
-                :short_desc, 
-                :importance, 
-                :category, 
-                :author,
-                CURRENT_TIMESTAMP,
-                CURRENT_TIMESTAMP
-            )
+            SELECT create_announcement(
+                :title,
+                :content,
+                :short_desc,
+                :importance,
+                :category,
+                :author
+            ) AS announcement_id
         ");
 
         $stmt->execute([
@@ -308,7 +288,7 @@ class AdminAnnouncementsHandler
             'author' => $this->username
         ]);
 
-        $announcementId = $this->pdo->lastInsertId();
+        $announcementId = $stmt->fetchColumn();
         $this->logger->logInfo("Announcement created - ID: $announcementId, Title: $title, Author: $this->username");
 
         return [
@@ -338,14 +318,14 @@ class AdminAnnouncementsHandler
         $category = strtolower(trim($data['category'] ?? ''));
 
         $stmt = $this->pdo->prepare("
-            UPDATE announcements SET
-                title = :title,
-                content = :content,
-                short_description = :short_desc,
-                importance = :importance,
-                category = :category,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = :id
+            SELECT update_announcement(
+                :id,
+                :title,
+                :content,
+                :short_desc,
+                :importance,
+                :category
+            )
         ");
 
         $stmt->execute([
@@ -370,9 +350,9 @@ class AdminAnnouncementsHandler
      */
     private function verifyAnnouncementExists(int $id): void
     {
-        $stmt = $this->pdo->prepare("SELECT id FROM announcements WHERE id = :id");
+        $stmt = $this->pdo->prepare("SELECT announcement_exists(:id)::INT AS exists");
         $stmt->execute(['id' => $id]);
-        if (!$stmt->fetch()) {
+        if ($stmt->fetchColumn() == 0) {
             $this->logger->logError("Announcement not found for update - ID: $id, User: $this->username");
             throw new Exception('Announcement not found', 404);
         }
@@ -389,7 +369,7 @@ class AdminAnnouncementsHandler
             throw new Exception('Missing announcement ID', 400);
         }
 
-        $stmt = $this->pdo->prepare("DELETE FROM announcements WHERE id = :id");
+        $stmt = $this->pdo->prepare("SELECT delete_announcement(:id)");
         $stmt->execute(['id' => $data['id']]);
 
         return [

@@ -110,226 +110,88 @@ class ActivitiesHandler
         }
     }
 
-    private function getDateRange(): ?string
-    {
-        if ($this->rangeFilter === 'all') {
-            return null;
-        }
-
-        $date = new DateTime();
-        switch ($this->rangeFilter) {
-            case 'today':
-                $date->modify('-1 day');
-                break;
-            case 'week':
-                $date->modify('-1 week');
-                break;
-            case 'month':
-                $date->modify('-1 month');
-                break;
-            case 'year':
-                $date->modify('-1 year');
-                break;
-        }
-        return $date->format('Y-m-d H:i:s');
-    }
-
     /**
      * @throws Exception
      */
     public function handleRequest(): void
     {
         try {
-            $dateRange = $this->getDateRange();
-            $params = ['user_id' => $this->userId];
-
-            $queries = $this->buildQueries($dateRange, $params);
-
-            $combinedQuery = implode(" UNION ALL ", $queries);
-            $total = $this->getTotalCount($combinedQuery, $params);
-            $activities = $this->getPaginatedResults($combinedQuery, $params);
+            $total = $this->getTotalCount();
+            $activities = $this->getPaginatedResults();
 
             $this->sendResponse($activities, $total);
         } catch (PDOException $e) {
             $this->logger->logError("Database error in activities route: " . $e->getMessage());
+
+            fwrite(STDERR, "Database error: " . $e->getMessage());
+
             throw new Exception('Database error occurred', 500);
         }
     }
 
-    private function buildQueries($dateRange, &$params): array
+    private function getTotalCount(): int
     {
-        $queries = [];
+        $stmt = $this->pdo->prepare("
+            SELECT get_user_activities_total_count(
+                :user_id,
+                :category_filter,
+                :type_filter,
+                :date_range
+            ) AS total_count
+        ");
 
-        if (in_array($this->typeFilter, ['all', 'solved', 'failed', 'active'])) {
-            $queries[] = $this->buildChallengeQuery($dateRange, $params);
-        }
-
-        if (in_array($this->typeFilter, ['all', 'badges'])) {
-            $queries[] = $this->buildBadgeQuery($dateRange, $params);
-        }
-
-        return $queries;
-    }
-
-    private function buildChallengeQuery($dateRange, &$params): string
-    {
-        $query = "
-        WITH flag_counts AS (
-            SELECT 
-                challenge_template_id, 
-                COUNT(id) AS total_flags
-            FROM challenge_flags
-            GROUP BY challenge_template_id
-        ),
-        user_flag_submissions AS (
-            SELECT 
-                cc.challenge_template_id,
-                cc.id AS completion_id,
-                cc.flag_id,
-                cc.completed_at,
-                ROW_NUMBER() OVER (
-                    PARTITION BY cc.challenge_template_id 
-                    ORDER BY cc.completed_at DESC
-                ) AS submission_rank,
-                COUNT(cf.id) OVER (
-                    PARTITION BY cc.challenge_template_id
-                ) AS user_submitted_flags
-            FROM completed_challenges cc
-            JOIN challenge_flags cf ON cc.flag_id = cf.id
-            WHERE cc.user_id = :user_id
-        ),
-        challenge_attempts AS (
-            SELECT 
-                cc.id,
-                cc.challenge_template_id,
-                cc.started_at,
-                cc.completed_at,
-                cc.flag_id,
-                ct.name,
-                ct.category,
-                cf.points,
-                ROW_NUMBER() OVER (
-                    PARTITION BY cc.challenge_template_id 
-                    ORDER BY cc.started_at
-                ) AS attempt_number,
-                CASE
-                    WHEN ufs.submission_rank = 1 AND ufs.user_submitted_flags = fc.total_flags THEN 'solved'
-                    WHEN cc.flag_id IS NOT NULL THEN 'flag_submitted'
-                    WHEN cc.completed_at IS NOT NULL AND cc.flag_id IS NULL THEN 'failed'
-                    ELSE 'active'
-                END AS status,
-                CASE
-                    WHEN cc.completed_at IS NOT NULL THEN cc.completed_at
-                    ELSE cc.started_at
-                END AS activity_date
-            FROM completed_challenges cc
-            JOIN challenge_templates ct ON ct.id = cc.challenge_template_id
-            LEFT JOIN challenge_flags cf ON cf.id = cc.flag_id
-            LEFT JOIN flag_counts fc ON fc.challenge_template_id = cc.challenge_template_id
-            LEFT JOIN user_flag_submissions ufs ON ufs.completion_id = cc.id
-            WHERE cc.user_id = :user_id
-        )
-        SELECT
-            'challenge' AS activity_type,
-            challenge_template_id AS item_id,
-            name AS item_name,
-            category,
-            COALESCE(points, 0) AS points,
-            status = 'solved' AS solved,
-            attempt_number,
-            started_at,
-            completed_at,
-            status,
-            activity_date,
-            NULL AS icon,
-            NULL AS color,
-            NULL AS description,
-            'challenge' AS item_type,
-            flag_id
-        FROM challenge_attempts
-        WHERE 1=1";
-
-        if ($this->typeFilter === 'solved') {
-            $query .= " AND status = 'solved'";
-        } elseif ($this->typeFilter === 'failed') {
-            $query .= " AND status = 'failed'";
-        } elseif ($this->typeFilter === 'active') {
-            $query .= " AND status = 'active'";
-        }
-
-        if ($this->categoryFilter !== 'all') {
-            $query .= " AND category = :category";
-            $params['category'] = $this->categoryFilter;
-        }
-
-        if ($dateRange) {
-            $query .= " AND activity_date >= :date_range";
-            $params['date_range'] = $dateRange;
-        }
-
-        return $query;
-    }
-
-    private function buildBadgeQuery($dateRange, &$params): string
-    {
-        $query = "SELECT 
-            'badge' AS activity_type,
-            b.id AS item_id,
-            b.name AS item_name,
-            NULL AS category,
-            NULL AS points,
-            true AS solved,
-            1 AS attempt_number,
-            ub.earned_at AS started_at,
-            ub.earned_at AS completed_at,
-            'badge' AS status,
-            ub.earned_at AS activity_date,
-            b.icon,
-            b.color,
-            b.description,
-            'badge' AS item_type,
-            NULL AS flag_id
-        FROM user_badges ub
-        JOIN badges b ON b.id = ub.badge_id
-        WHERE ub.user_id = :user_id";
-
-        if ($dateRange) {
-            $query .= " AND ub.earned_at >= :date_range_badge";
-            $params['date_range_badge'] = $dateRange;
-        }
-
-        return $query;
-    }
-
-    private function getTotalCount($query, $params)
-    {
-        $countQuery = "SELECT COUNT(*) FROM ($query) AS combined";
-        $stmt = $this->pdo->prepare($countQuery);
-
-        foreach ($params as $key => $val) {
-            $stmt->bindValue($key, $val);
-        }
+        $stmt->bindValue(':user_id', $this->userId, PDO::PARAM_INT);
+        $stmt->bindValue(':category_filter', $this->categoryFilter !== 'all' ? $this->categoryFilter : null);
+        $stmt->bindValue(':type_filter', $this->typeFilter !== 'all' ? $this->typeFilter : null);
+        $stmt->bindValue(':date_range', $this->rangeFilter !== 'all' ? $this->rangeFilter : null);
 
         $stmt->execute();
+
         return $stmt->fetchColumn();
     }
 
-    private function getPaginatedResults($query, $params): array
+    private function getPaginatedResults(): array
     {
         $offset = ($this->page - 1) * $this->perPage;
-        $finalQuery = "$query ORDER BY activity_date DESC, item_id ASC LIMIT :limit OFFSET :offset";
+        $stmt = $this->pdo->prepare("
+            SELECT 
+                activity_type,
+                item_id,
+                item_name,
+                category,
+                points,
+                solved,
+                attempt_number,
+                started_at,
+                completed_at,
+                status,
+                activity_date,
+                icon,
+                color,
+                description,
+                item_type,
+                flag_id
+            FROM get_user_activities(
+                :user_id,
+                :category_filter,
+                :type_filter,
+                :date_range,
+                :limit,
+                :offset
+            )
+        ");
 
-        $stmt = $this->pdo->prepare($finalQuery);
-
-        foreach ($params as $key => $val) {
-            $stmt->bindValue($key, $val);
-        }
-
+        $stmt->bindValue(':user_id', $this->userId, PDO::PARAM_INT);
+        $stmt->bindValue(':category_filter', $this->categoryFilter !== 'all' ? $this->categoryFilter : null);
+        $stmt->bindValue(':type_filter', $this->typeFilter !== 'all' ? $this->typeFilter : null);
+        $stmt->bindValue(':date_range', $this->rangeFilter !== 'all' ? $this->rangeFilter : null);
         $stmt->bindValue(':limit', $this->perPage, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+
         $stmt->execute();
 
         $activities = [];
+
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $activities[] = $this->formatActivity($row);
         }

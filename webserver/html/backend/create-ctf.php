@@ -371,8 +371,7 @@ class CtfCreationHandler
     {
         $name = trim($this->inputData['name']);
         $stmt = $this->pdo->prepare("
-            SELECT COUNT(*) FROM challenge_templates 
-            WHERE LOWER(name) = LOWER(:name) AND creator_id = :user_id
+            SELECT count_user_challenges_with_same_name(:name, :user_id) AS count
         ");
         $stmt->execute([
             'name' => $name,
@@ -469,13 +468,17 @@ class CtfCreationHandler
     private function insertChallengeTemplate(?string $imagePath): int
     {
         $stmt = $this->pdo->prepare("
-            INSERT INTO challenge_templates (
-                name, description, category, difficulty, 
-                image_path, is_active, creator_id, hint, solution
-            ) VALUES (
-                :name, :description, :category, :difficulty, 
-                :image_path, :is_active, :creator_id, :hint, :solution
-            ) RETURNING id
+            SELECT create_challenge_template(
+                :name,
+                :description,
+                :category,
+                :difficulty,
+                :image_path,
+                :is_active,
+                :creator_id,
+                :hint,
+                :solution
+            ) AS id
         ");
 
         $stmt->execute([
@@ -503,8 +506,7 @@ class CtfCreationHandler
             $vmName = $vm['name'];
 
             $stmt = $this->pdo->prepare("
-                SELECT proxmox_filename FROM disk_files 
-                WHERE display_name = :filename AND user_id = :user_id
+                SELECT get_proxmox_filename_for_user_disk_file(:user_id, :filename) AS proxmox_filename
             ");
             $stmt->execute([
                 'filename' => $vm['ova_name'],
@@ -518,13 +520,13 @@ class CtfCreationHandler
             }
 
             $stmt = $this->pdo->prepare("
-                INSERT INTO machine_templates (
-                    challenge_template_id, name, disk_file_path, 
-                    cores, ram_gb
-                ) VALUES (
-                    :challenge_id, :name, :ova_file_path, 
-                    :cores, :ram_gb
-                ) RETURNING id
+                SELECT create_machine_template(
+                    :challenge_id,
+                    :name,
+                    :ova_file_path,
+                    :cores,
+                    :ram_gb
+                ) AS id
             ");
 
             $stmt->execute([
@@ -539,10 +541,9 @@ class CtfCreationHandler
 
             if (!empty($vm['domain_name'])) {
                 $stmt = $this->pdo->prepare("
-                    INSERT INTO domain_templates (
-                        machine_template_id, domain_name
-                    ) VALUES (
-                        :machine_id, :domain_name
+                    SELECT create_domain_template(
+                        :machine_id,
+                        :domain_name
                     )
                 ");
 
@@ -562,11 +563,11 @@ class CtfCreationHandler
             $subnetName = $subnet['name'];
 
             $stmt = $this->pdo->prepare("
-                INSERT INTO network_templates (
-                    name, accessible, is_dmz
-                ) VALUES (
-                    :name, :accessible, :is_dmz
-                ) RETURNING id
+                SELECT create_network_template(
+                    :name,
+                    :accessible,
+                    :is_dmz
+                ) AS id
             ");
 
             $stmt->bindValue(':name', $subnetName, PDO::PARAM_STR);
@@ -578,8 +579,7 @@ class CtfCreationHandler
 
             foreach ($subnet['attached_vms'] as $vmName) {
                 $stmt = $this->pdo->prepare("
-                    SELECT id FROM machine_templates 
-                    WHERE name = :vm_name AND challenge_template_id = :challenge_id
+                    SELECT get_machine_template_id_by_name_and_challenge_id(:vm_name, :challenge_id) AS id
                 ");
                 $stmt->execute([
                     'vm_name' => $vmName,
@@ -593,10 +593,9 @@ class CtfCreationHandler
                 }
 
                 $stmt = $this->pdo->prepare("
-                    INSERT INTO network_connection_templates (
-                        machine_template_id, network_template_id
-                    ) VALUES (
-                        :machine_id, :network_id
+                    SELECT create_network_connection_template(
+                        :machine_id,
+                        :network_id
                     )
                 ");
                 $stmt->execute([
@@ -613,10 +612,12 @@ class CtfCreationHandler
 
         foreach ($flags as $flag) {
             $stmt = $this->pdo->prepare("
-                INSERT INTO challenge_flags (
-                    challenge_template_id, flag, description, points, order_index
-                ) VALUES (
-                    :challenge_id, :flag, :description, :points, :order_index
+                SELECT create_challenge_flag(
+                    :challenge_id,
+                    :flag,
+                    :description,
+                    :points,
+                    :order_index
                 )
             ");
 
@@ -636,10 +637,11 @@ class CtfCreationHandler
 
         foreach ($hints as $hint) {
             $stmt = $this->pdo->prepare("
-                INSERT INTO challenge_hints (
-                    challenge_template_id, hint_text, unlock_points, order_index
-                ) VALUES (
-                    :challenge_id, :hint_text, :unlock_points, :order_index
+                SELECT create_challenge_hint(
+                    :challenge_id,
+                    :hint_text,
+                    :unlock_points,
+                    :order_index
                 )
             ");
 
@@ -675,35 +677,6 @@ class CtfCreationHandler
         try {
             $this->pdo->beginTransaction();
 
-            $this->pdo->prepare("DELETE FROM challenge_flags WHERE challenge_template_id = ?")
-                ->execute([$challengeId]);
-
-            $this->pdo->prepare("DELETE FROM challenge_hints WHERE challenge_template_id = ?")
-                ->execute([$challengeId]);
-
-            $stmt = $this->pdo->prepare("SELECT id FROM machine_templates WHERE challenge_template_id = ?");
-            $stmt->execute([$challengeId]);
-            $machineIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-            if (!empty($machineIds)) {
-                $placeholders = implode(',', array_fill(0, count($machineIds), '?'));
-                $this->pdo->prepare("DELETE FROM network_connection_templates WHERE machine_template_id IN ($placeholders)")
-                    ->execute($machineIds);
-
-                $this->pdo->prepare("DELETE FROM domain_templates WHERE machine_template_id IN ($placeholders)")
-                    ->execute($machineIds);
-
-                $this->pdo->prepare("DELETE FROM machine_templates WHERE id IN ($placeholders)")
-                    ->execute($machineIds);
-            }
-
-            $this->pdo->prepare("DELETE FROM network_templates WHERE id IN (
-                SELECT network_template_id FROM network_connection_templates 
-                WHERE machine_template_id IN (
-                    SELECT id FROM machine_templates WHERE challenge_template_id = ?
-                )
-            )")->execute([$challengeId]);
-
             $this->pdo->prepare("DELETE FROM challenge_templates WHERE id = ?")
                 ->execute([$challengeId]);
 
@@ -725,9 +698,7 @@ class CtfCreationHandler
                     id,
                     display_name AS name,
                     upload_date AS date
-                FROM disk_files
-                WHERE user_id = :user_id
-                ORDER BY upload_date DESC
+                FROM get_user_available_disk_files(:user_id)
             ");
 
             $stmt->execute(['user_id' => $this->userId]);

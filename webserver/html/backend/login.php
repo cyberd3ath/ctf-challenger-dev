@@ -156,63 +156,70 @@ class LoginHandler
     {
         $this->pdo = $this->databaseHelper->getPDO();
 
-        $user = $this->findUserByUsername();
-        $this->verifyPassword($user);
-        $this->updateLastLogin($user['id']);
-        $this->initializeUserSession($user);
+        $passwordSalt = $this->getUserPasswordSalt();
+        $userId = $this->verifyPassword($passwordSalt);
+        $this->updateLastLogin($userId);
+        $this->initializeUserSession($userId, $this->username);
         $this->sendSuccessResponse();
     }
 
     /**
      * @throws Exception
      */
-    private function findUserByUsername()
+    private function getUserPasswordSalt()
     {
-        $stmt = $this->pdo->prepare("
-            SELECT id, username, password_hash
-            FROM users
-            WHERE username = :username
-            LIMIT 1
-        ");
+        $stmt = $this->pdo->prepare("SELECT get_user_password_salt(:username) AS password_salt");
         $stmt->execute(['username' => $this->username]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $passwordSalt = $result['password_salt'] ?? null;
 
-        if (!$user) {
+        if ($passwordSalt === null) {
             $this->logger->logError("User not found - Username: $this->username, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Invalid username or password.', 401);
         }
 
-        return $user;
+        return $passwordSalt;
     }
 
     /**
      * @throws Exception
      */
-    private function verifyPassword(array $user): void
+    private function verifyPassword(string $passwordSalt): int
     {
-        if (!password_verify($this->password, $user['password_hash'])) {
-            $this->logger->logError("Invalid password attempt - User ID: {$user['id']}, Username: $this->username, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
+        $passwordHash = hash('sha512', $passwordSalt . $this->password);
+
+        $stmt = $this->pdo->prepare("SELECT authenticate_user(:username, :password_hash) AS user_id");
+        $stmt->execute([
+            'username' => $this->username,
+            'password_hash' => $passwordHash
+        ]);
+        $user_id = $stmt->fetchColumn();
+
+        if (!$user_id) {
+            $this->logger->logError("Invalid password attempt - Username: $this->username, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
             throw new Exception('Invalid username or password.', 401);
         }
+
+        return (int)$user_id;
     }
 
     private function updateLastLogin(int $userId): void
     {
-        $update = $this->pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = :id");
+        $update = $this->pdo->prepare("SELECT update_last_login(:id)");
         $update->execute(['id' => $userId]);
     }
 
-    private function initializeUserSession(array $user): void
+    private function initializeUserSession(int $user_id, string $username): void
     {
         $this->session->regenerate_id(true);
-        $this->logger->logDebug("Session regenerated - User ID: {$user['id']}, New Session ID: " . $this->session->id());
+        $this->logger->logDebug("Session regenerated - User ID: {$user_id}, New Session ID: " . $this->session->id());
 
-        $this->session['user_id'] = $user['id'];
+        $this->session['user_id'] = $user_id;
         $this->session['authenticated'] = true;
         $this->session['ip'] = $this->server['REMOTE_ADDR'] ?? '';
         $this->session['user_agent'] = $this->server['HTTP_USER_AGENT'] ?? '';
         $this->session['last_activity'] = $this->system->time();
-        $this->session['username'] = $user['username'];
+        $this->session['username'] = $username;
     }
 
     private function sendSuccessResponse(): void
