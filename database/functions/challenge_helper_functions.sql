@@ -1,9 +1,9 @@
 CREATE FUNCTION get_solve_progress_data(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 ) RETURNS TABLE (
-    total_flags INT,
-    flags_completed INT,
+    total_flags BIGINT,
+    flags_completed BIGINT,
     is_solved BOOLEAN
 )
 LANGUAGE plpgsql
@@ -25,8 +25,8 @@ $$;
 
 
 CREATE FUNCTION get_elapsed_seconds_for_challenge(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
@@ -76,12 +76,12 @@ $$;
 
 
 CREATE FUNCTION get_solved_leaderboard(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 ) RETURNS TABLE (
     username TEXT,
     avatar_url TEXT,
     total_seconds BIGINT,
-    rank INT
+    rank BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -143,15 +143,15 @@ END;
 $$;
 
 CREATE FUNCTION get_challenge_leaderboard(
-    p_challenge_template_id INT,
-    p_limit INT,
-    p_offset INT
+    p_challenge_template_id BIGINT,
+    p_limit BIGINT,
+    p_offset BIGINT
 ) RETURNS TABLE (
     username TEXT,
     avatar_url TEXT,
-    total_points INT,
+    total_points BIGINT,
     total_seconds BIGINT,
-    rank INT
+    rank BIGINT
 )
 LANGUAGE plpgsql
 AS $$

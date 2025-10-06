@@ -6,13 +6,13 @@ RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN '/assets/avatars/avatar' || (FLOOR(1 + RANDOM() * 3))::INT::TEXT || '.png';
+    RETURN '/assets/avatars/avatar' || (FLOOR(1 + RANDOM() * 3))::BIGINT::TEXT || '.png';
 END;
 $$;
 
 
 
-CREATE OR REPLACE FUNCTION assign_lowest_vpn_ip(user_id_param INT)
+CREATE OR REPLACE FUNCTION assign_lowest_vpn_ip(user_id_param BIGINT)
 RETURNS INET
 LANGUAGE plpgsql
 AS $$
@@ -358,12 +358,12 @@ CREATE SEQUENCE disk_files_id_seq START 1 MINVALUE 1 NO CYCLE;
 
 CREATE TABLE vpn_static_ips (
     vpn_static_ip INET PRIMARY KEY,
-    user_id INT
+    user_id BIGINT
 );
 
 
 CREATE TABLE users (
-    id INT PRIMARY KEY DEFAULT allocate_user_id(),
+    id BIGINT PRIMARY KEY DEFAULT allocate_user_id(),
     username TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
@@ -373,7 +373,7 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP NULL,
     last_ip TEXT,
-    running_challenge INT,
+    running_challenge BIGINT,
     is_admin BOOLEAN DEFAULT FALSE,
     vpn_static_ip INET REFERENCES vpn_static_ips(vpn_static_ip) ON DELETE SET NULL
 );
@@ -401,7 +401,7 @@ CREATE TABLE challenge_templates (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    creator_id INT REFERENCES users(id) ON DELETE CASCADE,
+    creator_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
     hint TEXT,
     solution TEXT,
     marked_for_deletion BOOLEAN DEFAULT FALSE
@@ -417,10 +417,10 @@ CREATE TABLE challenge_subnets
 
 CREATE TABLE challenges (
     id INTEGER PRIMARY KEY DEFAULT allocate_challenge_id(),
-    challenge_template_id INT NOT NULL,
+    challenge_template_id BIGINT NOT NULL,
     subnet INET REFERENCES challenge_subnets(subnet) ON DELETE CASCADE DEFAULT assign_challenge_subnet(),
     expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '1 hour'),
-    used_extensions INT DEFAULT 0,
+    used_extensions BIGINT DEFAULT 0,
     FOREIGN KEY (challenge_template_id) REFERENCES challenge_templates(id) ON DELETE CASCADE
 );
 
@@ -438,7 +438,7 @@ REFERENCES challenges(id) ON DELETE SET NULL;
 
 
 CREATE TABLE user_profiles (
-    user_id INT PRIMARY KEY,
+    user_id BIGINT PRIMARY KEY,
     full_name TEXT,
     bio TEXT,
     github_url TEXT,
@@ -452,11 +452,11 @@ CREATE TABLE user_profiles (
 
 CREATE TABLE machine_templates (
     id INTEGER PRIMARY KEY DEFAULT allocate_machine_template_id(),
-    challenge_template_id INT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
+    challenge_template_id BIGINT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     disk_file_path TEXT NOT NULL,
-    cores INT NOT NULL CHECK (cores > 0),
-    ram_gb INT NOT NULL CHECK (ram_gb > 0)
+    cores BIGINT NOT NULL CHECK (cores > 0),
+    ram_gb BIGINT NOT NULL CHECK (ram_gb > 0)
 );
 
 
@@ -475,43 +475,43 @@ CREATE TABLE network_templates (
 
 
 CREATE TABLE domain_templates (
-    machine_template_id INT NOT NULL REFERENCES machine_templates(id) ON DELETE CASCADE,
+    machine_template_id BIGINT NOT NULL REFERENCES machine_templates(id) ON DELETE CASCADE,
     domain_name TEXT NOT NULL,
     PRIMARY KEY (machine_template_id, domain_name)
 );
 
 
 CREATE TABLE network_connection_templates (
-    machine_template_id INT NOT NULL REFERENCES machine_templates(id) ON DELETE CASCADE,
-    network_template_id INT NOT NULL REFERENCES network_templates(id) ON DELETE CASCADE,
+    machine_template_id BIGINT NOT NULL REFERENCES machine_templates(id) ON DELETE CASCADE,
+    network_template_id BIGINT NOT NULL REFERENCES network_templates(id) ON DELETE CASCADE,
     PRIMARY KEY (machine_template_id, network_template_id)
 );
 
 
 CREATE TABLE challenge_flags (
     id INTEGER PRIMARY KEY DEFAULT nextval('challenge_flags_id_seq'),
-    challenge_template_id INT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
+    challenge_template_id BIGINT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
     flag TEXT NOT NULL,
     description TEXT,
-    points INT NOT NULL,
-    order_index INT DEFAULT 0
+    points BIGINT NOT NULL,
+    order_index BIGINT DEFAULT 0
 );
 
 
 CREATE TABLE challenge_hints (
     id INTEGER PRIMARY KEY DEFAULT nextval('challenge_hints_id_seq'),
-    challenge_template_id INT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
+    challenge_template_id BIGINT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
     hint_text TEXT NOT NULL,
-    unlock_points INT DEFAULT 0,
-    order_index INT DEFAULT 0
+    unlock_points BIGINT DEFAULT 0,
+    order_index BIGINT DEFAULT 0
 );
 
 
 CREATE TABLE completed_challenges (
     id INTEGER PRIMARY KEY DEFAULT nextval('completed_challenges_id_seq'),
-    user_id INT NOT NULL,
-    challenge_template_id INT NOT NULL,
-    attempts INT NOT NULL DEFAULT 1,
+    user_id BIGINT NOT NULL,
+    challenge_template_id BIGINT NOT NULL,
+    attempts BIGINT NOT NULL DEFAULT 1,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP NULL,
     flag_id INTEGER REFERENCES challenge_flags(id) ON DELETE SET NULL,
@@ -532,8 +532,8 @@ CREATE TABLE badges (
 
 
 CREATE TABLE user_badges (
-    user_id INT NOT NULL,
-    badge_id INT NOT NULL,
+    user_id BIGINT NOT NULL,
+    badge_id BIGINT NOT NULL,
     earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, badge_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -556,7 +556,7 @@ CREATE TABLE announcements (
 
 CREATE TABLE disk_files (
     id INTEGER PRIMARY KEY DEFAULT nextval('disk_files_id_seq'),
-    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     display_name TEXT NOT NULL,
     proxmox_filename TEXT NOT NULL,
     upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

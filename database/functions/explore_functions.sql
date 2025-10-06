@@ -3,11 +3,11 @@ CREATE FUNCTION explore_challenges(
     p_difficulty challenge_difficulty,
     p_search TEXT,
     p_order_by TEXT,
-    p_offset INT,
-    p_limit INT
+    p_offset BIGINT,
+    p_limit BIGINT
 )
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT,
     description TEXT,
     category challenge_category,
@@ -15,8 +15,8 @@ RETURNS TABLE (
     created_at TIMESTAMP,
     image_path TEXT,
     is_active BOOLEAN,
-    solved_count INT,
-    attempted_count INT
+    solved_count BIGINT,
+    attempted_count BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -100,7 +100,7 @@ CREATE FUNCTION explore_challenges_count(
     p_difficulty challenge_difficulty,
     p_search TEXT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -120,8 +120,8 @@ $$;
 
 
 CREATE FUNCTION get_user_solved_challenge(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql

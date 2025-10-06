@@ -1,10 +1,10 @@
 CREATE FUNCTION get_user_data_dashboard(
-    p_user_id INT
+    p_user_id BIGINT
 ) RETURNS TABLE (
     username TEXT,
-    total_points INT,
-    solved_count INT,
-    user_rank INT
+    total_points BIGINT,
+    solved_count BIGINT,
+    user_rank BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -51,12 +51,12 @@ $$;
 
 
 CREATE FUNCTION get_progress_data_dashboard(
-    p_user_id INT
+    p_user_id BIGINT
 ) RETURNS TABLE (
-    solved_count INT,
-    failed_count INT,
-    total_attempts INT,
-    avg_time_seconds INT
+    solved_count BIGINT,
+    failed_count BIGINT,
+    total_attempts BIGINT,
+    avg_time_seconds BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -99,7 +99,7 @@ $$;
 
 
 CREATE FUNCTION get_total_active_challenges_count_dashboard()
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -111,16 +111,16 @@ $$;
 
 
 CREATE FUNCTION get_user_activity_dashboard(
-    p_user_id INT,
-    p_limit INT
+    p_user_id BIGINT,
+    p_limit BIGINT
 ) RETURNS TABLE (
-    challenge_id INT,
+    challenge_id BIGINT,
     challenge_name TEXT,
     category challenge_category,
-    solved_points INT,
-    current_points INT,
+    solved_points BIGINT,
+    current_points BIGINT,
     solved BOOLEAN,
-    attempts INT,
+    attempts BIGINT,
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
     status TEXT,
@@ -219,9 +219,9 @@ $$;
 
 
 CREATE FUNCTION get_user_badges_data_dashboard(
-    p_user_id INT
+    p_user_id BIGINT
 ) RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT,
     description TEXT,
     icon TEXT,
@@ -240,11 +240,11 @@ $$;
 
 
 CREATE FUNCTION get_user_progress_data_dashboard(
-    p_user_id INT
+    p_user_id BIGINT
 ) RETURNS TABLE (
-    solved_count INT,
-    total_badges INT,
-    earned_badges INT
+    solved_count BIGINT,
+    total_badges BIGINT,
+    earned_badges BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -280,15 +280,15 @@ $$;
 
 
 CREATE FUNCTIOn get_challenges_data_dashboard(
-    p_user_id INT
+    p_user_id BIGINT
 ) RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT,
     category challenge_category,
-    points INT,
+    points BIGINT,
     difficulty challenge_difficulty,
-    solved_count INT,
-    attempted_count INT
+    solved_count BIGINT,
+    attempted_count BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -355,15 +355,15 @@ $$;
 
 
 CREATE FUNCTIOn get_timeline_data_dashboard(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_start_date TEXT,
     p_end_date TEXT,
     p_range TEXT,
     p_date_format TEXT
 ) RETURNS TABLE (
     date_group TEXT,
-    points_sum INT,
-    challenge_count INT,
+    points_sum BIGINT,
+    challenge_count BIGINT,
     challenge_details TEXT
 )
 LANGUAGE plpgsql
@@ -424,7 +424,7 @@ $$;
 
 CREATE FUNCTION get_announcements_data_dashboard()
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     title TEXT,
     short_description TEXT,
     importance announcement_importance,
@@ -452,8 +452,8 @@ $$;
 
 
 CREATE FUNCTION get_challenge_template_id_from_challenge_id(
-    p_challenge_id INT
-) RETURNS INT
+    p_challenge_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -468,17 +468,17 @@ $$;
 
 
 CREATE FUNCTION get_running_challenge_data_dashboard(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 )
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT,
     category challenge_category,
     difficulty challenge_difficulty,
-    points INT,
+    points BIGINT,
     current_attempt_started_at TIMESTAMP,
-    completed_challenge_id INT
+    completed_challenge_id BIGINT
 )
 LANGUAGE plpgsql
 AS $$

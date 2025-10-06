@@ -1,5 +1,5 @@
 CREATE FUNCTIOn get_total_announcement_count()
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -9,11 +9,11 @@ $$;
 
 
 CREATE FUNCTION get_announcements(
-    p_limit INT,
-    p_offset INT
+    p_limit BIGINT,
+    p_offset BIGINT
 )
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     title TEXT,
     content TEXT,
     short_description TEXT,
@@ -42,7 +42,7 @@ CREATE FUNCTION create_announcement(
     p_category announcement_category,
     p_author TEXT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -70,7 +70,7 @@ $$;
 
 
 CREATE FUNCTION update_announcement(
-    p_id INT,
+    p_id BIGINT,
     p_title TEXT,
     p_content TEXT,
     p_short_description TEXT,
@@ -94,7 +94,7 @@ END;
 $$;
 
 
-CREATE FUNCTION announcement_exists(p_id INT)
+CREATE FUNCTION announcement_exists(p_id BIGINT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
@@ -104,7 +104,7 @@ END;
 $$;
 
 
-CREATE FUNCTION delete_announcement(p_id INT)
+CREATE FUNCTION delete_announcement(p_id BIGINT)
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -117,11 +117,11 @@ $$;
 CREATE FUNCTION get_filtered_announcements(
     p_importance announcement_importance,
     p_date_range TEXT,
-    p_limit INT,
-    p_offset INT
+    p_limit BIGINT,
+    p_offset BIGINT
 )
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     title TEXT,
     content TEXT,
     short_description TEXT,
@@ -162,7 +162,7 @@ CREATE FUNCTION get_filtered_announcements_count(
     p_importance announcement_importance,
     p_date_range TEXT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN

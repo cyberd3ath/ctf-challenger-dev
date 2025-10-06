@@ -25,13 +25,13 @@ CREATE FUNCTION create_user(
     p_password_salt TEXT
 )
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     vpn_static_ip INET
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_user_id INT;
+    v_user_id BIGINT;
     v_vpn_ip INET;
 BEGIN
     v_user_id := allocate_user_id();
@@ -49,7 +49,7 @@ $$;
 
 
 
-CREATE FUNCTION update_last_login(p_user_id INT)
+CREATE FUNCTION update_last_login(p_user_id BIGINT)
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -75,11 +75,11 @@ CREATE FUNCTION authenticate_user(
     p_username TEXT,
     p_password_hash TEXT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_user_id INT;
+    v_user_id BIGINT;
 BEGIN
     SELECT id INTO v_user_id
     FROM users
@@ -90,7 +90,7 @@ $$;
 
 
 CREATE FUNCTION change_user_password(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_old_password_hash TEXT,
     p_new_password_hash TEXT,
     p_new_password_salt TEXT

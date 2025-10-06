@@ -1,8 +1,8 @@
 CREATE FUNCTION get_user_badges_data(
-    p_user_id INT
+    p_user_id BIGINT
 )
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT,
     description TEXT,
     icon TEXT,
@@ -32,9 +32,9 @@ $$;
 
 
 CREATE FUNCTION get_user_solved_challenge_count(
-    p_user_id INT
+    p_user_id BIGINT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -72,10 +72,10 @@ $$;
 
 
 CREATE FUNCTION get_user_solved_challenge_count_in_category(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_category challenge_category
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -115,9 +115,9 @@ $$;
 
 
 CREATE FUNCTION get_user_total_points(
-    p_user_id INT
+    p_user_id BIGINT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -132,10 +132,10 @@ $$;
 
 
 CREATE FUNCTION get_user_earned_badges_count_exclude_one(
-    p_user_id INT,
-    p_exclude_badge_id INT
+    p_user_id BIGINT,
+    p_exclude_badge_id BIGINT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -151,9 +151,9 @@ $$;
 
 
 CREATE FUNCTION get_total_badge_count_exclude_one(
-    p_exclude_badge_id INT
+    p_exclude_badge_id BIGINT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -163,11 +163,11 @@ $$;
 
 
 CREATE FUNCTION get_total_badge_count_and_user_earned_count(
-    p_user_id INT
+    p_user_id BIGINT
 )
 RETURNS TABLE (
-    total_badges INT,
-    earned_badges INT
+    total_badges BIGINT,
+    earned_badges BIGINT
 )
 LANGUAGE plpgsql
 AS $$

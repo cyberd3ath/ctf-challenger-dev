@@ -1,8 +1,8 @@
 CREATE FUNCTION get_user_disk_files(
-    p_user_id INT
+    p_user_id BIGINT
 )
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     display_name TEXT,
     upload_date TIMESTAMP
 )
@@ -22,7 +22,7 @@ $$;
 
 
 CREATE FUNCTION is_duplicate_file_name(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_display_name TEXT
 )
 RETURNS BOOLEAN
@@ -39,7 +39,7 @@ $$;
 
 
 CREATE FUNCTION add_user_disk_file(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_display_name TEXT,
     p_proxmox_filename TEXT
 ) RETURNS VOID
@@ -53,8 +53,8 @@ $$;
 
 
 CREATE FUNCTION get_filename_by_ids(
-    p_ova_id INT,
-    p_user_id INT
+    p_ova_id BIGINT,
+    p_user_id BIGINT
 ) RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
@@ -68,8 +68,8 @@ $$;
 
 
 CREATE FUNCTION delete_user_disk_file(
-    p_ova_id INT,
-    p_user_id INT
+    p_ova_id BIGINT,
+    p_user_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$

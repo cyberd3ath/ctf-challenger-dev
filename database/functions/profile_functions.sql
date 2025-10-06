@@ -1,4 +1,4 @@
-CREATE FUNCTION get_basic_profile_data(p_user_id INT)
+CREATE FUNCTION get_basic_profile_data(p_user_id BIGINT)
 RETURNS TABLE (
     username TEXT,
     email TEXT,
@@ -10,8 +10,8 @@ RETURNS TABLE (
     github_url TEXT,
     twitter_url TEXT,
     website_url TEXT,
-    solved_count INT,
-    total_points INT
+    solved_count BIGINT,
+    total_points BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -61,8 +61,8 @@ END;
 $$;
 
 
-CREATE FUNCTION get_user_rank(p_user_id INT, p_user_points INT)
-RETURNS INT
+CREATE FUNCTION get_user_rank(p_user_id BIGINT, p_user_points BIGINT)
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -82,11 +82,11 @@ END;
 $$;
 
 
-CREATE FUNCTION get_profile_stats(p_user_id INT)
+CREATE FUNCTION get_profile_stats(p_user_id BIGINT)
 RETURNS TABLE (
-    solved INT,
-    attempts INT,
-    total_points INT
+    solved BIGINT,
+    attempts BIGINT,
+    total_points BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -124,9 +124,9 @@ END;
 $$;
 
 
-CREATE FUNCTION get_profile_badges(p_user_id INT)
+CREATE FUNCTION get_profile_badges(p_user_id BIGINT)
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT,
     description TEXT,
     icon TEXT,
@@ -146,7 +146,7 @@ $$;
 
 
 CREATE FUNCTION get_total_badges_count()
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -155,14 +155,14 @@ END;
 $$;
 
 
-CREATE FUNCTION get_recent_activity(p_user_id INT, p_limit INT)
+CREATE FUNCTION get_recent_activity(p_user_id BIGINT, p_limit BIGINT)
 RETURNS TABLE (
-    challenge_id INT,
+    challenge_id BIGINT,
     challenge_name TEXT,
     category challenge_category,
-    points INT,
+    points BIGINT,
     solved BOOLEAN,
-    attempts INT,
+    attempts BIGINT,
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
     status TEXT,
@@ -243,7 +243,7 @@ $$;
 
 
 CREATE FUNCTION is_username_taken_by_other_user(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_username TEXT
 )
 RETURNS BOOLEAN
@@ -256,7 +256,7 @@ $$;
 
 
 CREATE FUNCTION update_username(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_new_username TEXT
 )
 RETURNS VOID
@@ -271,7 +271,7 @@ $$;
 
 
 CREATE FUNCTION is_email_taken_by_other_user(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_email TEXT
 )
 RETURNS BOOLEAN
@@ -284,7 +284,7 @@ $$;
 
 
 CREATE FUNCTION update_email(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_new_email TEXT
 )
 RETURNS VOID
@@ -298,7 +298,7 @@ END;
 $$;
 
 
-CREATE FUNCTION user_profile_exists(p_user_id INT)
+CREATE FUNCTION user_profile_exists(p_user_id BIGINT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
@@ -309,7 +309,7 @@ $$;
 
 
 CREATE FUNCTION update_full_name(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_full_name TEXT
 )
 RETURNS VOID
@@ -329,7 +329,7 @@ $$;
 
 
 CREATE FUNCTION update_bio(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_bio TEXT
 )
 RETURNS VOID
@@ -349,7 +349,7 @@ $$;
 
 
 CREATE FUNCTION update_urls(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_github_url TEXT,
     p_twitter_url TEXT,
     p_website_url TEXT
@@ -372,7 +372,7 @@ END;
 $$;
 
 
-CREATE FUNCTION get_user_avatar(p_user_id INT)
+CREATE FUNCTION get_user_avatar(p_user_id BIGINT)
 RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
@@ -383,7 +383,7 @@ $$;
 
 
 CREATE FUNCTION update_user_avatar(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_avatar_url TEXT
 )
 RETURNS VOID
@@ -416,7 +416,7 @@ $$;
 CREATE FUNCTION get_challenge_count_by_categories()
 RETURNS TABLE (
     category challenge_category,
-    total INT
+    total BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -432,10 +432,10 @@ END;
 $$;
 
 
-CREATE FUNCTION get_user_solved_challenge_count_by_categories(p_user_id INT)
+CREATE FUNCTION get_user_solved_challenge_count_by_categories(p_user_id BIGINT)
 RETURNS TABLE (
     category challenge_category,
-    solved INT
+    solved BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -462,9 +462,9 @@ END;
 $$;
 
 
-CREATE FUNCTION get_user_disk_files_display_data(p_user_id INT)
+CREATE FUNCTION get_user_disk_files_display_data(p_user_id BIGINT)
 RETURNS TABLE(
-    ova_id           INT,
+    ova_id           BIGINT,
     proxmox_filename TEXT
 )
 LANGUAGE plpgsql
@@ -478,7 +478,7 @@ END;
 $$;
 
 
-CREATE FUNCTION delete_user_disk_files(p_user_id INT, p_ova_id INT, p_hashed_password TEXT)
+CREATE FUNCTION delete_user_disk_files(p_user_id BIGINT, p_ova_id BIGINT, p_hashed_password TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -493,7 +493,7 @@ END;
 $$;
 
 
-CREATE FUNCTION delete_user_data(p_user_id INT, p_hashed_password TEXT)
+CREATE FUNCTION delete_user_data(p_user_id BIGINT, p_hashed_password TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -512,7 +512,7 @@ END;
 $$;
 
 
-CREATE FUNCTION get_header_data(p_user_id INT)
+CREATE FUNCTION get_header_data(p_user_id BIGINT)
 RETURNS TABLE (
     avatar_url TEXT,
     is_admin BOOLEAN
@@ -529,7 +529,7 @@ $$;
 
 
 CREATE FUNCTION get_id_by_username(p_username TEXT)
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -538,7 +538,7 @@ END;
 $$;
 
 
-CREATE FUNCTION get_public_profile_data(p_user_id INT)
+CREATE FUNCTION get_public_profile_data(p_user_id BIGINT)
 RETURNS TABLE (
     username TEXT,
     created_at TIMESTAMP,
@@ -548,8 +548,8 @@ RETURNS TABLE (
     github_url TEXT,
     twitter_url TEXT,
     website_url TEXT,
-    solved_count INT,
-    total_points INT
+    solved_count BIGINT,
+    total_points BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -600,7 +600,7 @@ $$;
 CREATE FUNCTION get_active_challenge_templates_by_category()
 RETURNS TABLE (
     category challenge_category,
-    total INT
+    total BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -614,9 +614,9 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION get_user_earned_badges_data(p_user_id INT)
+CREATE FUNCTION get_user_earned_badges_data(p_user_id BIGINT)
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT,
     description TEXT,
     icon TEXT,

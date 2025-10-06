@@ -1,7 +1,7 @@
 CREATE FUNCTION count_user_challenges_with_same_name(
     p_name TEXT,
-    p_user_id INT
-) RETURNS INT
+    p_user_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -20,14 +20,14 @@ CREATE FUNCTION create_challenge_template(
     p_difficulty challenge_difficulty,
     p_image_path TEXT,
     p_is_active BOOLEAN,
-    p_creator_id INT,
+    p_creator_id BIGINT,
     p_hint TEXT,
     p_solution TEXT
-) RETURNS INT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    new_challenge_id INT;
+    new_challenge_id BIGINT;
 BEGIN
     INSERT INTO challenge_templates (
         name,
@@ -56,7 +56,7 @@ $$;
 
 
 CREATE FUNCTION get_proxmox_filename_for_user_disk_file(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_filename TEXT
 ) RETURNS TEXT
 LANGUAGE plpgsql
@@ -72,16 +72,16 @@ $$;
 
 
 CREATE FUNCTION create_machine_template(
-    p_challenge_template_id INT,
+    p_challenge_template_id BIGINT,
     p_name TEXT,
     p_disk_file_path TEXT,
-    p_cores INT,
-    p_ram_gb INT
-) RETURNS INT
+    p_cores BIGINT,
+    p_ram_gb BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    new_machine_id INT;
+    new_machine_id BIGINT;
 BEGIN
     INSERT INTO machine_templates (
         challenge_template_id,
@@ -102,7 +102,7 @@ $$;
 
 
 CREATE FUNCTION create_domain_template(
-    p_machine_template_id INT,
+    p_machine_template_id BIGINT,
     p_domain_name TEXT
 ) RETURNS VOID
 LANGUAGE plpgsql
@@ -123,11 +123,11 @@ CREATE FUNCTION create_network_template(
     p_name TEXT,
     p_accessible BOOLEAN,
     p_is_dmz BOOLEAN
-) RETURNS INT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    new_network_id INT;
+    new_network_id BIGINT;
 BEGIN
     INSERT INTO network_templates (
         name,
@@ -145,8 +145,8 @@ $$;
 
 CREATE FUNCTION get_machine_template_id_by_name_and_challenge_id(
     p_name TEXT,
-    p_challenge_template_id INT
-) RETURNS INT
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -160,8 +160,8 @@ $$;
 
 
 CREATE FUNCTION create_network_connection_template(
-    p_machine_template_id INT,
-    p_network_template_id INT
+    p_machine_template_id BIGINT,
+    p_network_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -178,12 +178,12 @@ $$;
 
 
 CREATE FUNCTION create_challenge_flag(
-    p_challenge_template_id INT,
+    p_challenge_template_id BIGINT,
     p_flag TEXT,
     p_description TEXT,
-    p_points INT,
-    p_order_index INT
-) RETURNS INT
+    p_points BIGINT,
+    p_order_index BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -205,11 +205,11 @@ $$;
 
 
 CREATE FUNCTION create_challenge_hint(
-    p_challenge_template_id INT,
+    p_challenge_template_id BIGINT,
     p_hint_text TEXT,
-    p_unlock_points INT,
-    p_order_index INT
-) RETURNS INT
+    p_unlock_points BIGINT,
+    p_order_index BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -229,9 +229,9 @@ $$;
 
 
 CREATE FUNCTION get_user_available_disk_files(
-    p_user_id INT
+    p_user_id BIGINT
 ) RETURNS TABLE (
-    id INT,
+    id BIGINT,
     display_name TEXT,
     upload_date TIMESTAMP
 )

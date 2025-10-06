@@ -535,7 +535,7 @@ class OvaUploadHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT is_duplicate_file_name(:user_id, :display_name)::INT AS count
+                SELECT is_duplicate_file_name(:user_id, :display_name)::BIGINT AS count
             ");
             $stmt->execute([
                 'user_id' => $this->userId,

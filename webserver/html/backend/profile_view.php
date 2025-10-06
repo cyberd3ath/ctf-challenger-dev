@@ -163,7 +163,7 @@ class ProfileHandlerPublic
             }
 
             $rankStmt = $this->pdo->prepare("
-                SELECT get_user_rank(:user_id, :user_points)::INT AS user_rank
+                SELECT get_user_rank(:user_id, :user_points)::BIGINT AS user_rank
             ");
             $rankStmt->execute([
                 'user_points' => $profileData['total_points'],

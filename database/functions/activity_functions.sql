@@ -1,19 +1,19 @@
 CREATE FUNCTION get_user_activities(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_challenge_category challenge_category,
     p_type_filter TEXT,
     p_date_range TEXT,
-    p_limit INT,
-    p_offset INT
+    p_limit BIGINT,
+    p_offset BIGINT
 )
 RETURNS TABLE (
     activity_type TEXT,
-    item_id INT,
+    item_id BIGINT,
     item_name TEXT,
     category challenge_category,
-    points INT,
+    points BIGINT,
     solved BOOLEAN,
-    attempt_number INT,
+    attempt_number BIGINT,
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
     status TEXT,
@@ -22,7 +22,7 @@ RETURNS TABLE (
     color badge_color,
     description TEXT,
     item_type TEXT,
-    flag_id INT
+    flag_id BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -142,7 +142,7 @@ BEGIN
                 b.id AS item_id,
                 b.name AS item_name,
                 NULL::challenge_category AS category,
-                NULL::INT AS points,
+                NULL::BIGINT AS points,
                 true AS solved,
                 1 AS attempt_number,
                 ub.earned_at AS started_at,
@@ -153,7 +153,7 @@ BEGIN
                 b.color AS color,
                 b.description AS description,
                 'badge' AS item_type,
-                NULL::INT AS flag_id
+                NULL::BIGINT AS flag_id
             FROM user_badges ub
             JOIN badges b ON b.id = ub.badge_id
             WHERE ub.user_id = p_user_id
@@ -168,12 +168,12 @@ $$;
 
 
 CREATE FUNCTION get_user_activities_total_count(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_challenge_category challenge_category,
     p_type_filter TEXT,
     p_date_range TEXT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN

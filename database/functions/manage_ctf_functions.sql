@@ -1,6 +1,6 @@
 CREATE FUNCTION get_creator_id_by_challenge_id(
-    p_challenge_template_id INT
-) RETURNS INT
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -14,8 +14,8 @@ $$;
 
 
 CREATE FUNCTION get_total_leaderboard_entries_for_author(
-    p_challenge_template_id INT
-) RETURNS INT
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -32,8 +32,8 @@ $$;
 
 CREATE FUNCTION get_challenge_template_id_by_name_with_possible_exclude(
     p_name TEXT,
-    p_exclude_challenge_template_id INT
-) RETURNS INT
+    p_exclude_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -48,10 +48,10 @@ $$;
 
 
 CREATE FUNCTION get_challenge_template_data_for_deletion(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 ) RETURNS TABLE (
-    id INT,
+    id BIGINT,
     marked_for_deletion BOOLEAN
 )
 LANGUAGE plpgsql
@@ -66,7 +66,7 @@ $$;
 
 
 CREATE FUNCTION challenge_template_is_marked_for_deletion(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
@@ -81,7 +81,7 @@ $$;
 
 
 CREATE FUNCTION update_challenge_template(
-    p_challenge_template_id INT,
+    p_challenge_template_id BIGINT,
     p_name TEXT,
     p_description TEXT,
     p_category challenge_category,
@@ -108,7 +108,7 @@ $$;
 
 
 CREATE FUNCTION restore_challenge_template(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -122,10 +122,10 @@ $$;
 
 
 CREATE FUNCTION verify_challenge_template_ownership_for_deletion(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 ) RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT
 )
 LANGUAGE plpgsql
@@ -139,7 +139,7 @@ $$;
 
 
 CREATE FUNCTION mark_challenge_template_for_deletion(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -152,11 +152,11 @@ $$;
 
 
 CREATE FUNCTION get_running_instances_of_challenge_template(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 ) RETURNS TABLE (
-    id INT,
-    user_id INT,
-    challenge_id INT
+    id BIGINT,
+    user_id BIGINT,
+    challenge_id BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -171,8 +171,8 @@ $$;
 
 
 CREATE FUNCTION count_active_deployments_of_challenge_template(
-    p_challenge_template_id INT
-) RETURNS INT
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -188,7 +188,7 @@ $$;
 
 
 CREATE FUNCTION mark_challenge_template_for_soft_deletion(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -202,9 +202,9 @@ $$;
 
 
 CREATE FUNCTION get_challenge_templates_for_management(
-    p_user_id INT
+    p_user_id BIGINT
 ) RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT,
     description TEXT,
     category challenge_category,
@@ -213,12 +213,12 @@ CREATE FUNCTION get_challenge_templates_for_management(
     is_active BOOLEAN,
     created_at TIMESTAMP,
     marked_for_deletion BOOLEAN,
-    total_deployments INT,
+    total_deployments BIGINT,
     hint TEXT,
     solution TEXT,
-    active_deployments INT,
-    solve_count INT,
-    avg_completion_minutes INT
+    active_deployments BIGINT,
+    solve_count BIGINT,
+    avg_completion_minutes BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -335,8 +335,8 @@ $$;
 
 
 CREATE FUNCTION get_challenge_template_count_for_user(
-    p_user_id INT
-) RETURNS INT
+    p_user_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -349,8 +349,8 @@ $$;
 
 
 CREATE FUNCTION get_active_deployments_of_challenge_templates_by_user(
-    p_user_id INT
-) RETURNS INT
+    p_user_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -366,8 +366,8 @@ $$;
 
 
 CREATE FUNCTION get_total_deployments_of_challenge_templates_by_user(
-    p_user_id INT
-) RETURNS INT
+    p_user_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -387,8 +387,8 @@ $$;
 
 
 CREATE FUNCTION get_average_completion_time_of_challenge_templates_by_user(
-    p_user_id INT
-) RETURNS INT
+    p_user_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN

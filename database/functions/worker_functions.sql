@@ -1,9 +1,9 @@
 CREATE FUNCTION get_expired_challenge_data()
 RETURNS TABLE (
-    user_id INT,
+    user_id BIGINT,
     username TEXT,
-    challenge_id INT,
-    challenge_template_id INT,
+    challenge_id BIGINT,
+    challenge_template_id BIGINT,
     expires_at TIMESTAMP
 )
 LANGUAGE plpgsql

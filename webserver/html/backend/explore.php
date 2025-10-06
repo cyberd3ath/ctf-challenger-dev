@@ -230,7 +230,7 @@ class ExploreHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT get_user_solved_challenge(:user_id, :challenge_template_id)::INT AS solved
+                SELECT get_user_solved_challenge(:user_id, :challenge_template_id)::BIGINT AS solved
             ");
             $stmt->execute([
                 ':user_id' => $this->userId,

@@ -156,14 +156,14 @@ class RegistrationHandler
     {
         $this->pdo = $this->databaseHelper->getPDO();
 
-        $stmt = $this->pdo->prepare("SELECT is_username_taken(:username)::INT");
+        $stmt = $this->pdo->prepare("SELECT is_username_taken(:username)::BIGINT");
         $stmt->execute(['username' => $this->username]);
         if ($stmt->fetch(PDO::FETCH_COLUMN) == 1) {
             $this->logger->logWarning("Registration attempt with existing username: $this->username");
             throw new Exception('Username already taken', 400);
         }
 
-        $stmt = $this->pdo->prepare("SELECT is_email_taken(:email)::INT");
+        $stmt = $this->pdo->prepare("SELECT is_email_taken(:email)::BIGINT");
         $stmt->execute(['email' => $this->email]);
         if ($stmt->fetch(PDO::FETCH_COLUMN) == 1) {
             $this->logger->logWarning("Registration attempt with existing email: $this->email");

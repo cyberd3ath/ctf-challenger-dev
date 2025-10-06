@@ -1,7 +1,7 @@
 CREATE FUNCTION get_user_running_challenge(
-    p_user_id INT
+    p_user_id BIGINT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -11,7 +11,7 @@ $$;
 
 
 CREATE FUNCTION get_deployable_conditions(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 )
 RETURNS TABLE (
     marked_for_deletion BOOLEAN,
@@ -31,9 +31,9 @@ $$;
 
 
 CREATE FUNCTION get_creator_id_by_challenge_template(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -46,8 +46,8 @@ $$;
 
 
 CREATE FUNCTION create_new_challenge_attempt(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -66,8 +66,8 @@ $$;
 
 
 CREATE FUNCTION mark_attempt_completed(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -82,13 +82,13 @@ $$;
 
 
 CREATE FUNCTION challenge_template_should_be_deleted(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_count INT;
+    v_count BIGINT;
     v_marked_for_deletion BOOLEAN;
 BEGIN
     SELECT COUNT(*) INTO v_count
@@ -105,7 +105,7 @@ $$;
 
 
 CREATE FUNCTION delete_challenge_template(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -117,11 +117,11 @@ $$;
 
 
 CREATE FUNCTION validate_and_lock_flag(
-    p_challenge_template_id INT,
+    p_challenge_template_id BIGINT,
     p_submitted_flag TEXT
 ) RETURNS TABLE (
-    id INT,
-    points INT
+    id BIGINT,
+    points BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -136,9 +136,9 @@ $$;
 
 
 CREATE FUNCTION is_duplicate_flag_submission(
-    p_user_id INT,
-    p_challenge_template_id INT,
-    p_flag_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT,
+    p_flag_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
@@ -155,9 +155,9 @@ $$;
 
 
 CREATE FUNCTION get_user_submitted_flags_count_for_challenge(
-    p_user_id INT,
-    p_challenge_template_id INT
-) RETURNS INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -173,8 +173,8 @@ $$;
 
 
 CREATE FUNCTION get_total_flags_count_for_challenge(
-    p_challenge_template_id INT
-) RETURNS INT
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -187,9 +187,9 @@ $$;
 
 
 CREATE FUNCTION get_active_attempt_id(
-    p_user_id INT,
-    p_challenge_template_id INT
-) RETURNS INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -205,8 +205,8 @@ $$;
 
 
 CREATE FUNCTION update_running_attempt(
-    p_flag_id INT,
-    p_attempt_id INT
+    p_flag_id BIGINT,
+    p_attempt_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -221,9 +221,9 @@ $$;
 
 
 CREATE FUNCTION create_new_completed_attempt(
-    p_user_id INT,
-    p_challenge_template_id INT,
-    p_flag_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT,
+    p_flag_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -246,9 +246,9 @@ $$;
 
 
 CREATE FUNCTIOn get_recent_unflagged_attempt(
-    p_user_id INT,
-    p_challenge_template_id INT
-) RETURNS INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -267,8 +267,8 @@ $$;
 
 
 CREATE FUNCTION update_recent_attempt(
-    p_flag_id INT,
-    p_attempt_id INT
+    p_flag_id BIGINT,
+    p_attempt_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -281,10 +281,10 @@ $$;
 
 
 CREATE FUNCTION get_challenge_template_details(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 )
 RETURNS TABLE (
-    id INT,
+    id BIGINT,
     name TEXT,
     description TEXT,
     category challenge_category,
@@ -296,8 +296,8 @@ RETURNS TABLE (
     hint TEXT,
     marked_for_deletion BOOLEAN,
     creator_username TEXT,
-    creator_id INT,
-    solve_count INT
+    creator_id BIGINT,
+    solve_count BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -343,8 +343,8 @@ $$;
 
 
 CREATE FUNCTION get_challenge_user_status(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 )
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -402,7 +402,7 @@ $$;
 
 
 CREATE FUNCTION get_challenge_solution(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 ) RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
@@ -418,14 +418,14 @@ $$;
 
 
 CREATE FUNCTION get_remaining_seconds_for_user_challenge(
-    p_user_id INT,
-    p_challenge_template_id INT
-) RETURNS INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN (
-        SELECT EXTRACT(EPOCH FROM (c.expires_at - CURRENT_TIMESTAMP))::INT AS remaining_seconds
+        SELECT EXTRACT(EPOCH FROM (c.expires_at - CURRENT_TIMESTAMP))::BIGINT AS remaining_seconds
         FROM challenges c
         JOIN users u ON u.running_challenge = c.id
         WHERE u.id = p_user_id
@@ -436,15 +436,15 @@ $$;
 
 
 CREATE FUNCTION get_challenge_flags(
-    p_challenge_template_id INT
+    p_challenge_template_id BIGINT
 )
 RETURNS TABLE (
-    id INT,
-    challenge_template_id INT,
+    id BIGINT,
+    challenge_template_id BIGINT,
     flag TEXT,
     description TEXT,
-    points INT,
-    order_index INT
+    points BIGINT,
+    order_index BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -465,15 +465,15 @@ $$;
 
 
 CREATE FUNCTION get_unlocked_challenge_hints(
-    p_challenge_template_id INT,
-    p_user_points INT
+    p_challenge_template_id BIGINT,
+    p_user_points BIGINT
 )
 RETURNS TABLE (
-    id INT,
-    challenge_template_id INT,
+    id BIGINT,
+    challenge_template_id BIGINT,
     hint_text TEXT,
-    unlock_points INT,
-    order_index INT
+    unlock_points BIGINT,
+    order_index BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -494,10 +494,10 @@ $$;
 
 
 CREATE FUNCTIOn get_completed_flag_ids_for_user(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 ) RETURNS TABLE (
-    flag_id INT
+    flag_id BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -511,7 +511,7 @@ $$;
 
 
 CREATE FUNCTION get_entrypoints_for_user_challenge(
-    p_user_id INT
+    p_user_id BIGINT
 ) RETURNS TABLE (
     subnet INET
 )
@@ -532,8 +532,8 @@ $$;
 
 
 CREATE FUNCTION is_first_blood(
-    p_challenge_template_id INT,
-    p_user_id INT
+    p_challenge_template_id BIGINT,
+    p_user_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
@@ -557,9 +557,9 @@ $$;
 
 
 CREATE FUNCTION get_remaining_extensions_for_user_challenge(
-    p_user_id INT,
-    p_challenge_template_id INT
-) RETURNS INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -575,7 +575,7 @@ $$;
 
 
 CREATE FUNCTION get_category_of_challenge_instance(
-    p_challenge_id INT
+    p_challenge_id BIGINT
 ) RETURNS challenge_category
 LANGUAGE plpgsql
 AS $$
@@ -588,10 +588,10 @@ $$;
 
 
 CREATE FUNCTION get_user_solved_challenges_in_category(
-    p_user_id INT,
+    p_user_id BIGINT,
     p_category challenge_category
 )
-RETURNS INT
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -616,8 +616,8 @@ $$;
 
 
 CREATE FUNCTION count_user_badges_excluding_one(
-    p_user_id INT,
-    p_excluded_badge_id INT
+    p_user_id BIGINT,
+    p_excluded_badge_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
@@ -632,7 +632,7 @@ $$;
 
 
 CREATE FUNCTION badge_with_id_exists(
-    p_badge_id INT
+    p_badge_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
@@ -643,8 +643,8 @@ $$;
 
 
 CREATE FUNCTION user_already_has_badge(
-    p_user_id INT,
-    p_badge_id INT
+    p_user_id BIGINT,
+    p_badge_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
@@ -658,8 +658,8 @@ $$;
 
 
 CREATE FUNCTION award_badge_to_user(
-    p_user_id INT,
-    p_badge_id INT
+    p_user_id BIGINT,
+    p_badge_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -672,11 +672,11 @@ $$;
 
 
 CREATE FUNCTION get_id_and_used_extensions_of_running_challenge(
-    p_user_id INT,
-    p_challenge_template_id INT
+    p_user_id BIGINT,
+    p_challenge_template_id BIGINT
 ) RETURNS TABLE (
-    id INT,
-    used_extensions INT
+    id BIGINT,
+    used_extensions BIGINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -695,8 +695,8 @@ $$;
 
 
 CREATE FUNCTION extend_user_challenge_time(
-    p_challenge_id INT,
-    p_extend_scalar INT
+    p_challenge_id BIGINT,
+    p_extend_scalar BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
 AS $$
