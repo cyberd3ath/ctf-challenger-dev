@@ -1016,7 +1016,7 @@ def setup_webserver():
     execute_command("sudo chmod 644 /etc/apache2/apache2.conf")
 
     execute_command("sudo chown -R root:root /var/www/html/")
-    execute_command("sudo chmod -R 644 /var/www/html/")
+    execute_command("sudo chmod -R 755 /var/www/html/")
 
     execute_command("sudo chown -R www-data:www-data /var/www/html/vendor")
     execute_command("sudo chmod -R 755 /var/www/html/vendor")
@@ -1027,8 +1027,7 @@ def setup_webserver():
     execute_command("sudo chown root:root /var/www/.env")
     execute_command("sudo chmod 644 /var/www/.env")
 
-    execute_command("sudo chown root:root /etc/apache2/sites-available/000-default.conf")
-    execute_command("sudo chmod 644 /etc/apache2/sites-available/000-default.conf")
+    execute_command("sudo chown root:root /var/www/html")
 
     print("\tCreating directories for the vpn-configs and logs")
     execute_command("sudo mkdir -p /var/lib/ctf-challenger/vpn-configs")
@@ -1075,6 +1074,9 @@ def setup_webserver():
         "/tmp/default-ssl.conf"
     )
     execute_command("sudo mv /tmp/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf")
+
+    execute_command("sudo chown -R root:root /etc/apache2/sites-available")
+    execute_command("sudo chmod -R 755 /etc/apache2/sites-available")
 
     print("\tHardening Apache headers to hide version and X-Powered-By")
     # 1) Set ServerTokens Prod and ServerSignature Off
