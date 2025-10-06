@@ -974,7 +974,10 @@ class ProfileHandler
             }
 
             $stmt = $this->pdo->prepare("
-                SELECT get_user_solved_challenge_count_by_categories(:user_id)
+                SELECT 
+                    category,
+                    solved_count
+                get_user_solved_challenge_count_by_categories(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $solved = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);

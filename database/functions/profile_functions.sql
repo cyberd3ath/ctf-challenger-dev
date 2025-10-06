@@ -462,16 +462,6 @@ END;
 $$;
 
 
-CREATE FUNCTION get_user_running_challenge(p_user_id INT)
-RETURNS INT
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    SELECT running_challenge FROM users WHERE id = p_user_id;
-END;
-$$;
-
-
 CREATE FUNCTION get_user_disk_files_display_data(p_user_id INT)
 RETURNS TABLE(
     ova_id           INT,
@@ -624,37 +614,6 @@ BEGIN
 END;
 $$;
 
-
-CREATE FUNCTION get_user_solved_challenge_count_by_categories(p_user_id INT)
-RETURNS TABLE (
-    category challenge_category,
-    solved INT
-)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    RETURN QUERY
-    WITH solved_challenges AS (
-        SELECT cc.challenge_template_id
-        FROM completed_challenges cc
-        JOIN challenge_flags cf ON cc.flag_id = cf.id
-        WHERE cc.user_id = p_user_id
-        GROUP BY cc.challenge_template_id
-        HAVING COUNT(DISTINCT cf.id) = (
-            SELECT COUNT(*)
-            FROM challenge_flags
-            WHERE challenge_template_id = cc.challenge_template_id
-        )
-    )
-    SELECT ct.category, COUNT(sc.challenge_template_id) as solved
-    FROM solved_challenges sc
-    JOIN challenge_templates ct ON ct.id = sc.challenge_template_id
-    GROUP BY ct.category
-    ORDER BY ct.category;
-END;
-$$;
-
-
 CREATE FUNCTION get_user_earned_badges_data(p_user_id INT)
 RETURNS TABLE (
     id INT,
@@ -670,28 +629,7 @@ BEGIN
     SELECT b.id, b.name, b.description, b.icon, b.color
     FROM user_badges ub
     JOIN badges b ON b.id = ub.badge_id
-    WHERE ub.user_id = :user_id
+    WHERE ub.user_id = p_user_id
     ORDER BY b.rarity DESC, ub.earned_at DESC, b.id;
 END;
 $$;
-
-
-CREATE FUNCTION get_total_badges_count()
-RETURNS INT
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    RETURN (SELECT COUNT(*) AS total FROM badges);
-END;
-$$;
-
-
-
-
-
-
-
-
-
-
-

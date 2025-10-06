@@ -1,4 +1,4 @@
-CREATE FUNCTIOn get_user_running_challenge(
+CREATE FUNCTION get_user_running_challenge(
     p_user_id INT
 )
 RETURNS INT
