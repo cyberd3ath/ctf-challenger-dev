@@ -404,7 +404,7 @@ class ChallengeHandler
             );
 
             if (!$result['success'] || $result['http_code'] !== 200) {
-                throw new CustomException("Failed to delete VM templates"));
+                throw new CustomException("Failed to delete VM templates");
             }
 
             $stmt = $this->pdo->prepare("
