@@ -136,11 +136,11 @@ BEGIN
         JOIN users u ON u.id = s.user_id
     )
     SELECT
-        username::TEXT,
-        avatar_url::TEXT,
-        total_seconds::BIGINT,
-        rank::BIGINT
-    FROM ranked
+        r.username::TEXT,
+        r.avatar_url::TEXT,
+        r.total_seconds::BIGINT,
+        r.rank::BIGINT
+    FROM ranked r
     ORDER BY rank
     LIMIT 10;
 END;
@@ -228,12 +228,12 @@ BEGIN
         JOIN users u ON u.id = up.user_id
     )
     SELECT
-        username::TEXT,
-        avatar_url::TEXT,
-        total_points::BIGINT,
-        total_seconds::BIGINT,
-        rank::BIGINT
-    FROM ranked
+        r.username::TEXT,
+        r.avatar_url::TEXT,
+        r.total_points::BIGINT,
+        r.total_seconds::BIGINT,
+        r.rank::BIGINT
+    FROM ranked r
     ORDER BY rank
     LIMIT p_limit OFFSET p_offset;
 END;

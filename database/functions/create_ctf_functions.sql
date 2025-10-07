@@ -249,12 +249,12 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id::BIGINT,
-        display_name::TEXT AS name,
-        upload_date::TIMESTAMP AS date
-    FROM disk_files
-    WHERE user_id = p_user_id
-    ORDER BY upload_date DESC, id;
+        df.id::BIGINT,
+        df.display_name::TEXT AS name,
+        df.upload_date::TIMESTAMP AS date
+    FROM disk_files df
+    WHERE df.user_id = p_user_id
+    ORDER BY df.upload_date DESC, id;
 END;
 $$;
 

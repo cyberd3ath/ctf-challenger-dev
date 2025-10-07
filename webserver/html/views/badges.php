@@ -1,3 +1,16 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$securityHelper = new SecurityHelper();
+$securityHelper->initSecureSession();
+
+if (!$securityHelper->validateSession()) {
+    header('Location: /404');
+    exit();
+}
+?>
+
 <!DOCTYPE html>
 <html lang="de">
 <head>

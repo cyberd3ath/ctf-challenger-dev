@@ -59,10 +59,10 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id::BIGINT AS id,
-        marked_for_deletion::BOOLEAN AS marked_for_deletion
-    FROM challenge_templates
-    WHERE id = p_challenge_template_id AND creator_id = p_user_id;
+        ct.id::BIGINT AS id,
+        ct.marked_for_deletion::BOOLEAN AS marked_for_deletion
+    FROM challenge_templates ct
+    WHERE ct.id = p_challenge_template_id AND ct.creator_id = p_user_id;
 END;
 $$;
 
@@ -135,10 +135,10 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id::BIGINT AS id,
-        name::TEXT AS name
-    FROM challenge_templates
-    WHERE id = p_challenge_template_id AND creator_id = p_user_id;
+        ct.id::BIGINT AS id,
+        ct.name::TEXT AS name
+    FROM challenge_templates ct
+    WHERE ct.id = p_challenge_template_id AND ct.creator_id = p_user_id;
 END;
 $$;
 
@@ -230,14 +230,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    WITH flag_counts AS (
-        SELECT
-            challenge_template_id,
-            COUNT(id) AS total_flags
-        FROM challenge_flags
-        GROUP BY challenge_template_id
-    ),
-    user_flags AS (
+    WITH user_flags AS (
         SELECT
             challenge_template_id,
             user_id,

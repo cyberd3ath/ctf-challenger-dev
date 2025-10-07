@@ -284,7 +284,7 @@ END;
 $$;
 
 
-CREATE FUNCTIOn get_challenges_data_dashboard(
+CREATE FUNCTION get_challenges_data_dashboard(
     p_user_id BIGINT
 ) RETURNS TABLE (
     id BIGINT,
@@ -335,7 +335,7 @@ BEGIN
         ct.id::BIGINT AS id,
         ct.name::TEXT AS name,
         ct.category::challenge_category AS category,
-        (SELECT SUM(points) FROM challenge_flags WHERE challenge_template_id = ct.id)::BIGINT AS points,
+        (SELECT SUM(cf.points) FROM challenge_flags cf WHERE challenge_template_id = ct.id)::BIGINT AS points,
         ct.difficulty::challenge_difficulty AS difficulty,
         COALESCE(gsc.solved_count, 0)::BIGINT AS solved_count,
         COALESCE(ac.attempted_count, 0)::BIGINT AS attempted_count
@@ -359,7 +359,7 @@ END;
 $$;
 
 
-CREATE FUNCTIOn get_timeline_data_dashboard(
+CREATE FUNCTION get_timeline_data_dashboard(
     p_user_id BIGINT,
     p_start_date TEXT,
     p_end_date TEXT,
@@ -418,11 +418,11 @@ BEGIN
         ORDER BY ds.date
     )
     SELECT
-        date_group::TEXT,
-        points_sum::BIGINT,
-        challenge_count::BIGINT,
-        challenge_details::TEXT
-    FROM daily_points;
+        dp.date_group::TEXT,
+        dp.points_sum::BIGINT,
+        dp.challenge_count::BIGINT,
+        dp.challenge_details::TEXT
+    FROM daily_points dp;
 END;
 $$;
 
@@ -442,15 +442,15 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id::BIGINT AS id,
-        title::TEXT AS title,
-        short_description::TEXT AS short_description,
-        importance::announcement_importance AS importance,
-        category::announcement_category AS category,
-        author::TEXT AS author,
-        TO_CHAR(created_at, 'YYYY-MM-DD')::TEXT AS created_at
-    FROM announcements
-    ORDER BY created_at DESC
+        a.id::BIGINT AS id,
+        a.title::TEXT AS title,
+        a.short_description::TEXT AS short_description,
+        a.importance::announcement_importance AS importance,
+        a.category::announcement_category AS category,
+        a.author::TEXT AS author,
+        TO_CHAR(a.created_at, 'YYYY-MM-DD')::TEXT AS created_at
+    FROM announcements a
+    ORDER BY a.created_at DESC
     LIMIT 3;
 END;
 $$;
@@ -494,7 +494,7 @@ BEGIN
         ct.name::TEXT AS name,
         ct.category::challenge_category AS category,
         ct.difficulty::challenge_difficulty AS difficulty,
-        (SELECT SUM(points) FROM challenge_flags WHERE challenge_template_id = ct.id)::BIGINT AS points,
+        (SELECT SUM(cf.points) FROM challenge_flags cf WHERE challenge_template_id = ct.id)::BIGINT AS points,
         cc.started_at::TIMESTAMP AS current_attempt_started_at,
         cc.id::BIGINT AS completed_challenge_id
     FROM challenge_templates ct

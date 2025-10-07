@@ -1,4 +1,4 @@
-CREATE FUNCTIOn get_total_announcement_count()
+CREATE FUNCTION get_total_announcement_count()
 RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$

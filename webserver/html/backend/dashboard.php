@@ -223,7 +223,7 @@ class DashboardHandler
             $stmt->execute(['user_id' => $this->userId]);
             $progress = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            $stmt = $this->pdo->prepare("SELECT get_total_active_challenges_count() AS total_challenges");
+            $stmt = $this->pdo->prepare("SELECT get_total_active_challenges_count_dashboard() AS total_challenges");
             $stmt->execute();
             $total = $stmt->fetch(PDO::FETCH_ASSOC);
 

@@ -102,17 +102,6 @@ class ApiClient {
             const base = filename.replace(/\.php$/, '');
             const isPublicEndpoint = this.publicEndpoints.includes(base);
 
-            if (!isPublicEndpoint) {
-                const error = new Error('Session expired. Please log in again.');
-                if (this.isSamePageReferer()) {
-                    this.messageManager.showError(error.message);
-                    setTimeout(() => window.location.href = '/login', 1500);
-                } else {
-                    window.location.href = '/login';
-                }
-                return null;
-            }
-
             const headers = {
                 ...(options.headers || {}),
             };

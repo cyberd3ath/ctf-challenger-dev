@@ -22,9 +22,9 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        marked_for_deletion::BOOLEAN,
-        is_active::BOOLEAN
-    FROM challenge_templates
+        ct.marked_for_deletion::BOOLEAN,
+        ct.is_active::BOOLEAN
+    FROM challenge_templates ct
     WHERE id = p_challenge_template_id;
 END;
 $$;
@@ -128,9 +128,9 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id::BIGINT AS id,
-        points::BIGINT AS points
-    FROM challenge_flags
+        cf.id::BIGINT AS id,
+        cf.points::BIGINT AS points
+    FROM challenge_flags cf
     WHERE challenge_template_id = p_challenge_template_id
     AND flag = p_submitted_flag
     FOR UPDATE;
@@ -248,7 +248,7 @@ END;
 $$;
 
 
-CREATE FUNCTIOn get_recent_unflagged_attempt(
+CREATE FUNCTION get_recent_unflagged_attempt(
     p_user_id BIGINT,
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
@@ -454,13 +454,13 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id::BIGINT AS id,
-        challenge_template_id::BIGINT AS challenge_template_id,
-        flag::TEXT AS flag,
-        description::TEXT AS description,
-        points::BIGINT AS points,
-        order_index::BIGINT AS order_index
-    FROM challenge_flags
+        cf.id::BIGINT AS id,
+        cf.challenge_template_id::BIGINT AS challenge_template_id,
+        cf.flag::TEXT AS flag,
+        cf.description::TEXT AS description,
+        cf.points::BIGINT AS points,
+        cf.order_index::BIGINT AS order_index
+    FROM challenge_flags cf
     WHERE challenge_template_id = p_challenge_template_id
     ORDER BY order_index, id;
 END;
@@ -483,20 +483,20 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id::BIGINT AS id,
-        challenge_template_id::BIGINT AS challenge_template_id,
-        hint_text::TEXT AS hint_text,
-        unlock_points::BIGINT AS unlock_points,
-        order_index::BIGINT AS order_index
-    FROM challenge_hints
-    WHERE challenge_template_id = p_challenge_template_id
-    AND unlock_points <= p_user_points
-    ORDER BY order_index, id;
+        ch.id::BIGINT AS id,
+        ch.challenge_template_id::BIGINT AS challenge_template_id,
+        ch.hint_text::TEXT AS hint_text,
+        ch.unlock_points::BIGINT AS unlock_points,
+        ch.order_index::BIGINT AS order_index
+    FROM challenge_hints ch
+    WHERE ch.challenge_template_id = p_challenge_template_id
+    AND ch.unlock_points <= p_user_points
+    ORDER BY ch.order_index, id;
 END;
 $$;
 
 
-CREATE FUNCTIOn get_completed_flag_ids_for_user(
+CREATE FUNCTION get_completed_flag_ids_for_user(
     p_user_id BIGINT,
     p_challenge_template_id BIGINT
 ) RETURNS TABLE (
@@ -506,10 +506,10 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT flag_id::BIGINT
-    FROM completed_challenges
-    WHERE user_id = p_user_id AND challenge_template_id = p_challenge_template_id
-    AND flag_id IS NOT NULL;
+    SELECT cc.flag_id::BIGINT
+    FROM completed_challenges cc
+    WHERE cc.user_id = p_user_id AND cc.challenge_template_id = p_challenge_template_id
+    AND cc.flag_id IS NOT NULL;
 END;
 $$;
 
@@ -542,19 +542,21 @@ CREATE FUNCTION is_first_blood(
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    SELECT NOT EXISTS (
-        SELECT 1 FROM (
-            SELECT DISTINCT cc.user_id
-            FROM completed_challenges cc
-            WHERE cc.challenge_template_id = p_challenge_template_id
-            AND cc.user_id != p_user_id
-            GROUP BY cc.user_id
-            HAVING COUNT(DISTINCT cc.flag_id) = (
-                SELECT COUNT(*)
-                FROM challenge_flags
-                WHERE challenge_template_id = p_challenge_template_id
-            )
-        ) AS is_first_blood
+    RETURN (
+        SELECT NOT EXISTS (
+            SELECT 1 FROM (
+                SELECT DISTINCT cc.user_id
+                FROM completed_challenges cc
+                WHERE cc.challenge_template_id = p_challenge_template_id
+                AND cc.user_id != p_user_id
+                GROUP BY cc.user_id
+                HAVING COUNT(DISTINCT cc.flag_id) = (
+                    SELECT COUNT(*)
+                    FROM challenge_flags
+                    WHERE challenge_template_id = p_challenge_template_id
+                )
+            ) AS is_first_blood
+        )
     )::BOOLEAN;
 END;
 $$;
@@ -613,7 +615,7 @@ BEGIN
                     WHERE challenge_template_id = cc.challenge_template_id
                 )
             ) solved ON ct.id = solved.challenge_template_id
-            WHERE ct.category::text ILIKE p_category
+            WHERE ct.category = p_category
     )::BIGINT;
 END;
 $$;

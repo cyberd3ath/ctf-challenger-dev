@@ -53,7 +53,7 @@ BEGIN
         p.twitter_url::TEXT,
         p.website_url::TEXT,
         (SELECT COUNT(*) FROM solved)::BIGINT AS solved_count,
-        (SELECT total_points FROM total_points)::BIGINT AS total_points
+        (SELECT tp.total_points FROM total_points tp)::BIGINT AS total_points
     FROM users u
     LEFT JOIN user_profiles p ON p.user_id = u.id
     WHERE u.id = p_user_id;
@@ -485,15 +485,19 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id::BIGINT AS ova_id,
-        proxmox_filename::TEXT AS proxmox_filename
-    FROM disk_files
+        df.id::BIGINT AS ova_id,
+        df.proxmox_filename::TEXT AS proxmox_filename
+    FROM disk_files df
     WHERE user_id = p_user_id;
 END;
 $$;
 
 
-CREATE FUNCTION delete_user_disk_files(p_user_id BIGINT, p_ova_id BIGINT, p_hashed_password TEXT)
+CREATE FUNCTION delete_user_disk_files(
+    p_user_id BIGINT,
+    p_ova_id BIGINT,
+    p_hashed_password TEXT
+)
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
