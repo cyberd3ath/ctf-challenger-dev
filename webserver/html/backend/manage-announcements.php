@@ -72,7 +72,7 @@ class AdminAnnouncementsHandler
 
         if (!$this->securityHelper->validateSession()) {
             $this->logger->logWarning("Unauthorized access attempt to admin announcements - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Unauthorized', 401);
+            throw new CustomException('Unauthorized', 401);
         }
     }
 
@@ -84,12 +84,12 @@ class AdminAnnouncementsHandler
         $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in admin announcements - User ID: " . ($this->session['user_id'] ?? 'unknown') . ", Token: $csrfToken");
-            throw new Exception('Invalid CSRF token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
 
         if (!$this->securityHelper->validateAdminAccess($this->pdo)) {
             $this->logger->logWarning("Non-admin access attempt to admin announcements - User ID: " . ($this->session['user_id'] ?? 'unknown'));
-            throw new Exception('Unauthorized - Admin access only', 403);
+            throw new CustomException('Unauthorized - Admin access only', 403);
         }
     }
 
@@ -112,13 +112,13 @@ class AdminAnnouncementsHandler
                     break;
                 default:
                     $this->logger->logError("Invalid action in admin announcements - Action: $this->action, User: $this->username");
-                    throw new Exception('Invalid action', 400);
+                    throw new CustomException('Invalid action', 400);
             }
 
             $this->sendResponse($response);
         } catch (PDOException $e) {
             $this->logger->logError("Database error in admin announcements - " . $e->getMessage() . " - User ID: $this->userId");
-            throw new Exception('Database error occurred', 500);
+            throw new CustomException('Database error occurred', 500);
         }
     }
 
@@ -195,7 +195,7 @@ class AdminAnnouncementsHandler
         $data = json_decode($this->system->file_get_contents('php://input'), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->logger->logError("Invalid JSON in announcement $this->action - User: $this->username");
-            throw new Exception('Invalid JSON data', 400);
+            throw new CustomException('Invalid JSON data', 400);
         }
         return $data;
     }
@@ -307,7 +307,7 @@ class AdminAnnouncementsHandler
     {
         if (empty($data['id'])) {
             $this->logger->logError("Missing announcement ID in update - User: $this->username");
-            throw new Exception('Missing announcement ID', 400);
+            throw new CustomException('Missing announcement ID', 400);
         }
 
         $id = intval($data['id']);
@@ -356,7 +356,7 @@ class AdminAnnouncementsHandler
         $stmt->execute(['id' => $id]);
         if ($stmt->fetchColumn() == 0) {
             $this->logger->logError("Announcement not found for update - ID: $id, User: $this->username");
-            throw new Exception('Announcement not found', 404);
+            throw new CustomException('Announcement not found', 404);
         }
     }
 
@@ -368,7 +368,7 @@ class AdminAnnouncementsHandler
         $data = $this->getJsonInput();
 
         if (empty($data['id'])) {
-            throw new Exception('Missing announcement ID', 400);
+            throw new CustomException('Missing announcement ID', 400);
         }
 
         $stmt = $this->pdo->prepare("SELECT delete_announcement(:id)");
@@ -399,7 +399,7 @@ try {
 
     $handler = new AdminAnnouncementsHandler(config: $config, generalConfig: $generalConfig);
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -414,6 +414,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in manage-announcements endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

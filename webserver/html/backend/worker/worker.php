@@ -53,9 +53,12 @@ class ChallengeWorker
 
             $this->logMessage("Successfully processed " . count($expiredChallenges) . " expired challenges.");
 
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logError("ChallengeWorker error: " . $e->getMessage());
             $this->logMessage("Error processing challenges: " . $e->getMessage());
+        } catch (Exception $e) {
+            $this->logError("Unexpected error: " . $e->getMessage());
+            $this->logMessage("Unexpected error: " . $e->getMessage());
         }
     }
 
@@ -93,9 +96,14 @@ class ChallengeWorker
 
             $this->logError("Successfully processed expired challenge for user {$challenge['username']} (ID: {$challenge['user_id']})");
 
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->pdo->rollBack();
             $this->logError("Failed to process expired challenge for user {$challenge['username']}: " . $e->getMessage());
+            throw $e;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            $this->logError("Unexpected error: " . $e->getMessage());
+            $this->logMessage("Unexpected error: " . $e->getMessage());
             throw $e;
         }
     }
@@ -113,7 +121,7 @@ class ChallengeWorker
         );
 
         if (!$result['success'] || $result['http_code'] !== 200) {
-            throw new Exception("Failed to stop challenge: " . ($result['error'] ?? "HTTP {$result['http_code']}"));
+            throw new CustomException("Failed to stop challenge: " . ($result['error'] ?? "HTTP {$result['http_code']}"));
         }
     }
 
@@ -150,7 +158,7 @@ class ChallengeWorker
         );
 
         if (!$result['success'] || $result['http_code'] !== 200) {
-            throw new Exception("Failed to delete VM templates: " . ($result['error'] ?? "HTTP {$result['http_code']}"));
+            throw new CustomException("Failed to delete VM templates: " . ($result['error'] ?? "HTTP {$result['http_code']}"));
         }
 
         $stmt = $this->pdo->prepare("

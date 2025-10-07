@@ -48,17 +48,23 @@ class ProfileStatusHandler
     {
         try {
             $this->securityHelper->initSecureSession();
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Session initialization failed: " . $e->getMessage());
-            throw new RuntimeException('Session initialization error', 500);
+            throw new CustomException('Session initialization error', 500);
+        } // @codeCoverageIgnoreStart
+        catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->logger->logError("Unexpected error during session initialization: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
+        // @codeCoverageIgnoreEnd
     }
 
     private function validateRequestMethod(): void
     {
         if ($this->server['REQUEST_METHOD'] !== 'GET') {
             $this->logger->logWarning("Invalid request method: " . $this->server['REQUEST_METHOD']);
-            throw new RuntimeException('Method not allowed', 405);
+            throw new CustomException('Method not allowed', 405);
         }
     }
 
@@ -67,8 +73,12 @@ class ProfileStatusHandler
         try {
             $response = $this->buildResponse();
             $this->sendSuccessResponse($response);
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->handleError($e);
+        } catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->logger->logError("Unexpected error in handleRequest: " . $e->getMessage());
+            $this->handleError(new Exception('Internal Server Error', 500));
         }
     }
 
@@ -93,7 +103,7 @@ class ProfileStatusHandler
 
             if (!$result) {
                 $this->logger->logError("User not found in database: $this->userId");
-                throw new RuntimeException('User not found', 400);
+                throw new CustomException('User not found', 400);
             }
 
             return [
@@ -102,7 +112,7 @@ class ProfileStatusHandler
             ];
         } catch (PDOException $e) {
             $this->logger->logError("Database error for user $this->userId: " . $e->getMessage());
-            throw new RuntimeException('Failed to retrieve profile data', 500);
+            throw new CustomException('Failed to retrieve profile data', 500);
         }
     }
 
@@ -152,7 +162,7 @@ if(defined('PHPUNIT_RUNNING'))
 try {
     $handler = new ProfileStatusHandler();
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -167,6 +177,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in header endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

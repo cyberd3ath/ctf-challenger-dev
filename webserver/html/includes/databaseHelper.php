@@ -35,8 +35,11 @@ class DatabaseHelper implements IDatabaseHelper
         } catch (PDOException $e) {
             $this->logger->logError("Database connection failed: " . $e->getMessage());
             $this->sendErrorResponse();
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Unexpected error during database connection: " . $e->getMessage());
+            $this->sendErrorResponse();
+        } catch (Exception $e) {
+            $this->logger->logError("General error during database connection: " . $e->getMessage());
             $this->sendErrorResponse();
         }
     }
@@ -51,7 +54,7 @@ class DatabaseHelper implements IDatabaseHelper
 
         if (empty($host) || empty($db) || empty($user) || empty($port)) {
             $this->logger->logError("Missing required database configuration parameters");
-            throw new RuntimeException('Incomplete database configuration');
+            throw new CustomException('Incomplete database configuration');
         }
 
         $dsn = "pgsql:host=$host;port=$port;dbname=$db";

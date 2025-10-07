@@ -38,7 +38,7 @@ class OvaValidator implements IOvaValidator
         $tmpDir = $this->system->sys_get_temp_dir() . '/ova_check_' . uniqid();
         if (!$this->system->mkdir($tmpDir, 0755, true)) {
             $this->logger->logError("Failed to create temp directory: " . $tmpDir);
-            throw new RuntimeException("System error during validation", 500);
+            throw new CustomException("System error during validation", 500);
         }
 
         try {
@@ -59,12 +59,12 @@ class OvaValidator implements IOvaValidator
     {
         if (!$this->system->file_exists($ovaPath)) {
             $this->logger->logError("OVA file does not exist: " . $ovaPath);
-            throw new InvalidArgumentException("Invalid OVA file", 400);
+            throw new CustomException("Invalid OVA file", 400);
         }
 
         if (!$this->system->is_readable($ovaPath)) {
             $this->logger->logError("OVA file is not readable: " . $ovaPath);
-            throw new RuntimeException("Cannot read OVA file", 403);
+            throw new CustomException("Cannot read OVA file", 403);
         }
     }
 
@@ -76,7 +76,7 @@ class OvaValidator implements IOvaValidator
         if ($ret !== 0) {
             $errorOutput = implode("\n", array_slice($output, 0, 5));
             $this->logger->logError("Failed to list OVA contents. Command: " . $cmd . " Output: " . $errorOutput);
-            throw new RuntimeException("Invalid OVA file format", 400);
+            throw new CustomException("Invalid OVA file format", 400);
         }
 
         return $output;
@@ -94,12 +94,12 @@ class OvaValidator implements IOvaValidator
 
                 if ($filename !== $matches[2]) {
                     $this->logger->logError("Suspicious OVF filename detected: " . $matches[2]);
-                    throw new RuntimeException("Invalid OVF filename", 400);
+                    throw new CustomException("Invalid OVF filename", 400);
                 }
 
                 if ($size > $maxOvfSizeBytes) {
                     $this->logger->logError("OVF file too large: " . $filename . " (" . $this->formatBytes($size) . ")");
-                    throw new RuntimeException("OVF file exceeds size limit", 400);
+                    throw new CustomException("OVF file exceeds size limit", 400);
                 }
 
                 $ovfFiles[] = ['name' => $filename, 'size' => $size];
@@ -108,12 +108,12 @@ class OvaValidator implements IOvaValidator
 
         if (count($ovfFiles) === 0) {
             $this->logger->logError("No OVF file found in OVA");
-            throw new RuntimeException("No OVF file found in OVA package", 400);
+            throw new CustomException("No OVF file found in OVA package", 400);
         }
 
         if (count($ovfFiles) > 1) {
             $this->logger->logError("Multiple OVF files found in OVA");
-            throw new RuntimeException("Multiple OVF files found - only one allowed", 400);
+            throw new CustomException("Multiple OVF files found - only one allowed", 400);
         }
         return $ovfFiles[0];
     }
@@ -126,13 +126,13 @@ class OvaValidator implements IOvaValidator
         if ($ret !== 0) {
             $errorOutput = implode("\n", array_slice($output, 0, 5));
             $this->logger->logError("Failed to extract OVF file. Command: " . $cmd . " Output: " . $errorOutput);
-            throw new RuntimeException("Failed to extract OVF from OVA", 400);
+            throw new CustomException("Failed to extract OVF from OVA", 400);
         }
 
         $ovfPath = $tmpDir . DIRECTORY_SEPARATOR . basename($ovfName);
         if (!$this->system->file_exists($ovfPath)) {
             $this->logger->logError("Extracted OVF file not found at expected path: " . $ovfPath);
-            throw new RuntimeException("System error during OVF extraction", 500);
+            throw new CustomException("System error during OVF extraction", 500);
         }
 
         return $ovfPath;
@@ -143,12 +143,12 @@ class OvaValidator implements IOvaValidator
         $ovfContent = $this->system->file_get_contents($ovfPath);
         if ($ovfContent === false) {
             $this->logger->logError("Failed to read OVF file: " . $ovfPath);
-            throw new RuntimeException("Failed to read OVF contents", 500);
+            throw new CustomException("Failed to read OVF contents", 500);
         }
 
         if (str_contains($ovfContent, '<!ENTITY')) {
             $this->logger->logError("OVF contains potential XXE vulnerability (ENTITY declaration)");
-            throw new RuntimeException("Invalid OVF file - security violation", 400);
+            throw new CustomException("Invalid OVF file - security violation", 400);
         }
 
         libxml_use_internal_errors(true);
@@ -159,14 +159,17 @@ class OvaValidator implements IOvaValidator
             libxml_clear_errors();
 
             $this->logger->logError("Invalid OVF XML: " . implode(", ", array_slice($errorMessages, 0, 3)));
-            throw new RuntimeException("Invalid OVF XML format", 400);
+            throw new CustomException("Invalid OVF XML format", 400);
         }
 
         try {
             $xml->registerXPathNamespace('ovf', 'http://schemas.dmtf.org/ovf/envelope/1');
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Failed to register OVF namespace: " . $e->getMessage());
-            throw new RuntimeException("Invalid OVF namespace", 400);
+            throw new CustomException("Invalid OVF namespace", 400);
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error registering OVF namespace: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
 
         return $xml;
@@ -182,7 +185,7 @@ class OvaValidator implements IOvaValidator
 
                 if (!isset($attrs['capacity'])) {
                     $this->logger->logError("Disk element missing capacity attribute");
-                    throw new RuntimeException("Invalid OVF - disk capacity missing", 400);
+                    throw new CustomException("Invalid OVF - disk capacity missing", 400);
                 }
 
                 $capacity = (int)$attrs['capacity'];
@@ -194,19 +197,22 @@ class OvaValidator implements IOvaValidator
                     'mb', 'megabytes', 'byte * 2^20' => $capacity * 1024 ** 2,
                     'gb', 'gigabytes' => $capacity * 1024 ** 3,
                     'tb', 'terabytes' => $capacity * 1024 ** 4,
-                    default => throw new RuntimeException("Unsupported capacity unit: $units", 400),
+                    default => throw new CustomException("Unsupported capacity unit: $units", 400),
                 };
 
                 if ($size <= 0) {
                     $this->logger->logError("Invalid disk size: " . $size);
-                    throw new RuntimeException("Invalid disk size in OVF", 400);
+                    throw new CustomException("Invalid disk size in OVF", 400);
                 }
 
                 $disks[] = $size;
             }
-        } catch (RuntimeException $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Error parsing disk information: " . $e->getMessage());
             throw $e;
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error parsing disk information: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
 
         return $disks;
@@ -217,7 +223,7 @@ class OvaValidator implements IOvaValidator
         $declaredVirtualSize = array_sum($disks);
         if ($declaredVirtualSize > $maxVirtualSizeBytes) {
             $this->logger->logError("Declared virtual size exceeds limit: " . $this->formatBytes($declaredVirtualSize));
-            throw new RuntimeException("Virtual disk size exceeds maximum allowed", 400);
+            throw new CustomException("Virtual disk size exceeds maximum allowed", 400);
         }
     }
 
@@ -233,7 +239,7 @@ class OvaValidator implements IOvaValidator
 
                 if ($filename !== $matches[2]) {
                     $this->logger->logError("Suspicious VMDK path detected: " . $matches[2]);
-                    throw new RuntimeException("Invalid VMDK filename", 400);
+                    throw new CustomException("Invalid VMDK filename", 400);
                 }
 
                 $vmdkFiles[$filename] = $size;
@@ -242,19 +248,19 @@ class OvaValidator implements IOvaValidator
 
         if (count($vmdkFiles) > $maxVmdkCount) {
             $this->logger->logError("Too many VMDK files: " . count($vmdkFiles));
-            throw new RuntimeException("Too many disk files in OVA", 400);
+            throw new CustomException("Too many disk files in OVA", 400);
         }
 
         $totalVmdkSize = array_sum($vmdkFiles);
         if ($totalVmdkSize > $maxTotalVmdkSizeBytes) {
             $this->logger->logError("Total VMDK size exceeds limit: " . $this->formatBytes($totalVmdkSize));
-            throw new RuntimeException("Total disk size exceeds maximum allowed", 400);
+            throw new CustomException("Total disk size exceeds maximum allowed", 400);
         }
 
         foreach ($vmdkFiles as $filename => $size) {
             if ($size > $maxSingleVmdkSizeBytes) {
                 $this->logger->logError("VMDK file exceeds size limit: " . $filename . " (" . $this->formatBytes($size) . ")");
-                throw new RuntimeException("Disk file exceeds maximum allowed size", 400);
+                throw new CustomException("Disk file exceeds maximum allowed size", 400);
             }
         }
     }
@@ -264,8 +270,10 @@ class OvaValidator implements IOvaValidator
         if ($this->system->is_dir($tmpDir)) {
             try {
                 $this->system->system("rm -rf " . escapeshellarg($tmpDir));
-            } catch (Exception $e) {
+            } catch (CustomException $e) {
                 $this->logger->logError("Failed to clean up temp directory: " . $tmpDir . " - " . $e->getMessage());
+            } catch (Exception $e) {
+                $this->logger->logError("Unexpected error cleaning up temp directory: " . $tmpDir . " - " . $e->getMessage());
             }
         }
     }

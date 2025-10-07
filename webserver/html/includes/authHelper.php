@@ -24,7 +24,7 @@ class AuthHelper implements IAuthHelper
 
         if ($PROXMOX_API_TOKEN === null) {
             $this->logger->logError("PROXMOX_API_TOKEN is not set in environment variables.");
-            throw new RuntimeException("PROXMOX_API_TOKEN is not set in environment variables.");
+            throw new CustomException("PROXMOX_API_TOKEN is not set in environment variables.");
         }
 
         $headers = [

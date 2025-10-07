@@ -66,7 +66,7 @@ class AnnouncementsHandlerTest extends TestCase
             'month' => date("Y-m-d H:i:s", strtotime("-15 days")),
             'year'  => date("Y-m-d H:i:s", strtotime("-6 months")),
             'all'   => date("Y-m-d H:i:s", strtotime("-5 years")),
-            default => throw new InvalidArgumentException("Unknown range: $range"),
+            default => throw new CustomException("Unknown range: $range"),
         };
     }
 
@@ -79,7 +79,7 @@ class AnnouncementsHandlerTest extends TestCase
         $r = array_search($range, $ranges, true);
 
         if ($i === false || $r === false) {
-            throw new InvalidArgumentException("Invalid announcement filter value: [$importance, $range]");
+            throw new CustomException("Invalid announcement filter value: [$importance, $range]");
         }
 
         return $i * count($ranges) + $r + 1;
@@ -231,7 +231,7 @@ class AnnouncementsHandlerTest extends TestCase
                     'week' => ['today', 'week'],
                     'month' => ['today', 'week', 'month'],
                     'year' => ['today', 'week', 'month', 'year'],
-                    default => throw new InvalidArgumentException("Unknown range: $range"),
+                    default => throw new CustomException("Unknown range: $range"),
                 };
 
                 $fetchedIds = [];

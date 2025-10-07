@@ -69,7 +69,7 @@ class ActivitiesHandlerTest extends TestCase
             'month' => 'CURRENT_TIMESTAMP - INTERVAL \'15 days\'',
             'year'  => 'CURRENT_TIMESTAMP - INTERVAL \'6 months\'',
             'all'   => 'CURRENT_TIMESTAMP - INTERVAL \'5 years\'',
-            default => throw new InvalidArgumentException("Unknown range: $range"),
+            default => throw new CustomException("Unknown range: $range"),
         };
     }
 
@@ -84,7 +84,7 @@ class ActivitiesHandlerTest extends TestCase
             $c = array_search($category, $categories, true);
 
             if ($r === false || $c === false) {
-                throw new InvalidArgumentException("Invalid badge filter value: [$range, $category]");
+                throw new CustomException("Invalid badge filter value: [$range, $category]");
             }
 
             // Badge IDs start after challenge IDs offset
@@ -101,7 +101,7 @@ class ActivitiesHandlerTest extends TestCase
             $c = array_search($category, $categories, true);
 
             if ($t === false || $r === false || $c === false) {
-                throw new InvalidArgumentException("Invalid challenge filter value: [$type, $range, $category]");
+                throw new CustomException("Invalid challenge filter value: [$type, $range, $category]");
             }
 
             return $t * count($ranges) * count($categories) + $r * count($categories) + $c + 1;
@@ -364,7 +364,7 @@ class ActivitiesHandlerTest extends TestCase
                         'week'  => ['today', 'week'],
                         'month' => ['today', 'week', 'month'],
                         'year', 'all' => ['today', 'week', 'month', 'year'],
-                        default => throw new InvalidArgumentException("Unknown range: $range"),
+                        default => throw new CustomException("Unknown range: $range"),
                     };
 
                     $expectedIds = [];

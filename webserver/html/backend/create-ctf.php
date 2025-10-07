@@ -84,9 +84,12 @@ class CtfCreationHandler
     {
         try {
             $this->securityHelper->initSecureSession();
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Session initialization failed: " . $e->getMessage());
-            throw new RuntimeException('Session initialization error', 401);
+            throw new CustomException('Session initialization error', 401);
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error during session initialization: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -97,18 +100,18 @@ class CtfCreationHandler
     {
         if (!$this->securityHelper->validateSession()) {
             $this->logger->logWarning("Unauthorized access attempt from IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new RuntimeException('Unauthorized - Please login', 401);
+            throw new CustomException('Unauthorized - Please login', 401);
         }
 
         $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token from user ID: " . ($this->session['user_id'] ?? 'unknown'));
-            throw new RuntimeException('Invalid request token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
 
         if (!$this->securityHelper->validateAdminAccess($this->pdo)) {
             $this->logger->logWarning("Unauthorized admin access attempt by user ID: ". ($this->session['user_id'] ?? 'unknown'));
-            throw new RuntimeException('Unauthorized - Admin access required', 403);
+            throw new CustomException('Unauthorized - Admin access required', 403);
         }
     }
 
@@ -137,10 +140,16 @@ class CtfCreationHandler
                     $this->handlePostRequest();
                     break;
                 default:
-                    throw new RuntimeException('Method not allowed', 405);
+                    throw new CustomException('Method not allowed', 405);
             }
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->handleError($e);
+        } catch (PDOException $e) {
+            $this->logger->logError("Database error in CTF creation route: " . $e->getMessage());
+            $this->handleError(new CustomException('Database error occurred', 500));
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error in CTF creation route: " . $e->getMessage());
+            $this->handleError(new Exception('Internal Server Error', 500));
         }
     }
 
@@ -240,9 +249,12 @@ class CtfCreationHandler
             $vms = $this->getValidatedJson('vms');
             $flags = $this->getValidatedJson('flags');
             $hints = $this->getValidatedJson('hints');
-        } catch (RuntimeException $e) {
+        } catch (CustomException $e) {
             $errors[] = $e->getMessage();
             return compact('errors', 'errorFields');
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error during JSON validation: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
 
         $counts = [
@@ -352,8 +364,11 @@ class CtfCreationHandler
 
         try {
             $this->validateNetworkReachability($vms, $subnets);
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $errors[] = $e->getMessage();
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error during network validation: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
 
         return compact('errors', 'errorFields');
@@ -366,7 +381,7 @@ class CtfCreationHandler
             return is_array($json) ? $json : [];
         } catch (JsonException $e) {
             $this->logger->logError("Invalid JSON input for field $field from user $this->userId: " . $e->getMessage());
-            throw new RuntimeException("Invalid input format for $field", 400);
+            throw new CustomException("Invalid input format for $field", 400);
         }
     }
 
@@ -402,22 +417,22 @@ class CtfCreationHandler
         $file = $this->files['image'];
 
         if (!in_array($file['type'], $this->generalConfig['ctf']['ALLOWED_IMAGE_TYPES'])) {
-            throw new RuntimeException('Invalid image type. Only JPG, PNG and GIF are allowed', 400);
+            throw new CustomException('Invalid image type. Only JPG, PNG and GIF are allowed', 400);
         }
 
         if ($file['size'] > $this->generalConfig['ctf']['MAX_CTF_IMAGE_SIZE']) {
-            throw new RuntimeException('Image size too large. Maximum 2MB allowed', 400);
+            throw new CustomException('Image size too large. Maximum 2MB allowed', 400);
         }
 
         $imageInfo = @getimagesize($file['tmp_name']);
         if ($imageInfo === false) {
-            throw new RuntimeException('Uploaded file is not a valid image', 400);
+            throw new CustomException('Uploaded file is not a valid image', 400);
         }
 
         $uploadDir = __DIR__ . '/..' . $this->config['challenge']['UPLOAD_DIR'];
         if (!$this->system->file_exists($uploadDir)) {
             if (!$this->system->mkdir($uploadDir, 0755, true)) {
-                throw new RuntimeException('Failed to create upload directory', 500);
+                throw new CustomException('Failed to create upload directory', 500);
             }
         }
 
@@ -427,7 +442,7 @@ class CtfCreationHandler
 
         if (!$this->system->move_uploaded_file($file['tmp_name'], $destination)) {
             $error = error_get_last();
-            throw new RuntimeException('Failed to save uploaded image: ' . ($error['message'] ?? 'Unknown error'), 500);
+            throw new CustomException('Failed to save uploaded image', 500);
         }
 
         $this->system->chmod($destination, 0644);
@@ -452,7 +467,7 @@ class CtfCreationHandler
 
             $this->importMachineTemplates($challengeId);
             return $challengeId;
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->pdo->rollBack();
             $this->logger->logError("Database transaction rolled back due to error: " . $e->getMessage());
 
@@ -465,6 +480,10 @@ class CtfCreationHandler
             }
 
             throw $e;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            $this->logger->logError("Unexpected error during challenge creation: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -519,7 +538,7 @@ class CtfCreationHandler
 
             if (!$proxmoxFilename) {
                 $this->logger->logError("Invalid OVA file reference by user $this->userId: " . $vm['ova_name']);
-                throw new RuntimeException("Invalid OVA file reference for VM: $vmName", 400);
+                throw new CustomException("Invalid OVA file reference for VM: $vmName", 400);
             }
 
             $stmt = $this->pdo->prepare("
@@ -592,7 +611,7 @@ class CtfCreationHandler
 
                 if (!$machineId) {
                     $this->logger->logError("Machine template not found for VM $vmName in challenge $challengeId");
-                    throw new RuntimeException("Machine template '$vmName' not found for this challenge");
+                    throw new CustomException("Machine template '$vmName' not found for this challenge");
                 }
 
                 $stmt = $this->pdo->prepare("
@@ -669,7 +688,7 @@ class CtfCreationHandler
         if (!$response['success']) {
             $this->logger->logError("Failed to import machine templates for challenge $challengeId. Response: " . json_encode($response));
             $this->revertChallengeCreation($challengeId);
-            throw new RuntimeException('Failed to import machine templates', 500);
+            throw new CustomException('Failed to import machine templates', 500);
         }
 
         $this->logger->logDebug("Successfully imported machine templates for challenge $challengeId");
@@ -685,11 +704,16 @@ class CtfCreationHandler
 
             $this->pdo->commit();
             $this->logger->logInfo("Successfully reverted challenge creation for ID: $challengeId");
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             $this->logger->logError("Failed to revert challenge creation for ID $challengeId: " . $e->getMessage());
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            $this->logger->logError("Unexpected error while reverting challenge creation for ID $challengeId: " . $e->getMessage());
         }
     }
 
@@ -708,7 +732,7 @@ class CtfCreationHandler
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             $this->logger->logError("Error fetching OVAs for user $this->userId: " . $e->getMessage());
-            throw new RuntimeException('Could not retrieve OVAs', 500);
+            throw new CustomException('Could not retrieve OVAs', 500);
         }
     }
 
@@ -716,7 +740,7 @@ class CtfCreationHandler
     {
         foreach ($subnets as $subnet) {
             if (empty($subnet['attached_vms'])) {
-                throw new RuntimeException(
+                throw new CustomException(
                     "Subnet '{$subnet['name']}' has no attached VMs. Remove it or add VMs."
                 );
             }
@@ -748,7 +772,7 @@ class CtfCreationHandler
         }
 
         if (!empty($unreachableVms)) {
-            throw new RuntimeException(
+            throw new CustomException(
                 "Unreachable VMs detected (no path to public subnets): " .
                 implode(', ', $unreachableVms)
             );
@@ -766,7 +790,7 @@ class CtfCreationHandler
             }
 
             if ($onlyHere && !($subnet['accessible'] ?? false)) {
-                throw new RuntimeException(
+                throw new CustomException(
                     "Subnet '$subnetName' is not reachable and contains only VMs that are exclusively in it. These VMs would be isolated."
                 );
             }
@@ -837,7 +861,7 @@ try {
 
     $handler = new CtfCreationHandler(config: $config, generalConfig: $generalConfig);
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -852,6 +876,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in create-ctf endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

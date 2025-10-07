@@ -58,7 +58,7 @@ class LogoutHandler
     {
         if (!$this->securityHelper->validateSession() || empty($this->session['authenticated'])) {
             $this->logger->logWarning("Unauthorized logout attempt - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Unauthorized - Please login', 401);
+            throw new CustomException('Unauthorized - Please login', 401);
         }
 
         $this->userId = $this->session['user_id'] ?? 'unknown';
@@ -75,9 +75,14 @@ class LogoutHandler
             $this->validateCsrfToken();
             $this->destroySession();
             $this->sendSuccessResponse();
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->handleError($e);
+        } // @codeCoverageIgnoreStart
+        catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->handleError(new Exception('Internal Server Error', 500));
         }
+        // @codeCoverageIgnoreEnd
     }
 
     /**
@@ -87,7 +92,7 @@ class LogoutHandler
     {
         if (!$this->securityHelper->validateCsrfToken($this->csrfToken)) {
             $this->logger->logError("Invalid CSRF token during logout - User ID: $this->userId, Token: $this->csrfToken, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Invalid security token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
     }
 
@@ -164,7 +169,7 @@ try {
 
     $handler = new LogoutHandler();
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -179,6 +184,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in logout endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

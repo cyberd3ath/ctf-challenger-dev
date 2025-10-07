@@ -66,7 +66,7 @@ class ExploreHandler
             // @codeCoverageIgnoreStart
             // This branch cananot be tested when isPublic is set to true by default
             $this->logger->logWarning('Unauthorized access attempt to explore route');
-            throw new Exception('Unauthorized - Please login', 401);
+            throw new CustomException('Unauthorized - Please login', 401);
             // @codeCoverageIgnoreEnd
         }
     }
@@ -82,7 +82,7 @@ class ExploreHandler
             $csrfToken = $this->cookie['csrf_token'] ?? '';
             if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
                 $this->logger->logWarning('Invalid CSRF token attempt from user: ' . ($this->session['user_id'] ?? 'unknown'));
-                throw new Exception('Invalid CSRF token.', 403);
+                throw new CustomException('Invalid CSRF token.', 403);
             }
             // @codeCoverageIgnoreEnd
         }
@@ -101,7 +101,7 @@ class ExploreHandler
             $this->sendResponse($response);
         } catch (PDOException $e) {
             $this->logger->logError("Database error in explore route: " . $e->getMessage());
-            throw new Exception('Failed to retrieve challenges', 500);
+            throw new CustomException('Failed to retrieve challenges', 500);
         }
     }
 
@@ -269,7 +269,7 @@ try {
 
     $handler = new ExploreHandler(config: $config);
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     $errorMessage = $e->getMessage();
     $logger = new Logger();
@@ -292,6 +292,14 @@ try {
         'success' => false,
         'message' => $errorMessage,
         'redirect' => $errorCode === 401 ? '/login' : null
+    ]);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in explore endpoint: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
     ]);
 }
 

@@ -177,7 +177,7 @@ class ChallengeWorkerTest extends TestCase
                     return ['success' => true, 'http_code' => 200];
                 }
 
-                throw new Exception("Unexpected endpoint: $endpoint");
+                throw new CustomException("Unexpected endpoint: $endpoint");
             });
 
 
@@ -255,7 +255,7 @@ class ChallengeWorkerTest extends TestCase
                     return ['success' => false, 'http_code' => 500];
                 }
 
-                throw new Exception("Unexpected endpoint: $endpoint");
+                throw new CustomException("Unexpected endpoint: $endpoint");
             });
 
         ob_start();

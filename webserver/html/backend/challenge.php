@@ -76,7 +76,7 @@ class ChallengeHandler
 
         if (!$this->securityHelper->validateSession()) {
             $this->logger->logWarning("Unauthorized access attempt to challenge route - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Unauthorized - Please login', 401);
+            throw new CustomException('Unauthorized - Please login', 401);
         }
     }
 
@@ -88,7 +88,7 @@ class ChallengeHandler
         $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in challenge route - User ID: " . ($this->session['user_id'] ?? 'unknown'));
-            throw new Exception('Invalid CSRF token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
     }
 
@@ -106,10 +106,13 @@ class ChallengeHandler
                     break;
                 default:
                     $this->logger->logWarning("Invalid request method in challenge route - Method: $method");
-                    throw new Exception('Method not allowed', 405);
+                    throw new CustomException('Method not allowed', 405);
             }
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->handleError($e);
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error in challenge route: " . $e->getMessage());
+            $this->handleError(new Exception('Internal Server Error', 500));
         }
     }
 
@@ -148,7 +151,7 @@ class ChallengeHandler
         $input = json_decode($this->system->file_get_contents('php://input'), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->logger->logWarning("Invalid JSON input in challenge route - User ID: $this->userId");
-            throw new Exception('Invalid JSON input', 400);
+            throw new CustomException('Invalid JSON input', 400);
         }
         return $input;
     }
@@ -162,13 +165,13 @@ class ChallengeHandler
         foreach ($requiredFields as $field) {
             if (!isset($input[$field])) {
                 $this->logger->logWarning("Missing required field in challenge route - Field: $field, User ID: $this->userId");
-                throw new Exception("Missing required parameter: $field", 400);
+                throw new CustomException("Missing required parameter: $field", 400);
             }
         }
 
         if (!in_array($input['action'], $this->config['challenge']['ALLOWED_ACTIONS'])) {
             $this->logger->logWarning("Invalid action in challenge route - Action: {$input['action']}, User ID: $this->userId");
-            throw new Exception('Invalid action', 400);
+            throw new CustomException('Invalid action', 400);
         }
     }
 
@@ -180,7 +183,7 @@ class ChallengeHandler
         $id = filter_var($challengeId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         if ($id === false) {
             $this->logger->logWarning("Invalid challenge ID - ID: $challengeId, User ID: $this->userId");
-            throw new Exception('Invalid challenge ID', 400);
+            throw new CustomException('Invalid challenge ID', 400);
         }
         return $id;
     }
@@ -206,7 +209,7 @@ class ChallengeHandler
         if (!$result['success'] || $result['http_code'] !== 200) {
             $errorMsg = $result['error'] ?? "HTTP {$result['http_code']}";
             $this->logger->logError("Failed to launch challenge - Error: $errorMsg, User ID: $this->userId");
-            throw new Exception("Failed to launch challenge: $errorMsg", 500);
+            throw new CustomException("Failed to launch challenge", 500);
         }
 
         $responseData = json_decode($result['response'], true);
@@ -239,7 +242,7 @@ class ChallengeHandler
 
         if ($user['running_challenge']) {
             $this->logger->logWarning("User already has a running challenge - User ID: $this->userId");
-            throw new Exception("You already have a running challenge", 400);
+            throw new CustomException("You already have a running challenge", 400);
         }
     }
 
@@ -257,17 +260,17 @@ class ChallengeHandler
 
         if (!$template) {
             $this->logger->logWarning("Challenge not found - ID: $challengeId, User ID: $this->userId");
-            throw new Exception("Challenge not found", 404);
+            throw new CustomException("Challenge not found", 404);
         }
 
         if ($template['marked_for_deletion']) {
             $this->logger->logWarning("Attempt to deploy challenge marked for deletion - ID: $challengeId, User ID: $this->userId");
-            throw new Exception("This challenge has been marked for deletion and cannot be deployed", 400);
+            throw new CustomException("This challenge has been marked for deletion and cannot be deployed", 400);
         }
 
         if (!$template['is_active'] && !$this->isCreator($challengeId)) {
             $this->logger->logWarning("Attempt to deploy inactive challenge - ID: $challengeId, User ID: $this->userId");
-            throw new Exception("This challenge is currently inactive and cannot be deployed", 400);
+            throw new CustomException("This challenge is currently inactive and cannot be deployed", 400);
         }
     }
 
@@ -288,7 +291,7 @@ class ChallengeHandler
             return false;
         }catch (PDOException $e){
             $this->logger->logError("Failed to check Creator - Challenge ID: $challengeId, Error: {$e->getMessage()}");
-            throw new Exception("Failed to start Challenge", 500);
+            throw new CustomException("Failed to start Challenge", 500);
         }
     }
 
@@ -308,7 +311,7 @@ class ChallengeHandler
             $this->logger->logDebug("New attempt started - Challenge ID: $challengeId, User ID: $this->userId");
         } catch (PDOException $e) {
             $this->logger->logError("Failed to start new attempt - Challenge ID: $challengeId, Error: " . $e->getMessage());
-            throw new Exception("Failed to start challenge attempt", 500);
+            throw new CustomException("Failed to start challenge attempt", 500);
         }
     }
 
@@ -345,7 +348,7 @@ class ChallengeHandler
         if (!$result['success'] || $result['http_code'] !== 200) {
             $errorMsg = $result['error'] ?? "HTTP {$result['http_code']}";
             $this->logger->logError("Failed to stop challenge - Error: $errorMsg, User ID: $this->userId");
-            throw new Exception("Failed to stop challenge: $errorMsg", 500);
+            throw new CustomException("Failed to stop challenge", 500);
         }
     }
 
@@ -365,7 +368,7 @@ class ChallengeHandler
             $this->logger->logDebug("Marked attempt as completed - Challenge ID: $challengeId, User ID: $this->userId");
         } catch (PDOException $e) {
             $this->logger->logError("Failed to mark attempt as completed - Challenge ID: $challengeId, Error: " . $e->getMessage());
-            throw new Exception("Failed to complete challenge attempt", 500);
+            throw new CustomException("Failed to complete challenge attempt", 500);
         }
     }
 
@@ -401,7 +404,7 @@ class ChallengeHandler
             );
 
             if (!$result['success'] || $result['http_code'] !== 200) {
-                throw new Exception("Failed to delete VM templates: " . ($result['error'] ?? "HTTP {$result['http_code']}"));
+                throw new CustomException("Failed to delete VM templates"));
             }
 
             $stmt = $this->pdo->prepare("
@@ -410,10 +413,14 @@ class ChallengeHandler
             $stmt->execute(['challenge_id' => $challengeId]);
 
             $this->pdo->commit();
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->pdo->rollBack();
             $this->logger->logError("Failed to delete challenge template - ID: $challengeId, Error: " . $e->getMessage());
-            throw new Exception("Failed to delete challenge template", 500);
+            throw new CustomException("Failed to delete challenge template", 500);
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            $this->logger->logError("Unexpected error during challenge template deletion - ID: $challengeId, Error: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -424,13 +431,13 @@ class ChallengeHandler
     {
         if (!isset($input['flag'])) {
             $this->logger->logWarning("Flag submission attempt without flag - User ID: $this->userId");
-            throw new Exception("Flag missing", 400);
+            throw new CustomException("Flag missing", 400);
         }
 
         $flag = trim($input['flag']);
         if (empty($flag)) {
             $this->logger->logWarning("Empty flag submission attempt - User ID: $this->userId");
-            throw new Exception("Flag cannot be empty", 400);
+            throw new CustomException("Flag cannot be empty", 400);
         }
 
         $this->pdo->beginTransaction();
@@ -460,10 +467,14 @@ class ChallengeHandler
                 'badges' => $newBadges,
                 'is_complete' => $isLastFlag
             ]);
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->pdo->rollBack();
             $this->logger->logError("Flag submission failed - Challenge ID: $challengeId, Error: " . $e->getMessage());
             throw $e;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            $this->logger->logError("Unexpected error during flag submission - Challenge ID: $challengeId, Error: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -483,7 +494,7 @@ class ChallengeHandler
 
         if (!$flagData) {
             $this->logger->logWarning("Invalid flag submitted - Challenge ID: $challengeId, User ID: $this->userId");
-            throw new Exception("Invalid flag", 400);
+            throw new CustomException("Invalid flag", 400);
         }
 
         return $flagData;
@@ -505,7 +516,7 @@ class ChallengeHandler
 
         if ($stmt->fetchColumn() == 1) {
             $this->logger->logWarning("Duplicate flag submission - Flag ID: $flagId, User ID: $this->userId");
-            throw new Exception("You already submitted this flag", 400);
+            throw new CustomException("You already submitted this flag", 400);
         }
     }
 
@@ -653,9 +664,12 @@ class ChallengeHandler
                     'leaderboard' => $leaderboard,
                 ])
             ]);
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Failed to fetch challenge details - ID: $challengeId, Error: " . $e->getMessage());
             throw $e;
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error fetching challenge details - ID: $challengeId, Error: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -687,7 +701,7 @@ class ChallengeHandler
 
         if (!$challenge) {
             $this->logger->logWarning("Challenge not found - ID: $challengeId, User ID: $this->userId");
-            throw new Exception("Challenge not found", 404);
+            throw new CustomException("Challenge not found", 404);
         }
 
         $challenge['isCreator'] = ($challenge['creator_id'] == $this->userId);
@@ -859,9 +873,12 @@ class ChallengeHandler
             }
 
             return $unlockedBadges;
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Error checking badge unlocks - Challenge ID: $challengeId, User ID: $this->userId, Error: " . $e->getMessage());
-            throw new Exception('Failed to check badge unlocks', 500);
+            throw new CustomException('Failed to check badge unlocks', 500);
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error checking badge unlocks - Challenge ID: $challengeId, User ID: $this->userId, Error: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -878,7 +895,7 @@ class ChallengeHandler
 
         if ($category === false) {
             $this->logger->logWarning("Challenge category not found - ID: $challengeId, User ID: $this->userId");
-            throw new Exception("Challenge not found", 404);
+            throw new CustomException("Challenge not found", 404);
         }
 
         return strtolower($category);
@@ -987,12 +1004,12 @@ class ChallengeHandler
 
             if (!$challenge) {
                 $this->logger->logWarning("Attempt to extend non-running challenge - ID: $challengeId, User ID: $this->userId");
-                throw new Exception("You don't have this challenge running", 400);
+                throw new CustomException("You don't have this challenge running", 400);
             }
 
             if ($challenge['used_extensions'] >= $this->config['challenge']['MAX_TIME_EXTENSIONS']) {
                 $this->logger->logWarning("Attempt to extend challenge without used_extensions left - ID: $challengeId, User ID: $this->userId");
-                throw new Exception("You cannot extend this challenge any longer", 400);
+                throw new CustomException("You cannot extend this challenge any longer", 400);
             }
 
             $stmt = $this->pdo->prepare("
@@ -1015,10 +1032,14 @@ class ChallengeHandler
                 'remaining_seconds' => $remainingSeconds,
                 'remaining_extensions' => $remainingExtensions
             ]);
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->pdo->rollBack();
             $this->logger->logError("Failed to extend challenge time - ID: $challengeId, Error: " . $e->getMessage());
             throw $e;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            $this->logger->logError("Unexpected error extending challenge time - ID: $challengeId, Error: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -1060,7 +1081,7 @@ try {
 
     $api = new ChallengeHandler(config: $config);
     $api->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = (int)($e->getCode() ?: 500);
     http_response_code($errorCode);
     $logger = new Logger();
@@ -1075,6 +1096,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in challenge endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

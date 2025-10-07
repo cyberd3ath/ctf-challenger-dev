@@ -70,7 +70,7 @@ class ActivitiesHandler
 
         if (!$this->securityHelper->validateSession()) {
             $this->logger->logWarning('Unauthorized access attempt to activities route');
-            throw new Exception('Unauthorized', 401);
+            throw new CustomException('Unauthorized', 401);
         }
     }
 
@@ -82,7 +82,7 @@ class ActivitiesHandler
         $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning('Invalid CSRF token attempt from user ID: ' . ($this->session['user_id'] ?? 'unknown'));
-            throw new Exception('Invalid CSRF token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
     }
 
@@ -97,19 +97,19 @@ class ActivitiesHandler
         $this->typeFilter = $this->get['type'] ?? 'all';
         if (!in_array($this->typeFilter, $this->config['filters']['ACTIVITY_TYPES'])) {
             $this->logger->logWarning('Invalid type filter provided: ' . $this->typeFilter);
-            throw new Exception('Invalid activity type filter', 400);
+            throw new CustomException('Invalid activity type filter', 400);
         }
 
         $this->rangeFilter = $this->get['range'] ?? 'all';
         if (!in_array($this->rangeFilter, $this->config['filters']['ACTIVITY_RANGES'])) {
             $this->logger->logWarning('Invalid range filter provided: ' . $this->rangeFilter);
-            throw new Exception('Invalid date range filter', 400);
+            throw new CustomException('Invalid date range filter', 400);
         }
 
         $this->categoryFilter = $this->get['category'] ?? 'all';
         if (!in_array($this->categoryFilter, $this->config['filters']['CHALLENGE_CATEGORIES'])) {
             $this->logger->logWarning('Invalid category filter provided: ' . $this->categoryFilter);
-            throw new Exception('Invalid category filter', 400);
+            throw new CustomException('Invalid category filter', 400);
         }
     }
 
@@ -128,7 +128,7 @@ class ActivitiesHandler
 
             fwrite(STDERR, "Database error: " . $e->getMessage());
 
-            throw new Exception('Database error occurred', 500);
+            throw new CustomException('Database error occurred', 500);
         }
     }
 
@@ -273,8 +273,11 @@ class ActivitiesHandler
             if ($diff->h > 0) return $diff->h . ' hour' . ($diff->h > 1 ? 's' : '') . ' ago';
             if ($diff->i > 0) return $diff->i . ' minute' . ($diff->i > 1 ? 's' : '') . ' ago';
             return 'Just now';
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Error formatting time ago: " . $e->getMessage());
+            return 'Recently';
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error: " . $e->getMessage());
             return 'Recently';
         }
     }
@@ -299,7 +302,7 @@ try {
 
     $handler = new ActivitiesHandler(config: $config);
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -313,6 +316,15 @@ try {
         $response['redirect'] = '/login';
     }
 
+    echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in activity endpoint: " . $e->getMessage());
+    $response = [
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ];
     echo json_encode($response);
 }
 

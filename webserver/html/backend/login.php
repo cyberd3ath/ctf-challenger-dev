@@ -102,10 +102,13 @@ class LoginHandler
             }
         } catch (PDOException $e) {
             $this->logger->logError("Database error during login: " . $e->getMessage());
-            $this->respondWithError('A database error occurred.', 500, 'server');
-        } catch (Exception $e) {
+            $this->respondWithError('Database error occurred', 500, 'server');
+        } catch (CustomException $e) {
             $this->logger->logError("Login error: " . $e->getMessage());
             $this->respondWithError($e->getMessage(), $e->getCode(), 'auth');
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error during login: " . $e->getMessage());
+            $this->respondWithError('Internal Server Error', 500, 'server');
         }
     }
 
@@ -133,22 +136,22 @@ class LoginHandler
     {
         if (empty($this->csrfToken)) {
             $this->logger->logError("Empty CSRF token - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Invalid request token.', 403);
+            throw new CustomException('Invalid request token.', 403);
         }
 
         if (!$this->securityHelper->validateCsrfToken($this->csrfToken)) {
             $this->logger->logError("Invalid CSRF token - Received: $this->csrfToken, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown') .", Username: $this->username");
-            throw new Exception('Invalid request token.', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
 
         if (empty($this->username)) {
             $this->logger->logError("Empty username provided - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Username is required.', 400);
+            throw new CustomException('Username is required.', 400);
         }
 
         if (empty($this->password)) {
             $this->logger->logError("Empty password provided - Username: $this->username, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Password is required.', 400);
+            throw new CustomException('Password is required.', 400);
         }
     }
 
@@ -178,7 +181,7 @@ class LoginHandler
 
         if ($passwordSalt === null) {
             $this->logger->logError("User not found - Username: $this->username, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Invalid username or password.', 401);
+            throw new CustomException('Invalid username or password.', 401);
         }
 
         return $passwordSalt;
@@ -200,7 +203,7 @@ class LoginHandler
 
         if (!$user_id) {
             $this->logger->logError("Invalid password attempt - Username: $this->username, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Invalid username or password.', 401);
+            throw new CustomException('Invalid username or password.', 401);
         }
 
         return (int)$user_id;
@@ -277,7 +280,7 @@ try {
 
     $handler = new LoginHandler();
     $handler->handleRequest();
-} catch (Throwable $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -292,6 +295,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in login endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

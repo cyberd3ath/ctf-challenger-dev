@@ -77,7 +77,7 @@ class RegistrationHandler
     private function validateRequestMethod(): void
     {
         if ($this->server['REQUEST_METHOD'] !== 'POST') {
-            throw new Exception('Invalid request method', 405);
+            throw new CustomException('Invalid request method', 405);
         }
     }
 
@@ -103,8 +103,10 @@ class RegistrationHandler
             $this->updateLastLogin($userId);
             $this->initializeUserSession($userId);
             $this->sendSuccessResponse($userId, $vpnIp);
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->handleError($e);
+        } catch (Exception $e) {
+            $this->handleError(new Exception('Internal Server Error', 500));
         }
     }
 
@@ -114,29 +116,29 @@ class RegistrationHandler
     private function validateInput(): void
     {
         if (empty($this->username) || empty($this->email) || empty($this->password) || empty($this->confirmPassword)) {
-            throw new Exception('All fields are required', 400);
+            throw new CustomException('All fields are required', 400);
         } elseif (strlen($this->username) < $this->generalConfig['user']['MIN_USERNAME_LENGTH']) {
-            throw new Exception('Username must be at least' . $this->generalConfig['user']['MIN_USERNAME_LENGTH'] . 'characters long', 400);
+            throw new CustomException('Username must be at least' . $this->generalConfig['user']['MIN_USERNAME_LENGTH'] . 'characters long', 400);
         } elseif (strlen($this->username) > $this->generalConfig['user']['MAX_USERNAME_LENGTH']) {
-            throw new Exception('Username must not exceed ' . $this->generalConfig['user']['MAX_USERNAME_LENGTH'] . 'characters', 400);
+            throw new CustomException('Username must not exceed ' . $this->generalConfig['user']['MAX_USERNAME_LENGTH'] . 'characters', 400);
         } elseif (!preg_match('/' . $this->generalConfig['user']['USERNAME_REGEX'] . '/', $this->username)) {
-            throw new Exception("Username contains invalid characters only '_' is allowed", 400);
+            throw new CustomException("Username contains invalid characters only '_' is allowed", 400);
         }
 
         if (strlen($this->email) > $this->generalConfig['user']['MAX_EMAIL_LENGTH']) {
-            throw new Exception('Email must not exceed ' . $this->generalConfig['user']['MAX_EMAIL_LENGTH'] . 'characters', 400);
+            throw new CustomException('Email must not exceed ' . $this->generalConfig['user']['MAX_EMAIL_LENGTH'] . 'characters', 400);
         } elseif (!filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
-            throw new Exception('Invalid email format', 400);
+            throw new CustomException('Invalid email format', 400);
         }
 
         if (strlen($this->password) < $this->generalConfig['user']['MIN_PASSWORD_LENGTH']) {
-            throw new Exception('Password must be at least ' . $this->generalConfig['user']['MIN_PASSWORD_LENGTH'] . 'characters long', 400);
+            throw new CustomException('Password must be at least ' . $this->generalConfig['user']['MIN_PASSWORD_LENGTH'] . 'characters long', 400);
         } elseif (strlen($this->password) > $this->generalConfig['user']['MAX_PASSWORD_LENGTH']) {
-            throw new Exception('Password must not exceed ' . $this->generalConfig['user']['MAX_PASSWORD_LENGTH'] . 'characters', 400);
+            throw new CustomException('Password must not exceed ' . $this->generalConfig['user']['MAX_PASSWORD_LENGTH'] . 'characters', 400);
         }
 
         if ($this->password !== $this->confirmPassword) {
-            throw new Exception('Passwords do not match', 400);
+            throw new CustomException('Passwords do not match', 400);
         }
     }
 
@@ -147,7 +149,7 @@ class RegistrationHandler
     {
         if (!$this->securityHelper->validateCsrfToken($this->csrfToken)) {
             $this->logger->logError("CSRF token validation failed from IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown') ." with csrf_token=$this->csrfToken");
-            throw new Exception('Invalid CSRF token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
     }
 
@@ -162,14 +164,14 @@ class RegistrationHandler
         $stmt->execute(['username' => $this->username]);
         if ($stmt->fetch(PDO::FETCH_COLUMN) == 1) {
             $this->logger->logWarning("Registration attempt with existing username: $this->username");
-            throw new Exception('Username already taken', 400);
+            throw new CustomException('Username already taken', 400);
         }
 
         $stmt = $this->pdo->prepare("SELECT is_email_taken(:email)::BIGINT");
         $stmt->execute(['email' => $this->email]);
         if ($stmt->fetch(PDO::FETCH_COLUMN) == 1) {
             $this->logger->logWarning("Registration attempt with existing email: $this->email");
-            throw new Exception('Email already registered', 400);
+            throw new CustomException('Email already registered', 400);
         }
     }
 
@@ -183,7 +185,7 @@ class RegistrationHandler
         if (!$passwordHash) {
             // @codeCoverageIgnoreStart
             // This should never happen unless the server is misconfigured
-            throw new Exception('Account creation failed', 500);
+            throw new CustomException('Account creation failed', 500);
             // @codeCoverageIgnoreEnd
         }
 
@@ -200,14 +202,26 @@ class RegistrationHandler
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$result || empty($result['user_id']) || empty($result['vpn_static_ip'])) {
-                throw new Exception('Account creation failed', 500);
+                throw new CustomException('Account creation failed', 500);
             }
 
             return $result;
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->pdo->rollBack();
             $this->logger->logError("Database transaction failed: " . $e->getMessage());
-            throw new Exception('Account creation failed', 500);
+            throw new CustomException('Account creation failed', 500);
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            $this->logger->logError("Database error during account creation: " . $e->getMessage());
+            throw new CustomException('Account creation failed', 500);
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            $this->logger->logError("Unexpected error during account creation: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
+        } finally {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->commit();
+            }
         }
     }
 
@@ -220,13 +234,13 @@ class RegistrationHandler
 
         if (!$configResponse['success']) {
             $this->logger->logError("VPN config generation failed for user $userId: " . $configResponse['message']);
-            throw new Exception('VPN setup incomplete', 500);
+            throw new CustomException('VPN setup incomplete', 500);
         }
 
         $configSaved = $this->saveVpnConfig($userId, $configResponse['config_content']);
         if (!$configSaved) {
             $this->logger->logError("Failed to save VPN config file for user $userId");
-            throw new Exception('VPN setup incomplete', 500);
+            throw new CustomException('VPN setup incomplete', 500);
         }
     }
 
@@ -278,11 +292,17 @@ class RegistrationHandler
                 'success' => false,
                 'message' => 'Unexpected response format'
             ];
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("VPN config generation error for user $userId: " . $e->getMessage());
             return [
                 'success' => false,
                 'message' => 'Configuration service error'
+            ];
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error during VPN config generation for user $userId: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Internal Server Error'
             ];
         }
     }
@@ -292,19 +312,22 @@ class RegistrationHandler
         try {
             $configDir = '/var/lib/ctf-challenger/vpn-configs/';
             if (!$this->system->file_exists($configDir) && !$this->system->mkdir($configDir, 0755, true)) {
-                throw new Exception('Error creating VPN config directory', 500);
+                throw new CustomException('Error creating VPN config directory', 500);
             }
 
             $filename = $configDir . 'user_' . $userId . '.ovpn';
             $bytesWritten = $this->system->file_put_contents($filename, $configContent);
 
             if ($bytesWritten === false) {
-                throw new Exception('Error creating VPN config file', 500);
+                throw new CustomException('Error creating VPN config file', 500);
             }
 
             return true;
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Config save failed: " . $e->getMessage());
+            return false;
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error saving VPN config for user $userId: " . $e->getMessage());
             return false;
         }
     }
@@ -380,7 +403,7 @@ try {
 
     $handler = new RegistrationHandler(generalConfig: $generalConfig);
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -395,6 +418,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in signup endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

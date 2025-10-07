@@ -37,10 +37,16 @@ class SecurityHelper implements ISecurityHelper
 
             $this->logger->logDebug("Secure session initialized for IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
 
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Secure session initialization failed: " . $e->getMessage());
-            throw new RuntimeException('Session initialization error', 0, $e);
+            throw new CustomException('Session initialization error', 0);
+        } // @codeCoverageIgnoreStart
+        catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->logger->logError("Unexpected error during secure session initialization: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
+        // @codeCoverageIgnoreEnd
     }
 
     private function setSecureCookieParams(): void
@@ -55,14 +61,14 @@ class SecurityHelper implements ISecurityHelper
         ];
 
         if (!$this->session->set_cookie_params($cookieParams)) {
-            throw new RuntimeException('Failed to set secure session cookie parameters');
+            throw new CustomException('Failed to set secure session cookie parameters');
         }
     }
 
     private function startSession(): void
     {
         if ($this->session->status() === PHP_SESSION_NONE && !$this->session->start()) {
-            throw new RuntimeException('Failed to start secure session');
+            throw new CustomException('Failed to start secure session');
         }
     }
 
@@ -83,21 +89,26 @@ class SecurityHelper implements ISecurityHelper
                 header($header);
             }
             $this->logger->logDebug("Security headers added for IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Failed to add security headers: " . $e->getMessage());
+        } // @codeCoverageIgnoreStart
+        catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->logger->logError("Unexpected error while adding security headers: " . $e->getMessage());
         }
+        // @codeCoverageIgnoreEnd
     }
 
     public function generateCsrfToken(): string
     {
         try {
             if (empty($this->session)) {
-                throw new RuntimeException('Session not initialized');
+                throw new CustomException('Session not initialized');
             }
 
             $token = bin2hex(random_bytes(32));
             if ($token == false) {
-                throw new RuntimeException('CSRF token generation failed');
+                throw new CustomException('CSRF token generation failed');
             }
 
             $this->session['csrf_token'] = $token;
@@ -106,9 +117,13 @@ class SecurityHelper implements ISecurityHelper
             $this->logger->logDebug("CSRF token generated for session ID: " . $this->session->id());
             return $token;
 
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("CSRF token generation failed: " . $e->getMessage());
-            throw new RuntimeException('Security token error', 0, $e);
+            throw new CustomException('Security token error', 0);
+        } catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->logger->logError("Unexpected error during CSRF token generation: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -132,8 +147,12 @@ class SecurityHelper implements ISecurityHelper
 
             return $this->verifyToken($token);
 
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("CSRF validation error: " . $e->getMessage());
+            return false;
+        } catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->logger->logError("Unexpected error during CSRF validation: " . $e->getMessage());
             return false;
         }
     }
@@ -175,8 +194,12 @@ class SecurityHelper implements ISecurityHelper
 
             return $this->session['authenticated'] === true;
 
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Session validation error: " . $e->getMessage());
+            return false;
+        } catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->logger->logError("Unexpected error during session validation: " . $e->getMessage());
             return false;
         }
     }
@@ -197,7 +220,7 @@ class SecurityHelper implements ISecurityHelper
     {
         try {
             if (!$this->validateSession()) {
-                throw new Exception('Unauthorized - Invalid session', 401);
+                throw new CustomException('Unauthorized - Invalid session', 401);
             }
 
             $userId = $this->session['user_id'] ?? 0;
@@ -212,10 +235,14 @@ class SecurityHelper implements ISecurityHelper
 
         } catch (PDOException $e) {
             $this->logger->logError("Database error during admin validation: " . $e->getMessage());
-            throw new RuntimeException('Authorization check failed', 500, $e);
-        } catch (Exception $e) {
+            throw new CustomException('Authorization check failed', 500);
+        } catch (CustomException $e) {
             $this->logger->logError("Admin validation error: " . $e->getMessage());
             throw $e;
+        } catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->logger->logError("Unexpected error during admin validation: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -223,7 +250,7 @@ class SecurityHelper implements ISecurityHelper
     {
         $stmt = $db->prepare("SELECT is_admin FROM users WHERE id = ?");
         if (!$stmt->execute([$userId])) {
-            throw new RuntimeException('Database query failed');
+            throw new CustomException('Database query failed');
         }
         return $stmt->fetchColumn();
     }

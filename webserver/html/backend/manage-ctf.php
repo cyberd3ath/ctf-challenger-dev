@@ -82,9 +82,12 @@ class CTFManagementHandler
     {
         try {
             $this->securityHelper->initSecureSession();
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->logger->logError("Session initialization failed: " . $e->getMessage());
-            throw new RuntimeException('Session initialization error', 500);
+            throw new CustomException('Session initialization error', 500);
+        } catch (Exception $e) {
+            $this->logger->logError("Unexpected error during session initialization: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -95,18 +98,18 @@ class CTFManagementHandler
     {
         if (!$this->securityHelper->validateSession()) {
             $this->logger->logWarning("Unauthorized access attempt to manage CTF - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new RuntimeException('Unauthorized - Please login', 401);
+            throw new CustomException('Unauthorized - Please login', 401);
         }
 
         $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in manage CTF - User ID: " . ($this->session['user_id'] ?? 'unknown') . ", Token: $csrfToken");
-            throw new RuntimeException('Invalid CSRF token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
 
         if (!$this->securityHelper->validateAdminAccess($this->pdo)) {
             $this->logger->logWarning("Non-admin access attempt to manage CTF - User ID: " . ($this->session['user_id'] ?? 'unknown'));
-            throw new Exception('Unauthorized - Admin access only', 403);
+            throw new CustomException('Unauthorized - Admin access only', 403);
         }
     }
 
@@ -120,7 +123,7 @@ class CTFManagementHandler
             $data = json_decode($this->system->file_get_contents('php://input'), true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $this->logger->logError("Invalid JSON in CTF deletion - User ID: $this->userId");
-                throw new RuntimeException('Invalid JSON data', 400);
+                throw new CustomException('Invalid JSON data', 400);
             }
             return $data;
         }
@@ -143,10 +146,13 @@ class CTFManagementHandler
                     break;
                 default:
                     $this->logger->logWarning("Invalid method in manage CTF - Method: $this->method, User ID: $this->userId");
-                    throw new RuntimeException('Method not allowed', 405);
+                    throw new CustomException('Method not allowed', 405);
             }
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->handleError($e);
+        } catch (Exception $e) {
+            // most likely not reachable, gonna leave it here for safety
+            $this->handleError(new Exception('Internal Server Error', 500));
         }
     }
 
@@ -232,7 +238,7 @@ class CTFManagementHandler
                 $this->handleRestoreRequest();
                 break;
             default:
-                throw new RuntimeException('Invalid action', 400);
+                throw new CustomException('Invalid action', 400);
         }
     }
 
@@ -272,7 +278,7 @@ class CTFManagementHandler
     private function handleRestoreRequest(): void
     {
         if (empty($this->inputData['id'])) {
-            throw new RuntimeException('Challenge ID is required', 400);
+            throw new CustomException('Challenge ID is required', 400);
         }
 
         $challengeId = (int)$this->inputData['id'];
@@ -280,7 +286,7 @@ class CTFManagementHandler
 
         if (!$challenge['marked_for_deletion']) {
             $this->logger->logWarning("Attempt to restore non-deleted challenge - ID: $challengeId, User ID: $this->userId");
-            throw new RuntimeException('Challenge is not marked for deletion', 400);
+            throw new CustomException('Challenge is not marked for deletion', 400);
         }
 
         $this->restoreChallenge($challengeId);
@@ -365,7 +371,7 @@ class CTFManagementHandler
 
         if (!$challenge) {
             $this->logger->logError("Challenge not found or access denied - Challenge ID: $challengeId, User ID: $this->userId");
-            throw new RuntimeException('Challenge not found or access denied', 404);
+            throw new CustomException('Challenge not found or access denied', 404);
         }
 
         return $challenge;
@@ -426,7 +432,7 @@ class CTFManagementHandler
 
         if (!$challengeId) {
             $this->logger->logError("Missing challenge ID in deletion - User ID: $this->userId");
-            throw new RuntimeException('Challenge ID is required', 400);
+            throw new CustomException('Challenge ID is required', 400);
         }
 
         $challenge = $this->verifyChallengeOwnershipForDeletion((int)$challengeId);
@@ -443,7 +449,7 @@ class CTFManagementHandler
 
         if (!$challenge) {
             $this->logger->logError("Challenge not found or access denied - Challenge ID: $challengeId, User ID: $this->userId");
-            throw new RuntimeException('Challenge not found or access denied', 404);
+            throw new CustomException('Challenge not found or access denied', 404);
         }
 
         return $challenge;
@@ -472,10 +478,14 @@ class CTFManagementHandler
                 'success' => true,
                 'message' => $message
             ]);
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->pdo->rollBack();
             $this->logger->logError("Failed to delete CTF challenge - ID: $challengeId, Name: '$challengeName', Error: " . $e->getMessage());
             throw $e;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            $this->logger->logError("Unexpected error during challenge deletion - ID: $challengeId, Name: '$challengeName', Error: " . $e->getMessage());
+            throw new Exception('Internal Server Error', 500);
         }
     }
 
@@ -513,7 +523,7 @@ class CTFManagementHandler
             );
 
             if (!$response['success']) {
-                throw new RuntimeException('Failed to stop challenge instance: ' . ($response['error'] ?? $response['response']));
+                throw new CustomException('Failed to stop challenge instance');
             }
         }
     }
@@ -528,7 +538,7 @@ class CTFManagementHandler
         );
 
         if (!$response['success']) {
-            throw new RuntimeException('Failed to delete VM templates: ' . ($response['error'] ?? $response['response']));
+            throw new CustomException('Failed to delete VM templates');
         }
     }
 
@@ -664,7 +674,7 @@ try {
 
     $handler = new CTFManagementHandler(config: $config, generalConfig: $generalConfig);
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -679,6 +689,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in manage-ctf endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

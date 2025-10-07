@@ -65,7 +65,7 @@ class AnnouncementsHandler
 
         if (!$this->securityHelper->validateSession()) {
             $this->logger->logWarning('Unauthorized access attempt to announcements route');
-            throw new Exception('Unauthorized', 401);
+            throw new CustomException('Unauthorized', 401);
         }
     }
 
@@ -77,7 +77,7 @@ class AnnouncementsHandler
         $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning('Invalid CSRF token attempt from user ID: ' . ($this->session['user_id'] ?? 'unknown'));
-            throw new Exception('Invalid CSRF token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
     }
 
@@ -92,13 +92,13 @@ class AnnouncementsHandler
         $this->importanceFilter = $this->get['importance'] ?? 'all';
         if (!in_array($this->importanceFilter, $this->config['filters']['IMPORTANCE_LEVELS'])) {
             $this->logger->logWarning('Invalid importance filter provided: ' . $this->importanceFilter);
-            throw new Exception('Invalid importance value', 400);
+            throw new CustomException('Invalid importance value', 400);
         }
 
         $this->rangeFilter = $this->get['range'] ?? 'all';
         if (!in_array($this->rangeFilter, $this->config['filters']['ACTIVITY_RANGES'])) {
             $this->logger->logWarning('Invalid range filter provided: ' . $this->rangeFilter);
-            throw new Exception('Invalid date range value', 400);
+            throw new CustomException('Invalid date range value', 400);
         }
     }
 
@@ -114,7 +114,7 @@ class AnnouncementsHandler
             $this->sendResponse($announcements, $total);
         } catch (PDOException $e) {
             $this->logger->logError("Database error in announcements route: " . $e->getMessage());
-            throw new Exception('Database error occurred', 500);
+            throw new CustomException('Database error occurred', 500);
         }
     }
 
@@ -206,7 +206,7 @@ try {
 
     $handler = new AnnouncementsHandler(config: $config);
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -221,6 +221,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in announcements endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

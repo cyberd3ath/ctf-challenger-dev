@@ -59,7 +59,7 @@ class BadgesHandler
 
         if (!$this->securityHelper->validateSession()) {
             $this->logger->logWarning("Unauthorized access attempt to badges route");
-            throw new Exception('Unauthorized', 401);
+            throw new CustomException('Unauthorized', 401);
         }
     }
 
@@ -71,12 +71,12 @@ class BadgesHandler
         $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token attempt from user ID: " . ($this->session['user_id'] ?? 'unknown'));
-            throw new Exception('Invalid CSRF token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
 
         if (!isset($this->session['user_id'])) {
             $this->logger->logError("Session user_id not set after validation");
-            throw new Exception('User identification failed', 500);
+            throw new CustomException('User identification failed', 500);
         }
     }
 
@@ -92,7 +92,7 @@ class BadgesHandler
             $this->sendResponse($badges, $stats);
         } catch (PDOException $e) {
             $this->logger->logError("Database error in badges route: " . $e->getMessage());
-            throw new Exception('Database error occurred', 500);
+            throw new CustomException('Database error occurred', 500);
         }
     }
 
@@ -117,7 +117,7 @@ class BadgesHandler
 
         if (!$stmt->execute()) {
             $this->logger->logError("Failed to execute badges query for user ID: $this->userId");
-            throw new Exception('Failed to fetch badges', 500);
+            throw new CustomException('Failed to fetch badges', 500);
         }
 
         $badges = [];
@@ -248,7 +248,7 @@ class BadgesHandler
 
         if (!$stats || !isset($stats['total_badges'])) {
             $this->logger->logError("Failed to fetch badge stats for user ID: $this->userId");
-            throw new Exception('Failed to fetch badge statistics', 500);
+            throw new CustomException('Failed to fetch badge statistics', 500);
         }
 
         $stats['completion_rate'] = $stats['total_badges'] > 0 ?
@@ -285,7 +285,7 @@ try {
 
     $handler = new BadgesHandler(config: $config);
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -300,6 +300,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in badges endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd

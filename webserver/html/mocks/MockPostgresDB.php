@@ -79,7 +79,7 @@ class MockPostgresDB
             } catch (Exception $e) {
                 $attempt++;
                 if ($attempt >= $maxTries) {
-                    throw new RuntimeException("Failed to start Postgres container after $maxTries attempts: " . $e->getMessage());
+                    throw new CustomException("Failed to start Postgres container after $maxTries attempts: " . $e->getMessage());
                 }
                 sleep(2); // wait before retrying
             }
@@ -109,7 +109,7 @@ class MockPostgresDB
 
             $this->insertTestData();
         } else {
-            throw new RuntimeException("Initialization script not found: " . $this->dbInitScript);
+            throw new CustomException("Initialization script not found: " . $this->dbInitScript);
         }
     }
 

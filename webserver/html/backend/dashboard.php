@@ -71,7 +71,7 @@ class DashboardHandler
 
         if (!$this->securityHelper->validateSession()) {
             $this->logger->logWarning("Unauthorized access attempt to dashboard - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
-            throw new Exception('Unauthorized - Please login', 401);
+            throw new CustomException('Unauthorized - Please login', 401);
         }
     }
 
@@ -83,12 +83,12 @@ class DashboardHandler
         $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in dashboard - User ID: $this->userId, Token: $csrfToken");
-            throw new Exception('Invalid CSRF token', 403);
+            throw new CustomException('Invalid CSRF token', 403);
         }
 
         if (!in_array($this->dataType, $this->config['dashboard']['VALID_DATA_TYPES'])) {
             $this->logger->logWarning("Invalid data type requested - User ID: $this->userId, Type: $this->dataType");
-            throw new Exception('Invalid data type requested', 400);
+            throw new CustomException('Invalid data type requested', 400);
         }
     }
 
@@ -97,8 +97,10 @@ class DashboardHandler
         try {
             $response = $this->getDashboardData();
             $this->sendResponse($response);
-        } catch (Exception $e) {
+        } catch (CustomException $e) {
             $this->handleError($e);
+        } catch (Exception $e) {
+            $this->handleError(new Exception('Internal Server Error', 500));
         }
     }
 
@@ -190,7 +192,7 @@ class DashboardHandler
 
             if (!$userData) {
                 $this->logger->logError("User not found in getUserData: $this->userId");
-                throw new Exception('User not found', 404);
+                throw new CustomException('User not found', 404);
             }
 
             return [
@@ -200,7 +202,7 @@ class DashboardHandler
             ];
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getUserData: " . $e->getMessage());
-            throw new Exception('Failed to retrieve user data', 500);
+            throw new CustomException('Failed to retrieve user data', 500);
         }
     }
 
@@ -246,7 +248,7 @@ class DashboardHandler
             ];
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getProgressData: " . $e->getMessage());
-            throw new Exception('Failed to retrieve progress data', 500);
+            throw new CustomException('Failed to retrieve progress data', 500);
         }
     }
 
@@ -297,7 +299,7 @@ class DashboardHandler
             return ['percentages' => $percentages];
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getCategoryData: " . $e->getMessage());
-            throw new Exception('Failed to retrieve category data', 500);
+            throw new CustomException('Failed to retrieve category data', 500);
         }
     }
 
@@ -348,7 +350,7 @@ class DashboardHandler
             return $activities;
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getActivityData: " . $e->getMessage());
-            throw new Exception('Failed to retrieve activity data', 500);
+            throw new CustomException('Failed to retrieve activity data', 500);
         }
     }
 
@@ -413,7 +415,7 @@ class DashboardHandler
             ];
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getBadgesData: " . $e->getMessage());
-            throw new Exception('Failed to retrieve badges data', 500);
+            throw new CustomException('Failed to retrieve badges data', 500);
         }
     }
 
@@ -456,7 +458,7 @@ class DashboardHandler
             return $challenges;
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getChallengesData: " . $e->getMessage());
-            throw new Exception('Failed to retrieve challenges data', 500);
+            throw new CustomException('Failed to retrieve challenges data', 500);
         }
     }
 
@@ -486,11 +488,11 @@ class DashboardHandler
                     $labelFormat = 'M';
                     break;
                 default:
-                    throw new Exception('Invalid time range specified', 400);
+                    throw new CustomException('Invalid time range specified', 400);
             }
 
             if (!in_array($viewType, ['daily', 'cumulative'])) {
-                throw new Exception('Invalid timeline view type specified', 400);
+                throw new CustomException('Invalid timeline view type specified', 400);
             }
 
             $stmt = $this->pdo->prepare("
@@ -566,7 +568,7 @@ class DashboardHandler
             ];
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getTimelineData: " . $e->getMessage());
-            throw new Exception('Failed to retrieve timeline data', 500);
+            throw new CustomException('Failed to retrieve timeline data', 500);
         }
     }
 
@@ -605,7 +607,7 @@ class DashboardHandler
             return $sanitizedNews;
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getLatestNews: " . $e->getMessage());
-            throw new Exception('Failed to retrieve latest news', 500);
+            throw new CustomException('Failed to retrieve latest news', 500);
         }
     }
 
@@ -670,7 +672,7 @@ class DashboardHandler
             ];
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getActiveChallengeData: " . $e->getMessage());
-            throw new Exception('Failed to retrieve active challenge data', 500);
+            throw new CustomException('Failed to retrieve active challenge data', 500);
         }
     }
 
@@ -728,7 +730,7 @@ try {
 
     $handler = new DashboardHandler(config: $config);
     $handler->handleRequest();
-} catch (Exception $e) {
+} catch (CustomException $e) {
     $errorCode = $e->getCode() ?: 500;
     http_response_code($errorCode);
     $logger = new Logger();
@@ -743,6 +745,14 @@ try {
     }
 
     echo json_encode($response);
+} catch (Exception $e) {
+    http_response_code(500);
+    $logger = new Logger();
+    $logger->logError("Unexpected error in dashboard endpoint: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An unexpected error occurred'
+    ]);
 }
 
 // @codeCoverageIgnoreEnd
