@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="../assets/css/explore.css">
 </head>
 <body>
-<!--#include virtual="/partials/header.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/header.html'); ?>
 <main class="dashboard-container">
     <section class="search-bar">
         <input type="text" placeholder="Search CTFs..." class="search-input">
@@ -255,7 +255,7 @@
     </div>
 </main>
 
-<!--#include virtual="/partials/footer.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/footer.html'); ?>
 
 <script type="module" src="../assets/js/explore.js"></script>
 <script type="module" src="../assets/js/theme-toggle.js"></script>

@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/securityHelper.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 $securityHelper = new SecurityHelper();
 $securityHelper->initSecureSession();

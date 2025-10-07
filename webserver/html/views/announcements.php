@@ -21,7 +21,7 @@ if (!$securityHelper->validateSession()) {
     <link rel="stylesheet" href="../assets/css/announcements.css">
 </head>
 <body>
-<!--#include virtual="../partials/header.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/header.html'); ?>
 <div class="main-wrapper">
     <main class="announcements-container">
         <div class="back-button-container">
@@ -83,7 +83,7 @@ if (!$securityHelper->validateSession()) {
     </main>
 </div>
 
-<!--#include virtual="../partials/footer.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/footer.html'); ?>
 
 <script type="module" src="../assets/js/theme-toggle.js"></script>
 <script type="module" src="../assets/js/announcements.js"></script>

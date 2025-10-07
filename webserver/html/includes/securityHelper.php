@@ -132,6 +132,7 @@ class SecurityHelper implements ISecurityHelper
         try {
             if (empty($this->session['csrf_token']) || empty($token)) {
                 $this->logger->logError("Missing CSRF token in session or request");
+                $this->logger->logDebug("Session token: " . ($this->session['csrf_token'] ?? 'none') . ", Provided token: " . ($token ?: 'none'));
                 return false;
             }
 

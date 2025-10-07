@@ -45,6 +45,7 @@ class AdminAnnouncementsHandler
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
+        $this->cookie = $cookie;
 
         $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
         $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);

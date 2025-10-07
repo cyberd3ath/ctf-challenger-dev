@@ -299,7 +299,7 @@ def setup_api_token():
     print("\tRestricting web server API token permissions")
 
     permissions = [
-        {"path": f"/storage/local-lvm", "roles": role_id, "tokens": f"{user_id}!{token_id}"},
+        {"path": f"/storage/local", "roles": role_id, "tokens": f"{user_id}!{token_id}"},
     ]
 
     for perm in permissions:

@@ -64,7 +64,7 @@
     </div>
 </section>
 
-<!--#include virtual="../partials/footer.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/footer.html'); ?>
 <script type="module" src="../assets/js/theme-toggle.js"></script>
 </body>
 </html>

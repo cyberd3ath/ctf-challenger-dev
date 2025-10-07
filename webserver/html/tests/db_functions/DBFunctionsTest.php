@@ -244,4 +244,36 @@ class DBFunctionsTest extends TestCase {
         $result = $stmt->execute();
         $this->assertTrue($result, "Failed to execute query: $query");
     }
+
+    public function testStaticFunctionLinting(): void {
+        $stmt = $this->pdo->prepare("CREATE EXTENSION IF NOT EXISTS plpgsql_check;");
+        $this->assertNotFalse($stmt, "Failed to prepare query for creating plpgsql_check extension");
+        $result = $stmt->execute();
+
+        $scanQuery = "
+            DO $$
+            DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN
+                    SELECT n.nspname AS schema_name,
+                           p.proname AS function_name,
+                           oidvectortypes(p.proargtypes) AS args
+                    FROM pg_proc p
+                    JOIN pg_namespace n ON n.oid = p.pronamespace
+                    WHERE n.nspname = 'api'
+                      AND p.prolang = (SELECT oid FROM pg_language WHERE lanname = 'plpgsql')
+                LOOP
+                    RAISE NOTICE 'Checking %.%(%):', r.schema_name, r.function_name, r.args;
+                    PERFORM plpgsql_check_function(r.schema_name || '.' || r.function_name || '(' || r.args || ')');
+                END LOOP;
+            END $$;
+        ";
+        $stmt = $this->pdo->prepare($scanQuery);
+        $this->assertNotFalse($stmt, "Failed to prepare query for scanning functions with plpgsql_check");
+        $result = $stmt->execute();
+        $this->assertTrue($result, "Failed to execute function scan query with plpgsql_check");
+
+        print_r($stmt->fetchAll());
+    }
 }

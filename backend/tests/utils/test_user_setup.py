@@ -11,7 +11,7 @@ def test_user_setup(
 
     with db_conn.cursor() as cursor:
         password_salt = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
-        password_hash = hashlib.sha256((password_salt + password).encode()).hexdigest()
+        password_hash = hashlib.sha512((password_salt + password).encode()).hexdigest()
 
         cursor.execute(
             "INSERT INTO users (username, email, password_hash, password_salt) VALUES (%s, %s, %s, %s) RETURNING id",

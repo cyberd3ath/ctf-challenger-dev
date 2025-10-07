@@ -21,7 +21,7 @@ if (!$securityHelper->validateSession()) {
     <link rel="stylesheet" href="../assets/css/badges.css">
 </head>
 <body>
-<!--#include virtual="../partials/header.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/header.html'); ?>
 
 <main class="badges-container">
     <div class="back-button-container">
@@ -72,7 +72,7 @@ if (!$securityHelper->validateSession()) {
     </section>
 </main>
 
-<!--#include virtual="../partials/footer.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/footer.html'); ?>
 
 <script type="module" src="../assets/js/theme-toggle.js"></script>
 <script type="module" src="../assets/js/badges.js"></script>

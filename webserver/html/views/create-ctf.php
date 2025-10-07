@@ -24,7 +24,7 @@ if (!$securityHelper->validateSession() || !$securityHelper->validateAdminAccess
     <link rel="stylesheet" href="../assets/css/create-ctf.css">
 </head>
 <body>
-<!--#include virtual="../partials/header.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/header.html'); ?>
 <main class="create-ctf-container">
     <div class="visual-layout">
         <section class="general-info-tabbed">
@@ -244,7 +244,7 @@ if (!$securityHelper->validateSession() || !$securityHelper->validateAdminAccess
         <button id="submit-ctf" class="button button-primary">Create CTF Challenge</button>
     </div>
 </main>
-<!--#include virtual="../partials/footer.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/footer.html'); ?>
 
 <script type="module" src="../assets/js/theme-toggle.js"></script>
 <script type="module" src="../assets/js/create-ctf.js"></script>

@@ -60,6 +60,7 @@ class OvaUploadHandler
         $this->post = $post;
         $this->files = $files;
         $this->env = $env;
+        $this->cookie = $cookie;
 
         $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
         $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
@@ -665,6 +666,8 @@ class OvaUploadHandler
 
         if (!$result) {
             $this->logger->logError("Proxmox API connection failed for user $this->userId");
+            $this->logger->logDebug("Triesd to upload file $proxmoxFilename for user $this->userId with display name $displayName, auth headers: " . print_r($authHeaders, true) . " and post params: " . print_r($postParams, true));
+            $this->logger->logDebug("Got curl result: " . print_r($result, true));
             throw new CustomException('Server connection failed', 500);
         }
 
@@ -674,6 +677,7 @@ class OvaUploadHandler
         if ($httpCode !== 200) {
             $error = $responseData['errors'] ?? 'Unknown error';
             $this->logger->logError("Proxmox upload failed for user $this->userId: HTTP $httpCode - " . json_encode($error));
+            $this->logger->logDebug("Triesd to upload file $proxmoxFilename for user $this->userId with display name $displayName, auth headers: " . json_encode($authHeaders) . " and post params: " . json_encode($postParams));
             throw new CustomException('File processing failed', 500);
         }
 

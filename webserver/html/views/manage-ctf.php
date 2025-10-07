@@ -24,7 +24,7 @@ if (!$securityHelper->validateSession() || !$securityHelper->validateAdminAccess
     <link rel="stylesheet" href="../assets/css/manage-ctf.css">
 </head>
 <body>
-<!--#include virtual="../partials/header.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/header.html'); ?>
 <div class="main-wrapper">
     <main class="manage-ctf-container">
         <div class="dashboard-header">
@@ -285,7 +285,7 @@ if (!$securityHelper->validateSession() || !$securityHelper->validateAdminAccess
         </div>
     </main>
 </div>
-<!--#include virtual="../partials/footer.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/footer.html'); ?>
 <div id="toast-notification" class="toast" style="display: none;"></div>
 
 <script type="module" src="../assets/js/theme-toggle.js"></script>

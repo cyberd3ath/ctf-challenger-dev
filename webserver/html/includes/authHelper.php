@@ -28,7 +28,7 @@ class AuthHelper implements IAuthHelper
         }
 
         $headers = [
-            "Authorization" => "PVEAPIToken=$PROXMOX_API_TOKEN"
+            "Authorization: PVEAPIToken=$PROXMOX_API_TOKEN"
         ];
 
         if ($contentType !== null) {

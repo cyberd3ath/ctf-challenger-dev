@@ -461,7 +461,7 @@ BEGIN
         cf.points::BIGINT AS points,
         cf.order_index::BIGINT AS order_index
     FROM challenge_flags cf
-    WHERE challenge_template_id = p_challenge_template_id
+    WHERE cf.challenge_template_id = p_challenge_template_id
     ORDER BY order_index, id;
 END;
 $$;

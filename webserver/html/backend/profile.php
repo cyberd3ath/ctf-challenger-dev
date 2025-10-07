@@ -55,6 +55,7 @@ class ProfileHandler
         $this->post = $post;
         $this->files = $files;
         $this->env = $env;
+        $this->cookie = $cookie;
 
         $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
         $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
@@ -909,7 +910,7 @@ class ProfileHandler
             }
 
             $stmt = $this->pdo->prepare("SELECT get_user_password_salt(:username) AS salt");
-            $stmt->execute(['user_id' => $this->userId]);
+            $stmt->execute(['username' => $this->session['username']]);
             $passwordSalt = $stmt->fetch(PDO::FETCH_ASSOC)['salt'];
 
             if (!$passwordSalt) {
@@ -917,7 +918,7 @@ class ProfileHandler
                 throw new CustomException('User not found', 404);
             }
 
-            $oldPasswordHash = hash('sha256', $passwordSalt . $currentPassword);
+            $oldPasswordHash = hash('sha512', $passwordSalt . $currentPassword);
             $userStmt = $this->pdo->prepare("SELECT authenticate_user(:username, :password_hash) AS user_id");
             $userStmt->execute([
                 'username' => $this->session['username'],
@@ -931,12 +932,12 @@ class ProfileHandler
                 throw new CustomException('Current password is incorrect', 400);
             }
 
-            if (hash('sha256', $passwordSalt . $newPassword) === $oldPasswordHash) {
+            if (hash('sha512', $passwordSalt . $newPassword) === $oldPasswordHash) {
                 throw new CustomException('New password must be different from current password', 400);
             }
 
             $newSalt = bin2hex(random_bytes(16));
-            $newPasswordHash = hash('sha256', $newSalt . $newPassword);
+            $newPasswordHash = hash('sha512', $newSalt . $newPassword);
             if (!$newPasswordHash) {
                 throw new CustomException('Error hashing password', 500);
             }
@@ -961,7 +962,7 @@ class ProfileHandler
         } catch (PDOException $e) {
             $this->pdo->rollBack();
             $this->logger->logError("Database error during password change - User ID: $this->userId - " . $e->getMessage());
-            throw new CustomException('Failed to change password', 500);
+            throw new CustomException('Failed to change password', 400);
         }
     }
 
@@ -977,7 +978,7 @@ class ProfileHandler
 
             $totals = [];
             $stmt = $this->pdo->query("
-                SELECT get_challenge_counts_by_categories()
+                SELECT category, total FROM get_challenge_count_by_categories()
             ");
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $totals[$row['category']] = (int)$row['total'];
@@ -986,8 +987,8 @@ class ProfileHandler
             $stmt = $this->pdo->prepare("
                 SELECT 
                     category,
-                    solved_count
-                get_user_solved_challenge_count_by_categories(:user_id)
+                    solved
+                FROM get_user_solved_challenge_count_by_categories(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
             $solved = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -1100,7 +1101,7 @@ class ProfileHandler
                 throw new CustomException('Incorrect password', 400);
             }
 
-            $hashedPassword = hash('sha256', $passwordSalt . $password);
+            $hashedPassword = hash('sha512', $passwordSalt . $password);
             $stmt = $this->pdo->prepare("SELECT authenticate_user(:username, :password_hash) AS user_id");
             $stmt->execute([
                 'username' => $this->session['username'],

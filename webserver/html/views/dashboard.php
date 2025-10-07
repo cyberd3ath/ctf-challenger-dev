@@ -23,7 +23,7 @@ if (!$securityHelper->validateSession()) {
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js" defer></script>
 </head>
 <body>
-<!--#include virtual="../partials/header.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/header.html'); ?>
 <main class="dashboard-container">
     <section class="welcome-banner">
         <h1>Welcome back, <span id="username"></span>! 👋</h1>
@@ -150,7 +150,7 @@ if (!$securityHelper->validateSession()) {
         </section>
     </div>
 </main>
-<!--#include virtual="/partials/footer.html" -->
+<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/footer.html'); ?>
 <script type="module" src="../assets/js/theme-toggle.js"></script>
 <script type="module" src="../assets/js/dashboard.js"></script>
 </body>

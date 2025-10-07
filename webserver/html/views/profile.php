@@ -314,7 +314,6 @@ if (!$securityHelper->validateSession()) {
         </section>
     </div>
 </main>
-<!--#include virtual="/partials/footer.html" -->
 <?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/footer.html'); ?>
 <div class="modal" id="passwordModal">
     <div class="modal-content">

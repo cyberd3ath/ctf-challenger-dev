@@ -47,6 +47,9 @@ class CurlHelper implements ICurlHelper
 
         curl_close($ch);
         if ($response === false) {
+            $logger = new Logger();
+            $logger->logDebug("cURL error " . curl_error($ch));
+
             return false;
         }
 
