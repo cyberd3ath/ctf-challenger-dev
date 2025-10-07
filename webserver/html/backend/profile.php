@@ -22,6 +22,7 @@ class ProfileHandler
     private IPost $post;
     private IFiles $files;
     private IEnv $env;
+    private ICookie $cookie;
 
     private ISystem $system;
 
@@ -44,7 +45,8 @@ class ProfileHandler
         IFiles $files = new Files(),
         IEnv $env = new Env(),
         
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
@@ -85,7 +87,7 @@ class ProfileHandler
             throw new Exception('Unauthorized - Please login', 401);
         }
         $this->userId = (int)$this->session['user_id'];
-        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in profile request - User ID: $this->userId, Token: $csrfToken");
             throw new Exception('Invalid CSRF token', 403);

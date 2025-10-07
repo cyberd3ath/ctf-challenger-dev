@@ -13,6 +13,7 @@ class LogoutHandler
 
     private ISession $session;
     private IServer $server;
+    private ICookie $cookie;
     
     private ISystem $system;
 
@@ -26,11 +27,13 @@ class LogoutHandler
         ISession $session = new Session(),
         IServer $server = new Server(),
 
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
         $this->server = $server;
+        $this->cookie = $cookie;
 
         $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
         $this->logger = $logger ?? new Logger(system: $system);
@@ -63,7 +66,7 @@ class LogoutHandler
 
     private function parseRequest(): void
     {
-        $this->csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+        $this->csrfToken = $this->cookie['csrf_token'] ?? '';
     }
 
     public function handleRequest(): void

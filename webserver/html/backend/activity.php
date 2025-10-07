@@ -21,6 +21,7 @@ class ActivitiesHandler
     private ISession $session;
     private IServer $server;
     private IGet $get;
+    private ICookie $cookie;
 
 
     /**
@@ -37,12 +38,14 @@ class ActivitiesHandler
         IServer $server = new Server(),
         IGet $get = new Get(),
 
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
+        $this->cookie = $cookie;
 
         $this->logger = $logger ?? new Logger(system: $system);
         $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
@@ -76,7 +79,7 @@ class ActivitiesHandler
      */
     private function validateRequest(): void
     {
-        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning('Invalid CSRF token attempt from user ID: ' . ($this->session['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);

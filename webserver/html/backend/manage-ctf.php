@@ -23,6 +23,7 @@ class CTFManagementHandler
     private IServer $server;
     private IGet $get;
     private IPost $post;
+    private ICookie $cookie;
     
     private ISystem $system;
 
@@ -46,7 +47,8 @@ class CTFManagementHandler
         IPost $post = new Post(),
         
         ISystem $system = new SystemWrapper(),
-        IEnv $env = new Env()
+        IEnv $env = new Env(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
@@ -96,7 +98,7 @@ class CTFManagementHandler
             throw new RuntimeException('Unauthorized - Please login', 401);
         }
 
-        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in manage CTF - User ID: " . ($this->session['user_id'] ?? 'unknown') . ", Token: $csrfToken");
             throw new RuntimeException('Invalid CSRF token', 403);

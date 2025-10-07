@@ -25,6 +25,7 @@ class OvaUploadHandler
     private IPost $post;
     private IFiles $files;
     private IEnv $env;
+    private ICookie $cookie;
 
     private ISystem $system;
 
@@ -49,7 +50,8 @@ class OvaUploadHandler
         IFiles $files = new Files(),
         IEnv $env = new Env(),
         
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
@@ -100,7 +102,7 @@ class OvaUploadHandler
             throw new RuntimeException('Unauthorized - Please login', 401);
         }
 
-        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token from user ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new RuntimeException('Invalid request token', 403);

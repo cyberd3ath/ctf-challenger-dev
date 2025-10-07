@@ -39,7 +39,7 @@ class BadgesHandlerTest extends TestCase
         $this->securityHelperMock->method('validateSession')->willReturn(true);
         $this->securityHelperMock->method('validateCsrfToken')->willReturn(true);
 
-        $this->server['HTTP_X_CSRF_TOKEN'] = 'valid_token';
+        $this->cookie['csrf_token'] = 'valid_token';
         $this->session['user_id'] = 1;
     }
 

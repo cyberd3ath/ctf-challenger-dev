@@ -20,6 +20,7 @@ class DashboardHandler
     private ISession $session;
     private IServer $server;
     private IGet $get;
+    private ICookie $cookie;
 
     /**
      * @throws Exception
@@ -36,12 +37,14 @@ class DashboardHandler
         IServer $server = new Server(),
         IGet $get = new Get(),
 
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
+        $this->cookie = $cookie;
 
         $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
         $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
@@ -77,7 +80,7 @@ class DashboardHandler
      */
     private function validateRequest(): void
     {
-        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in dashboard - User ID: $this->userId, Token: $csrfToken");
             throw new Exception('Invalid CSRF token', 403);

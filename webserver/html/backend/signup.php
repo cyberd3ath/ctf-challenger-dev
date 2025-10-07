@@ -22,6 +22,7 @@ class RegistrationHandler
     private ISession $session;
     private IServer $server;
     private IPost $post;
+    private ICookie $cookie;
 
     private ISystem $system;
 
@@ -42,7 +43,8 @@ class RegistrationHandler
         IPost $post = new Post(),
         
         ISystem $system = new SystemWrapper(),
-        IEnv $env = new Env()
+        IEnv $env = new Env(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
@@ -331,7 +333,7 @@ class RegistrationHandler
                 'expires' => $this->system->time() + 3600,
                 'path' => '/',
                 'secure' => true,
-                'httponly' => false,
+                'httponly' => true,
                 'samesite' => 'Strict'
             ]
         );

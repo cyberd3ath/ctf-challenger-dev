@@ -60,7 +60,7 @@ class LogoutHandlerTest extends TestCase
         $this->session['authenticated'] = true;
         $this->session['user_id'] = 1;
 
-        $this->server['HTTP_X_CSRF_TOKEN'] = 'valid-csrf-token';
+        $this->cookie['csrf_token'] = 'valid-csrf-token';
 
         $this->assertNotEmpty($this->session);
 
@@ -84,7 +84,7 @@ class LogoutHandlerTest extends TestCase
         $this->session['authenticated'] = true;
         $this->session['user_id'] = 1;
 
-        $this->server['HTTP_X_CSRF_TOKEN'] = 'invalid-csrf-token';
+        $this->cookie['csrf_token'] = 'invalid-csrf-token';
 
         ob_start();
         $handler = new LogoutHandler(

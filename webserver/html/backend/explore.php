@@ -18,6 +18,7 @@ class ExploreHandler
     private ISession $session;
     private IServer $server;
     private IGet $get;
+    private ICookie $cookie;
 
     /**
      * @throws Exception
@@ -33,12 +34,14 @@ class ExploreHandler
         IServer $server = new Server(),
         IGet $get = new Get(),
 
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->get = $get;
+        $this->cookie = $cookie;
 
         $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
         $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
@@ -76,7 +79,7 @@ class ExploreHandler
         if (!$this->isPublic) {
             // @codeCoverageIgnoreStart
             // This branch cananot be tested when isPublic is set to true by default
-            $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+            $csrfToken = $this->cookie['csrf_token'] ?? '';
             if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
                 $this->logger->logWarning('Invalid CSRF token attempt from user: ' . ($this->session['user_id'] ?? 'unknown'));
                 throw new Exception('Invalid CSRF token.', 403);

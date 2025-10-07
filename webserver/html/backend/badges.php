@@ -15,6 +15,7 @@ class BadgesHandler
 
     private ISession $session;
     private IServer $server;
+    private ICookie $cookie;
 
     /**
      * @throws Exception
@@ -29,12 +30,13 @@ class BadgesHandler
         ISession $session = new Session(),
         IServer $server = new Server(),
 
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
-
         $this->server = $server;
+        $this->cookie = $cookie;
 
         $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
         $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
@@ -66,7 +68,7 @@ class BadgesHandler
      */
     private function validateRequest(): void
     {
-        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token attempt from user ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new Exception('Invalid CSRF token', 403);

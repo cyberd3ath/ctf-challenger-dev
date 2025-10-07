@@ -24,6 +24,7 @@ class CtfCreationHandler
     private IGet $get;
     private IPost $post;
     private IFiles $files;
+    private ICookie $cookie;
 
     private ISystem $system;
 
@@ -47,7 +48,8 @@ class CtfCreationHandler
         IFiles $files = new Files(),
 
         ISystem $system = new SystemWrapper(),
-        IEnv $env = new Env()
+        IEnv $env = new Env(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
@@ -55,6 +57,7 @@ class CtfCreationHandler
         $this->get = $get;
         $this->post = $post;
         $this->files = $files;
+        $this->cookie = $cookie;
 
         $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
         $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
@@ -97,7 +100,7 @@ class CtfCreationHandler
             throw new RuntimeException('Unauthorized - Please login', 401);
         }
 
-        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token from user ID: " . ($this->session['user_id'] ?? 'unknown'));
             throw new RuntimeException('Invalid request token', 403);

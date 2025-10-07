@@ -17,6 +17,7 @@ class ProfileHandlerPublic
     private ISession $session;
     private IServer $server;
     private IGet $get;
+    private ICookie $cookie;
 
     /**
      * @throws Exception
@@ -32,7 +33,8 @@ class ProfileHandlerPublic
         IServer $server = new Server(),
         IGet $get = new Get(),
 
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
@@ -83,7 +85,7 @@ class ProfileHandlerPublic
         }
 
         if (in_array($this->server['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE', 'PATCH'])) {
-            $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+            $csrfToken = $this->cookie['csrf_token'] ?? '';
             if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
                 $this->logger->logWarning("Invalid CSRF token in profile request - IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
                 throw new Exception('Invalid request', 403);

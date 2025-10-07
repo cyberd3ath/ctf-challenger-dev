@@ -18,6 +18,7 @@ class LoginHandler
     private ISession $session;
     private IServer $server;
     private IPost $post;
+    private ICookie $cookie;
     
     private ISystem $system;
 
@@ -29,12 +30,14 @@ class LoginHandler
         ISession $session = new Session(),
         IServer $server = new Server(),
         IPost $post = new Post(),
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
         $this->server = $server;
         $this->post = $post;
+        $this->cookie = $cookie;
 
         $this->databaseHelper = $databaseHelper ?? new DatabaseHelper($logger, $system);
         $this->securityHelper = $securityHelper ?? new SecurityHelper($logger, $session, $system);
@@ -245,7 +248,7 @@ class LoginHandler
                 'expires' => $this->system->time() + 3600,
                 'path' => '/',
                 'secure' => true,
-                'httponly' => false,
+                'httponly' => true,
                 'samesite' => 'Strict'
             ]
         );

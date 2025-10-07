@@ -19,6 +19,7 @@ class AdminAnnouncementsHandler
     private ISession $session;
     private IServer $server;
     private IGet $get;
+    private ICookie $cookie;
     
     private ISystem $system;
 
@@ -37,7 +38,8 @@ class AdminAnnouncementsHandler
         IServer $server = new Server(),
         IGet $get = new Get(),
 
-        ISystem $system = new SystemWrapper()
+        ISystem $system = new SystemWrapper(),
+        ICookie $cookie = new Cookie()
     )
     {
         $this->session = $session;
@@ -79,7 +81,7 @@ class AdminAnnouncementsHandler
      */
     private function validateRequest(): void
     {
-        $csrfToken = $this->server['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = $this->cookie['csrf_token'] ?? '';
         if (!$this->securityHelper->validateCsrfToken($csrfToken)) {
             $this->logger->logWarning("Invalid CSRF token in admin announcements - User ID: " . ($this->session['user_id'] ?? 'unknown') . ", Token: $csrfToken");
             throw new Exception('Invalid CSRF token', 403);
