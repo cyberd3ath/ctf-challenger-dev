@@ -27,7 +27,7 @@ class BadgesHandlerTest extends TestCase
 
         // Mocks
         $this->securityHelperMock = $this->createMock(ISecurityHelper::class);
-        $this->loggerMock = $this->createMock(ILogger::class);
+        $this->loggerMock = new MockLogger();
 
         // Simple array-backed session/server
         $this->session = new MockSession();

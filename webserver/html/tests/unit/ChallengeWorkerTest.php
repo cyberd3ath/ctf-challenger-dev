@@ -28,7 +28,7 @@ class ChallengeWorkerTest extends TestCase
         $this->databaseHelper->method('getPDO')->willReturn($this->pdo);
 
         $this->env = new Env(__DIR__ . '/../../../../setup');
-        $this->logger = $this->createMock(ILogger::class);
+        $this->logger = new MockLogger();
         $this->system = $this->createMock(ISystem::class);
     }
 

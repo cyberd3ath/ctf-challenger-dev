@@ -28,7 +28,7 @@ class RegistrationHandlerTest extends TestCase
     public function setUp(): void {
         $this->databaseHelper = $this->createMock(IDatabaseHelper::class);
         $this->securityHelper = $this->createMock(ISecurityHelper::class);
-        $this->logger = $this->createMock(ILogger::class);
+        $this->logger = new MockLogger();
         $this->authHelper = $this->createMock(IAuthHelper::class);
         $this->curlHelper = $this->createMock(ICurlHelper::class);
 

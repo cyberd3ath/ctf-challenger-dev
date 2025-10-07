@@ -29,7 +29,7 @@ class ActivitiesHandlerTest extends TestCase
         $this->databaseHelper->method('getPDO')->willReturn($this->pdo);
 
         $this->securityHelper = $this->createMock(ISecurityHelper::class);
-        $this->logger = $this->createMock(ILogger::class);
+        $this->logger = new MockLogger();
 
         $this->session = new MockSession();
         $this->session['user_id'] = 1;

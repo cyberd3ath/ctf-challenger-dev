@@ -14,7 +14,7 @@ class LogoutHandlerTest extends TestCase
 
     public function setUp(): void {
         $this->securityHelper = $this->createMock(ISecurityHelper::class);
-        $this->logger = $this->createMock(ILogger::class);
+        $this->logger = new MockLogger();
 
         $this->session = new MockSession();
         $this->server = new MockServer();

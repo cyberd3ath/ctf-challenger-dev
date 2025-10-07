@@ -45,7 +45,7 @@ class OvaUploadHandlerTest extends TestCase
 
         // Mock dependencies
         $this->securityHelper = $this->createMock(ISecurityHelper::class);
-        $this->logger = $this->createMock(ILogger::class);
+        $this->logger = new MockLogger();
         $this->curlHelper = $this->createMock(ICurlHelper::class);
         $this->authHelper = $this->createMock(IAuthHelper::class);
         $this->ovaValidator = $this->createMock(IOvaValidator::class);

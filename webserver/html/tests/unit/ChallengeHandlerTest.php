@@ -39,7 +39,7 @@ class ChallengeHandlerTest extends TestCase
         $this->curlHelper = $this->createMock(ICurlHelper::class);
         $this->authHelper = $this->createMock(IAuthHelper::class);
         $this->challengeHelper = $this->createMock(IChallengeHelper::class);
-        $this->logger = $this->createMock(ILogger::class);
+        $this->logger = new MockLogger();
 
         $this->system = $this->createMock(ISystem::class);
     }

@@ -35,7 +35,7 @@ class AnnouncementsHandlerTest extends TestCase
             ->method('validateCsrfToken')
             ->willReturn(true);
 
-        $this->logger = $this->createMock(ILogger::class);
+        $this->logger = new MockLogger();
 
         $this->session = new MockSession();
         $this->server = new MockServer();

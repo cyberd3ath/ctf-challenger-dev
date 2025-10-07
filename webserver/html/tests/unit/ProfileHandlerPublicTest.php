@@ -28,7 +28,7 @@ class ProfileHandlerPublicTest extends TestCase
     {
         $this->databaseHelper = $this->createMock(IDatabaseHelper::class);
         $this->securityHelper = $this->createMock(ISecurityHelper::class);
-        $this->logger = $this->createMock(ILogger::class);
+        $this->logger = new MockLogger();
 
         $this->session = new MockSession();
         $this->server = new MockServer();
