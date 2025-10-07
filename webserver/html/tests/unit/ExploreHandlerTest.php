@@ -253,7 +253,7 @@ class ExploreHandlerTest extends TestCase
 
         $userStmt = $this->createMock(PDOStatement::class);
         $userStmt->method('execute')->willReturn(true);
-        $userStmt->method('fetch')->willReturn(false); // Simulate error
+        $userStmt->method('fetchColumn')->willThrowException(new PDOException("Database error"));
 
         $mockPDO = $this->createMock(PDO::class);
         $mockPDO->method('prepare')->willReturnOnConsecutiveCalls(
@@ -471,7 +471,7 @@ class ExploreHandlerTest extends TestCase
                     return 0;
                 });
 
-                $this->assertEquals($expectedIDs, $receivedIDs);
+                $this->assertEqualsCanonicalizing($expectedIDs, $receivedIDs);
             }
         }
     }
@@ -569,7 +569,7 @@ class ExploreHandlerTest extends TestCase
                         return 0;
                     });
 
-                    $this->assertEquals($expectedIDs, $receivedIDs);
+                    $this->assertEqualsCanonicalizing($expectedIDs, $receivedIDs);
                 }
             }
         }

@@ -103,14 +103,14 @@ class ProfileHandlerPublic
                 SELECT get_id_by_username(:username) AS id
             ");
             $stmt->execute(['username' => $this->requestedUsername]);
-            $user = $stmt->fetch();
+            $user = $stmt->fetchColumn();
 
             if (!$user) {
                 $this->logger->logError("User not found in profile view: $this->requestedUsername");
                 throw new CustomException('Profile not found', 404);
             }
 
-            $this->userId = (int)$user['id'];
+            $this->userId = (int)$user;
         } catch (PDOException $e) {
             $this->logger->logError("Database error during profile initialization: " . $e->getMessage());
             throw new CustomException('Database error occurred', 500);
@@ -170,7 +170,7 @@ class ProfileHandlerPublic
             }
 
             $rankStmt = $this->pdo->prepare("
-                SELECT get_user_rank(:user_id, :user_points)::BIGINT AS user_rank
+                SELECT get_user_rank(:user_id, :user_points) AS user_rank
             ");
             $rankStmt->execute([
                 'user_points' => $profileData['total_points'],

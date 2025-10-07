@@ -42,18 +42,18 @@ BEGIN
         WHERE cc.user_id = p_user_id
     )
     SELECT
-        u.username,
-        u.email,
-        u.created_at,
-        u.last_login,
-        u.avatar_url,
-        p.full_name,
-        p.bio,
-        p.github_url,
-        p.twitter_url,
-        p.website_url,
-        (SELECT COUNT(*) FROM solved) AS solved_count,
-        (SELECT total_points FROM total_points) AS total_points
+        u.username::TEXT,
+        u.email::TEXT,
+        u.created_at::TIMESTAMP,
+        u.last_login::TIMESTAMP,
+        u.avatar_url::TEXT,
+        p.full_name::TEXT,
+        p.bio::TEXT,
+        p.github_url::TEXT,
+        p.twitter_url::TEXT,
+        p.website_url::TEXT,
+        (SELECT COUNT(*) FROM solved)::BIGINT AS solved_count,
+        (SELECT total_points FROM total_points)::BIGINT AS total_points
     FROM users u
     LEFT JOIN user_profiles p ON p.user_id = u.id
     WHERE u.id = p_user_id;
@@ -77,7 +77,7 @@ BEGIN
             HAVING COALESCE(SUM(cf.points), 0) > p_user_points
                 OR (COALESCE(SUM(cf.points), 0) = p_user_points AND u.id < p_user_id)
         ) ranked_users
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -117,9 +117,9 @@ BEGIN
         WHERE cc.user_id = p_user_id
     )
     SELECT
-        (SELECT COUNT(*) FROM solved) AS solved,
-        (SELECT COUNT(DISTINCT challenge_template_id) FROM completed_challenges WHERE user_id = p_user_id) AS attempts,
-        (SELECT total_points FROM total_points) AS total_points;
+        (SELECT COUNT(*) FROM solved)::BIGINT AS solved,
+        (SELECT COUNT(DISTINCT challenge_template_id) FROM completed_challenges WHERE user_id = p_user_id)::BIGINT AS attempts,
+        (SELECT tp.total_points FROM total_points tp)::BIGINT AS total_points;
 END;
 $$;
 
@@ -136,7 +136,12 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT b.id, b.name, b.description, b.icon, b.color
+    SELECT
+        b.id::BIGINT,
+        b.name::TEXT,
+        b.description::TEXT,
+        b.icon::TEXT,
+        b.color::badge_color
     FROM user_badges ub
     JOIN badges b ON b.id = ub.badge_id
     WHERE ub.user_id = p_user_id
@@ -150,7 +155,7 @@ RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN (SELECT COUNT(*) AS total FROM badges);
+    RETURN (SELECT COUNT(*) AS total FROM badges)::BIGINT;
 END;
 $$;
 
@@ -196,20 +201,20 @@ BEGIN
         GROUP BY cc.challenge_template_id
     )
     SELECT
-        ct.id AS challenge_id,
-        ct.name AS challenge_name,
-        ct.category,
-        (SELECT MAX(cf.points) FROM challenge_flags cf WHERE cf.challenge_template_id = ct.id) AS points,
-        sc.completed_at IS NOT NULL AS solved,
-        ca.attempts,
-        ca.started_at,
-        ca.completed_at,
-        CASE
+        ct.id::BIGINT AS challenge_id,
+        ct.name::TEXT AS challenge_name,
+        ct.category::challenge_category AS category,
+        (SELECT MAX(cf.points) FROM challenge_flags cf WHERE cf.challenge_template_id = ct.id)::BIGINT AS points,
+        (sc.completed_at IS NOT NULL)::BOOLEAN AS solved,
+        ca.attempts::BIGINT AS attempts,
+        ca.started_at::TIMESTAMP AS started_at,
+        ca.completed_at::TIMESTAMP AS completed_at,
+        (CASE
             WHEN sc.completed_at IS NOT NULL THEN 'solved'
             WHEN ca.has_completed_attempt THEN 'failed'
             ELSE 'started'
-        END AS status,
-        CASE
+        END)::TEXT AS status,
+        (CASE
             WHEN sc.completed_at IS NOT NULL THEN
                 CASE
                     WHEN EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - sc.completed_at)) < 24
@@ -228,7 +233,7 @@ BEGIN
                     THEN 'Started ' || EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - ca.started_at)) || ' hours ago'
                     ELSE 'Started ' || EXTRACT(DAY FROM (CURRENT_TIMESTAMP - ca.started_at)) || ' days ago'
                 END
-        END AS time_ago
+        END)::TEXT AS time_ago
     FROM challenge_templates ct
     JOIN challenge_attempts ca ON ca.challenge_template_id = ct.id
     LEFT JOIN solved_challenges sc ON sc.challenge_template_id = ct.id
@@ -250,7 +255,9 @@ RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN EXISTS (SELECT 1 FROM users WHERE username = p_username AND id <> p_user_id);
+    RETURN (
+        SELECT EXISTS (SELECT 1 FROM users WHERE username = p_username AND id <> p_user_id)
+    )::BOOLEAN;
 END;
 $$;
 
@@ -278,7 +285,9 @@ RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN EXISTS (SELECT 1 FROM users WHERE email = p_email AND id <> p_user_id);
+    RETURN (
+        SELECT EXISTS (SELECT 1 FROM users WHERE email = p_email AND id <> p_user_id)
+    )::BOOLEAN;
 END;
 $$;
 
@@ -303,7 +312,9 @@ RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN EXISTS (SELECT 1 FROM user_profiles WHERE user_id = p_user_id);
+    RETURN (
+        SELECT EXISTS (SELECT 1 FROM user_profiles WHERE user_id = p_user_id)
+    )::BOOLEAN;
 END;
 $$;
 
@@ -377,7 +388,7 @@ RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN (SELECT avatar_url FROM users WHERE id = p_user_id);
+    RETURN (SELECT avatar_url FROM users WHERE id = p_user_id)::TEXT;
 END;
 $$;
 
@@ -423,8 +434,8 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        ct.category,
-        COUNT(ct.id) AS total
+        ct.category::challenge_category,
+        COUNT(ct.id)::BIGINT AS total
     FROM challenge_templates ct
     GROUP BY ct.category
     ORDER BY ct.category;
@@ -453,7 +464,9 @@ BEGIN
             WHERE challenge_template_id = cc.challenge_template_id
         )
     )
-    SELECT ct.category, COUNT(sc.challenge_template_id) as solved
+    SELECT
+        ct.category::challenge_category,
+        COUNT(sc.challenge_template_id)::BIGINT as solved
     FROM solved_challenges sc
     JOIN challenge_templates ct ON ct.id = sc.challenge_template_id
     GROUP BY ct.category
@@ -464,14 +477,16 @@ $$;
 
 CREATE FUNCTION get_user_disk_files_display_data(p_user_id BIGINT)
 RETURNS TABLE(
-    ova_id           BIGINT,
+    ova_id BIGINT,
     proxmox_filename TEXT
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT id AS ova_id, proxmox_filename
+    SELECT
+        id::BIGINT AS ova_id,
+        proxmox_filename::TEXT AS proxmox_filename
     FROM disk_files
     WHERE user_id = p_user_id;
 END;
@@ -521,7 +536,9 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT u.avatar_url, u.is_admin
+    SELECT
+        u.avatar_url::TEXT,
+        u.is_admin::BOOLEAN
     FROM users u
     WHERE u.id = p_user_id;
 END;
@@ -533,7 +550,7 @@ RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN (SELECT id FROM users WHERE username = p_username);
+    RETURN (SELECT id FROM users WHERE username = p_username)::BIGINT;
 END;
 $$;
 
@@ -580,16 +597,16 @@ BEGIN
         WHERE cc.user_id = p_user_id
     )
     SELECT
-        u.username,
-        u.created_at,
-        u.avatar_url,
-        p.full_name,
-        p.bio,
-        p.github_url,
-        p.twitter_url,
-        p.website_url,
-        (SELECT COUNT(*) FROM solved) AS solved_count,
-        (SELECT total_points FROM total_points) AS total_points
+        u.username::TEXT,
+        u.created_at::TIMESTAMP,
+        u.avatar_url::TEXT,
+        p.full_name::TEXT,
+        p.bio::TEXT,
+        p.github_url::TEXT,
+        p.twitter_url::TEXT,
+        p.website_url::TEXT,
+        (SELECT COUNT(*) FROM solved)::BIGINT AS solved_count,
+        (SELECT tp.total_points FROM total_points tp)::BIGINT AS total_points
     FROM users u
     LEFT JOIN user_profiles p ON p.user_id = u.id
     WHERE u.id = p_user_id;
@@ -606,11 +623,13 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT category, COUNT(*) as total
-    FROM challenge_templates
-    WHERE is_active = true
-    GROUP BY category
-    ORDER BY category;
+    SELECT
+        ct.category::challenge_category,
+        COUNT(*)::BIGINT as total
+    FROM challenge_templates ct
+    WHERE ct.is_active = true
+    GROUP BY ct.category
+    ORDER BY ct.category;
 END;
 $$;
 
@@ -626,7 +645,12 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT b.id, b.name, b.description, b.icon, b.color
+    SELECT
+        b.id::BIGINT,
+        b.name::TEXT,
+        b.description::TEXT,
+        b.icon::TEXT,
+        b.color::badge_color
     FROM user_badges ub
     JOIN badges b ON b.id = ub.badge_id
     WHERE ub.user_id = p_user_id

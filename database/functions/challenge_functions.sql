@@ -5,7 +5,7 @@ RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN ( SELECT running_challenge FROM users WHERE id = p_user_id );
+    RETURN ( SELECT running_challenge FROM users WHERE id = p_user_id )::BIGINT;
 END;
 $$;
 
@@ -22,8 +22,8 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        marked_for_deletion,
-        is_active
+        marked_for_deletion::BOOLEAN,
+        is_active::BOOLEAN
     FROM challenge_templates
     WHERE id = p_challenge_template_id;
 END;
@@ -40,7 +40,7 @@ BEGIN
     RETURN (
         SELECT creator_id FROM challenge_templates
         WHERE id = p_challenge_template_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -99,7 +99,7 @@ BEGIN
     FROM challenge_templates
     WHERE id = p_challenge_template_id;
 
-    RETURN v_count = 0 AND v_marked_for_deletion;
+    RETURN (v_count = 0 AND v_marked_for_deletion)::BOOLEAN;
 END;
 $$;
 
@@ -127,7 +127,10 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT id, points FROM challenge_flags
+    SELECT
+        id::BIGINT AS id,
+        points::BIGINT AS points
+    FROM challenge_flags
     WHERE challenge_template_id = p_challenge_template_id
     AND flag = p_submitted_flag
     FOR UPDATE;
@@ -149,7 +152,7 @@ BEGIN
         AND challenge_template_id = p_challenge_template_id
         AND flag_id = p_flag_id
         FOR UPDATE
-    );
+    )::BOOLEAN;
 END;
 $$;
 
@@ -167,7 +170,7 @@ BEGIN
         WHERE user_id = p_user_id
         AND challenge_template_id = p_challenge_template_id
         AND flag_id IS NOT NULL
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -181,7 +184,7 @@ BEGIN
     RETURN (
         SELECT COUNT(*) FROM challenge_flags
         WHERE challenge_template_id = p_challenge_template_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -199,7 +202,7 @@ BEGIN
         AND challenge_template_id = p_challenge_template_id
         AND completed_at IS NULL
         FOR UPDATE
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -261,7 +264,7 @@ BEGIN
         ORDER BY started_at DESC
         LIMIT 1
         FOR UPDATE
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -304,19 +307,19 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        ct.id,
-        ct.name,
-        ct.description,
-        ct.category,
-        ct.difficulty,
-        ct.image_path,
-        ct.is_active,
-        ct.created_at,
-        ct.updated_at,
-        ct.hint,
-        ct.marked_for_deletion,
-        u.username as creator_username,
-        ct.creator_id,
+        ct.id::BIGINT,
+        ct.name::TEXT,
+        ct.description::TEXT,
+        ct.category::challenge_category,
+        ct.difficulty::challenge_difficulty,
+        ct.image_path::TEXT,
+        ct.is_active::BOOLEAN,
+        ct.created_at::TIMESTAMP,
+        ct.updated_at::TIMESTAMP,
+        ct.hint::TEXT,
+        ct.marked_for_deletion::BOOLEAN,
+        u.username::TEXT as creator_username,
+        ct.creator_id::BIGINT as creator_id,
         (
             SELECT COUNT(DISTINCT cc.user_id)
             FROM completed_challenges cc
@@ -333,7 +336,7 @@ BEGIN
                 AND cc2.challenge_template_id = ct.id
                 AND cf.challenge_template_id = ct.id
             )
-        ) AS solve_count
+        )::BIGINT AS solve_count
     FROM challenge_templates ct
     LEFT JOIN users u ON ct.creator_id = u.id
     WHERE ct.id = p_challenge_template_id
@@ -396,7 +399,7 @@ BEGIN
         END AS challenge_status
         FROM users
         WHERE id = p_user_id
-    );
+    )::TEXT;
 END;
 $$;
 
@@ -412,7 +415,7 @@ BEGIN
             solution
         FROM challenge_templates
         WHERE id = p_challenge_template_id
-    );
+    )::TEXT;
 END;
 $$;
 
@@ -430,7 +433,7 @@ BEGIN
         JOIN users u ON u.running_challenge = c.id
         WHERE u.id = p_user_id
         AND c.challenge_template_id = p_challenge_template_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -451,12 +454,12 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id,
-        challenge_template_id,
-        flag,
-        description,
-        points,
-        order_index
+        id::BIGINT AS id,
+        challenge_template_id::BIGINT AS challenge_template_id,
+        flag::TEXT AS flag,
+        description::TEXT AS description,
+        points::BIGINT AS points,
+        order_index::BIGINT AS order_index
     FROM challenge_flags
     WHERE challenge_template_id = p_challenge_template_id
     ORDER BY order_index, id;
@@ -480,11 +483,11 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id,
-        challenge_template_id,
-        hint_text,
-        unlock_points,
-        order_index
+        id::BIGINT AS id,
+        challenge_template_id::BIGINT AS challenge_template_id,
+        hint_text::TEXT AS hint_text,
+        unlock_points::BIGINT AS unlock_points,
+        order_index::BIGINT AS order_index
     FROM challenge_hints
     WHERE challenge_template_id = p_challenge_template_id
     AND unlock_points <= p_user_points
@@ -503,7 +506,8 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT flag_id FROM completed_challenges
+    SELECT flag_id::BIGINT
+    FROM completed_challenges
     WHERE user_id = p_user_id AND challenge_template_id = p_challenge_template_id
     AND flag_id IS NOT NULL;
 END;
@@ -519,7 +523,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT DISTINCT n.subnet
+    SELECT DISTINCT n.subnet::INET AS subnet
     FROM users u
     JOIN machines m ON u.running_challenge = m.challenge_id
     JOIN network_connections nc ON m.id = nc.machine_id
@@ -551,7 +555,7 @@ BEGIN
                 WHERE challenge_template_id = p_challenge_template_id
             )
         ) AS is_first_blood
-    );
+    )::BOOLEAN;
 END;
 $$;
 
@@ -569,7 +573,7 @@ BEGIN
         JOIN users u ON u.running_challenge = c.id
         WHERE u.id = p_user_id
         AND c.challenge_template_id = p_challenge_template_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -582,7 +586,7 @@ AS $$
 BEGIN
     RETURN (
         SELECT category FROM challenge_templates WHERE id = p_challenge_id
-    );
+    )::challenge_category;
 END;
 $$;
 
@@ -610,7 +614,7 @@ BEGIN
                 )
             ) solved ON ct.id = solved.challenge_template_id
             WHERE ct.category::text ILIKE p_category
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -618,7 +622,7 @@ $$;
 CREATE FUNCTION count_user_badges_excluding_one(
     p_user_id BIGINT,
     p_excluded_badge_id BIGINT
-) RETURNS BOOLEAN
+) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
@@ -626,7 +630,7 @@ BEGIN
         SELECT COUNT(DISTINCT b.id) FROM badges b
         LEFT JOIN user_badges ub ON b.id = ub.badge_id AND ub.user_id = p_user_id
         WHERE b.id != p_excluded_badge_id AND ub.user_id IS NULL
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -637,7 +641,9 @@ CREATE FUNCTION badge_with_id_exists(
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN EXISTS (SELECT 1 FROM badges WHERE id = p_badge_id);
+    RETURN (
+        SELECT EXISTS (SELECT 1 FROM badges WHERE id = p_badge_id)
+    )::BOOLEAN;
 END;
 $$;
 
@@ -649,10 +655,9 @@ CREATE FUNCTION user_already_has_badge(
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN EXISTS (
-        SELECT 1 FROM user_badges
-        WHERE user_id = p_user_id AND badge_id = p_badge_id
-    );
+    RETURN (
+        SELECT EXISTS (SELECT 1 FROM user_badges WHERE user_id = p_user_id AND badge_id = p_badge_id)
+    )::BOOLEAN;
 END;
 $$;
 
@@ -683,8 +688,8 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        c.id,
-        c.used_extensions
+        c.id::BIGINT AS id,
+        c.used_extensions::BIGINT AS used_extensions
     FROM challenges c
     JOIN users u ON u.running_challenge = c.id
     WHERE u.id = p_user_id

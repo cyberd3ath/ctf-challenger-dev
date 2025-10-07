@@ -562,7 +562,7 @@ class ProfileHandler
     {
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare("SELECT is_username_taken_by_other_user(:user_id, :username)::BIGINT AS exists");
+            $stmt = $this->pdo->prepare("SELECT is_username_taken_by_other_user(:user_id, :username) AS exists");
             $stmt->execute(['username' => $newUsername, 'user_id' => $this->userId]);
             if ($stmt->fetchColumn() === 1) {
                 $this->logger->logWarning("Username already taken - Username: $newUsername, User ID: $this->userId");
@@ -593,7 +593,7 @@ class ProfileHandler
     {
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare("SELECT is_email_taken_by_other_user(:user_id, :email)::BIGINT AS exists");
+            $stmt = $this->pdo->prepare("SELECT is_email_taken_by_other_user(:user_id, :email) AS exists");
             $stmt->execute(['email' => $newEmail, 'user_id' => $this->userId]);
 
             if ($stmt->fetchColumn() == 1) {

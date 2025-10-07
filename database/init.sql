@@ -72,15 +72,15 @@ CREATE SEQUENCE users_id_seq
     NO CYCLE;
 
 CREATE TABLE user_id_reclaim (
-    id INTEGER PRIMARY KEY
+    id BIGINT PRIMARY KEY
 );
 
 CREATE OR REPLACE FUNCTION allocate_user_id()
-RETURNS INTEGER
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    new_id INTEGER;
+    new_id BIGINT;
 BEGIN
 
     DELETE FROM user_id_reclaim
@@ -95,7 +95,7 @@ BEGIN
         new_id := nextval('users_id_seq');
     END IF;
 
-    RETURN new_id;
+    RETURN new_id::BIGINT;
 END;
 $$;
 
@@ -119,15 +119,15 @@ CREATE SEQUENCE machines_id_seq
     NO CYCLE;
 
 CREATE TABLE machine_id_reclaim (
-    id INTEGER PRIMARY KEY
+    id BIGINT PRIMARY KEY
 );
 
 CREATE OR REPLACE FUNCTION allocate_machine_id()
-RETURNS INTEGER
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    new_id INTEGER;
+    new_id BIGINT;
 BEGIN
     DELETE FROM machine_id_reclaim
     WHERE id = (
@@ -165,15 +165,15 @@ CREATE SEQUENCE machine_templates_id_seq
     NO CYCLE;
 
 CREATE TABLE machine_template_id_reclaim (
-    id INTEGER PRIMARY KEY
+    id BIGINT PRIMARY KEY
 );
 
 CREATE OR REPLACE FUNCTION allocate_machine_template_id()
-RETURNS INTEGER
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    new_id INTEGER;
+    new_id BIGINT;
 BEGIN
     DELETE FROM machine_template_id_reclaim
     WHERE id = (
@@ -210,15 +210,15 @@ CREATE SEQUENCE networks_id_seq
     NO CYCLE;
 
 CREATE TABLE network_id_reclaim (
-    id INTEGER PRIMARY KEY
+    id BIGINT PRIMARY KEY
 );
 
 CREATE OR REPLACE FUNCTION allocate_network_id()
-RETURNS INTEGER
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    new_id INTEGER;
+    new_id BIGINT;
 BEGIN
     DELETE FROM network_id_reclaim
     WHERE id = (
@@ -255,15 +255,15 @@ CREATE SEQUENCE challenges_id_seq
     NO CYCLE;
 
 CREATE TABLE challenge_id_reclaim (
-    id INTEGER PRIMARY KEY
+    id BIGINT PRIMARY KEY
 );
 
 CREATE OR REPLACE FUNCTION allocate_challenge_id()
-RETURNS INTEGER
+RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    new_id INTEGER;
+    new_id BIGINT;
 BEGIN
     DELETE FROM challenge_id_reclaim
     WHERE id = (
@@ -392,7 +392,7 @@ REFERENCES users(id) ON DELETE SET NULL;
 
 
 CREATE TABLE challenge_templates (
-    id INTEGER PRIMARY KEY DEFAULT nextval('challenge_templates_id_seq'),
+    id BIGINT PRIMARY KEY DEFAULT nextval('challenge_templates_id_seq'),
     name TEXT NOT NULL,
     description TEXT,
     category challenge_category NOT NULL,
@@ -416,7 +416,7 @@ CREATE TABLE challenge_subnets
 
 
 CREATE TABLE challenges (
-    id INTEGER PRIMARY KEY DEFAULT allocate_challenge_id(),
+    id BIGINT PRIMARY KEY DEFAULT allocate_challenge_id(),
     challenge_template_id BIGINT NOT NULL,
     subnet INET REFERENCES challenge_subnets(subnet) ON DELETE CASCADE DEFAULT assign_challenge_subnet(),
     expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '1 hour'),
@@ -451,7 +451,7 @@ CREATE TABLE user_profiles (
 
 
 CREATE TABLE machine_templates (
-    id INTEGER PRIMARY KEY DEFAULT allocate_machine_template_id(),
+    id BIGINT PRIMARY KEY DEFAULT allocate_machine_template_id(),
     challenge_template_id BIGINT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     disk_file_path TEXT NOT NULL,
@@ -467,7 +467,8 @@ EXECUTE FUNCTION reclaim_machine_template_id();
 
 
 CREATE TABLE network_templates (
-    id INTEGER PRIMARY KEY DEFAULT nextval('network_templates_id_seq'),
+    id BIGINT PRIMARY KEY DEFAULT nextval('network_templates_id_seq'),
+    challenge_template_id BIGINT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     accessible BOOLEAN NOT NULL,
     is_dmz BOOLEAN NOT NULL DEFAULT FALSE
@@ -489,7 +490,7 @@ CREATE TABLE network_connection_templates (
 
 
 CREATE TABLE challenge_flags (
-    id INTEGER PRIMARY KEY DEFAULT nextval('challenge_flags_id_seq'),
+    id BIGINT PRIMARY KEY DEFAULT nextval('challenge_flags_id_seq'),
     challenge_template_id BIGINT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
     flag TEXT NOT NULL,
     description TEXT,
@@ -499,7 +500,7 @@ CREATE TABLE challenge_flags (
 
 
 CREATE TABLE challenge_hints (
-    id INTEGER PRIMARY KEY DEFAULT nextval('challenge_hints_id_seq'),
+    id BIGINT PRIMARY KEY DEFAULT nextval('challenge_hints_id_seq'),
     challenge_template_id BIGINT NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
     hint_text TEXT NOT NULL,
     unlock_points BIGINT DEFAULT 0,
@@ -508,20 +509,20 @@ CREATE TABLE challenge_hints (
 
 
 CREATE TABLE completed_challenges (
-    id INTEGER PRIMARY KEY DEFAULT nextval('completed_challenges_id_seq'),
+    id BIGINT PRIMARY KEY DEFAULT nextval('completed_challenges_id_seq'),
     user_id BIGINT NOT NULL,
     challenge_template_id BIGINT NOT NULL,
     attempts BIGINT NOT NULL DEFAULT 1,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP NULL,
-    flag_id INTEGER REFERENCES challenge_flags(id) ON DELETE SET NULL,
+    flag_id BIGINT REFERENCES challenge_flags(id) ON DELETE SET NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (challenge_template_id) REFERENCES challenge_templates(id) ON DELETE CASCADE
 );
 
 
 CREATE TABLE badges (
-    id INTEGER PRIMARY KEY DEFAULT nextval('badges_id_seq'),
+    id BIGINT PRIMARY KEY DEFAULT nextval('badges_id_seq'),
     name TEXT NOT NULL,
     description TEXT,
     icon TEXT,
@@ -542,7 +543,7 @@ CREATE TABLE user_badges (
 
 
 CREATE TABLE announcements (
-    id INTEGER PRIMARY KEY DEFAULT nextval('announcements_id_seq'),
+    id BIGINT PRIMARY KEY DEFAULT nextval('announcements_id_seq'),
     title TEXT NOT NULL,
     content TEXT NOT NULL,
     short_description TEXT,
@@ -555,7 +556,7 @@ CREATE TABLE announcements (
 
 
 CREATE TABLE disk_files (
-    id INTEGER PRIMARY KEY DEFAULT nextval('disk_files_id_seq'),
+    id BIGINT PRIMARY KEY DEFAULT nextval('disk_files_id_seq'),
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     display_name TEXT NOT NULL,
     proxmox_filename TEXT NOT NULL,
@@ -566,9 +567,9 @@ CREATE TABLE disk_files (
 
 CREATE TABLE machines
 (
-    id INTEGER NOT NULL PRIMARY KEY DEFAULT allocate_machine_id(),
-    machine_template_id INTEGER NOT NULL REFERENCES machine_templates(id) ON DELETE CASCADE,
-    challenge_id INTEGER NOT NULL REFERENCES challenges(id) ON DELETE CASCADE
+    id BIGINT NOT NULL PRIMARY KEY DEFAULT allocate_machine_id(),
+    machine_template_id BIGINT NOT NULL REFERENCES machine_templates(id) ON DELETE CASCADE,
+    challenge_id BIGINT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE
 );
 
 
@@ -580,8 +581,9 @@ EXECUTE FUNCTION reclaim_machine_id();
 
 CREATE TABLE networks
 (
-    id INTEGER NOT NULL PRIMARY KEY DEFAULT allocate_network_id(),
-    network_template_id INTEGER NOT NULL REFERENCES network_templates(id) ON DELETE CASCADE,
+    id BIGINT NOT NULL PRIMARY KEY DEFAULT allocate_network_id(),
+    network_template_id BIGINT NOT NULL REFERENCES network_templates(id) ON DELETE CASCADE,
+    challenge_id BIGINT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
     subnet INET NOT NULL,
     host_device TEXT NOT NULL
 );
@@ -595,8 +597,8 @@ EXECUTE FUNCTION reclaim_network_id();
 
 CREATE TABLE network_connections
 (
-    machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
-    network_id INTEGER NOT NULL REFERENCES networks(id) ON DELETE CASCADE,
+    machine_id BIGINT NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+    network_id BIGINT NOT NULL REFERENCES networks(id) ON DELETE CASCADE,
     client_mac MACADDR NOT NULL,
     client_ip  INET    NOT NULL,
     PRIMARY KEY (machine_id, network_id)
@@ -605,7 +607,7 @@ CREATE TABLE network_connections
 
 CREATE TABLE domains
 (
-    machine_id  INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+    machine_id  BIGINT NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
     domain_name TEXT NOT NULL,
     PRIMARY KEY (machine_id, domain_name)
 );

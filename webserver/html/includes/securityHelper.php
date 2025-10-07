@@ -216,7 +216,7 @@ class SecurityHelper implements ISecurityHelper
         return $ipMatch && $agentMatch;
     }
 
-    public function validateAdminAccess(PDO $db): bool
+    public function validateAdminAccess(PDO $pdo): bool
     {
         try {
             if (!$this->validateSession()) {
@@ -224,7 +224,7 @@ class SecurityHelper implements ISecurityHelper
             }
 
             $userId = $this->session['user_id'] ?? 0;
-            $isAdmin = $this->checkAdminStatus($db, $userId);
+            $isAdmin = $this->checkAdminStatus($pdo, $userId);
 
             if (!$isAdmin) {
                 $this->logger->logError("Admin check failed - user ID {$userId} not found in database");
@@ -246,9 +246,9 @@ class SecurityHelper implements ISecurityHelper
         }
     }
 
-    private function checkAdminStatus(PDO $db, int $userId): bool
+    private function checkAdminStatus(PDO $pdo, int $userId): bool
     {
-        $stmt = $db->prepare("SELECT is_admin FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT is_user_admin(:user_id) AS is_admin");
         if (!$stmt->execute([$userId])) {
             throw new CustomException('Database query failed');
         }

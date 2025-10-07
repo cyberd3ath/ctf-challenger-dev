@@ -312,7 +312,7 @@ class CTFManagementHandler
             $errors['fields'][] = 'edit-name';
         } else {
             $stmt = $this->pdo->prepare("
-                SELECT get_challenge_template_id_by_name_with_possible_exclude(:name, :user_id, :exclude_id)::BIGINT AS exists
+                SELECT get_challenge_template_id_by_name_with_possible_exclude(:name, :user_id, :exclude_id) AS exists
             ");
 
             $stmt->execute([

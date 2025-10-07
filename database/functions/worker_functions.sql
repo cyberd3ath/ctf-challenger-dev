@@ -11,11 +11,11 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        u.id AS user_id,
-        u.username,
-        c.id AS challenge_id,
-        c.challenge_template_id,
-        c.expires_at
+        u.id::BIGINT AS user_id,
+        u.username::TEXT AS username,
+        c.id::BIGINT AS challenge_id,
+        c.challenge_template_id::BIGINT AS challenge_template_id,
+        c.expires_at::TIMESTAMP AS expires_at
     FROM users u
     JOIN challenges c ON u.running_challenge = c.id
     WHERE c.expires_at <= CURRENT_TIMESTAMP;

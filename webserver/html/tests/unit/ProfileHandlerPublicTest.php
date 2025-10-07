@@ -297,7 +297,7 @@ class ProfileHandlerPublicTest extends TestCase
         $this->server['REQUEST_METHOD'] = $method;
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('Invalid request');
+        $this->expectExceptionMessage('Invalid CSRF token');
         $this->expectExceptionCode(403);
 
         new ProfileHandlerPublic(
@@ -365,7 +365,7 @@ class ProfileHandlerPublicTest extends TestCase
 
         $stmtUserIdFetch = $this->createMock(PDOStatement::class);
         $stmtUserIdFetch->method('execute')->willReturn(true);
-        $stmtUserIdFetch->method('fetch')->willReturn(['id' => 1]);
+        $stmtUserIdFetch->method('fetchColumn')->willReturn(1);
 
         $stmtBasicProfileFetch = $this->createMock(PDOStatement::class);
         $stmtBasicProfileFetch->method('execute')->willReturn(true);
@@ -409,7 +409,7 @@ class ProfileHandlerPublicTest extends TestCase
 
         $stmtUserIdFetch = $this->createMock(PDOStatement::class);
         $stmtUserIdFetch->method('execute')->willReturn(true);
-        $stmtUserIdFetch->method('fetch')->willReturn(['id' => 1]);
+        $stmtUserIdFetch->method('fetchColumn')->willReturn(1);
 
         $stmtBasicProfileFetch = $this->createMock(PDOStatement::class);
         $stmtBasicProfileFetch->method('execute')->willReturn(true);
@@ -453,7 +453,7 @@ class ProfileHandlerPublicTest extends TestCase
 
         $stmtUserIdFetch = $this->createMock(PDOStatement::class);
         $stmtUserIdFetch->method('execute')->willReturn(true);
-        $stmtUserIdFetch->method('fetch')->willReturn(['id' => 1]);
+        $stmtUserIdFetch->method('fetchColumn')->willReturn(1);
 
         $stmtBasicProfileFetch = $this->createMock(PDOStatement::class);
         $stmtBasicProfileFetch->method('execute')->willReturn(true);
@@ -515,7 +515,7 @@ class ProfileHandlerPublicTest extends TestCase
 
         $stmtUserIdFetch = $this->createMock(PDOStatement::class);
         $stmtUserIdFetch->method('execute')->willReturn(true);
-        $stmtUserIdFetch->method('fetch')->willReturn(['id' => 1]);
+        $stmtUserIdFetch->method('fetchColumn')->willReturn(1);
 
         $stmtBasicProfileFetch = $this->createMock(PDOStatement::class);
         $stmtBasicProfileFetch->method('execute')->willReturn(true);
@@ -578,7 +578,7 @@ class ProfileHandlerPublicTest extends TestCase
 
         $stmtUserIdFetch = $this->createMock(PDOStatement::class);
         $stmtUserIdFetch->method('execute')->willReturn(true);
-        $stmtUserIdFetch->method('fetch')->willReturn(['id' => 1]);
+        $stmtUserIdFetch->method('fetchColumn')->willReturn(1);
 
         $stmtBasicProfileFetch = $this->createMock(PDOStatement::class);
         $stmtBasicProfileFetch->method('execute')->willReturn(true);
@@ -681,7 +681,7 @@ class ProfileHandlerPublicTest extends TestCase
 
         $stmtUserIdFetch = $this->createMock(PDOStatement::class);
         $stmtUserIdFetch->method('execute')->willReturn(true);
-        $stmtUserIdFetch->method('fetch')->willReturn(['id' => 1]);
+        $stmtUserIdFetch->method('fetchColumn')->willReturn(1);
 
         $stmtBasicProfileFetch = $this->createMock(PDOStatement::class);
         $stmtBasicProfileFetch->method('execute')->willReturn(true);
@@ -832,7 +832,7 @@ class ProfileHandlerPublicTest extends TestCase
         $this->get['username'] = 'nonexistentuser';
         $this->get['user_id'] = 9999;
 
-        $this->expectException(Exception::class);
+        $this->expectException(CustomException::class);
         $this->expectExceptionMessage('Profile not found');
         $this->expectExceptionCode(404);
 

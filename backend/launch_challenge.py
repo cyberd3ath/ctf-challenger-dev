@@ -245,9 +245,9 @@ def create_networks_and_connections(challenge_template, challenge, user_id, db_c
 
         with db_conn.cursor() as cursor:
             cursor.execute("""
-            INSERT INTO networks (network_template_id, subnet, host_device)
-            VALUES (%s, %s, %s)
-            RETURNING id""", (network_template.id, network_subnet, network_host_device))
+            INSERT INTO networks (network_template_id, subnet, host_device, challenge_id)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id""", (network_template.id, network_subnet, network_host_device, challenge.id))
 
             network_id = cursor.fetchone()[0]
             network = Network(

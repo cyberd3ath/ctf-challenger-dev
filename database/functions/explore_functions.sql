@@ -3,8 +3,8 @@ CREATE FUNCTION explore_challenges(
     p_difficulty challenge_difficulty,
     p_search TEXT,
     p_order_by TEXT,
-    p_offset BIGINT,
-    p_limit BIGINT
+    p_limit BIGINT,
+    p_offset BIGINT
 )
 RETURNS TABLE (
     id BIGINT,
@@ -54,16 +54,16 @@ BEGIN
         GROUP BY challenge_template_id
     )
     SELECT
-        ct.id,
-        ct.name,
-        ct.description,
-        ct.category,
-        ct.difficulty,
-        ct.created_at,
-        ct.image_path,
-        ct.is_active,
-        COALESCE(s.unique_solvers, 0) AS solved_count,
-        COALESCE(a.unique_attempts, 0) AS attempted_count
+        ct.id::BIGINT,
+        ct.name::TEXT,
+        ct.description::TEXT,
+        ct.category::challenge_category,
+        ct.difficulty::challenge_difficulty,
+        ct.created_at::TIMESTAMP,
+        ct.image_path::TEXT,
+        ct.is_active::BOOLEAN,
+        COALESCE(s.unique_solvers, 0)::BIGINT AS solved_count,
+        COALESCE(a.unique_attempts, 0)::BIGINT AS attempted_count
     FROM challenge_templates ct
     LEFT JOIN solve_counts s ON ct.id = s.challenge_template_id
     LEFT JOIN attempt_counts a ON ct.id = a.challenge_template_id
@@ -105,14 +105,14 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN (
-        SELECT COUNT(*)
+        SELECT COUNT(*)::BIGINT
         FROM explore_challenges(
             p_category,
             p_difficulty,
             p_search,
             NULL,
-            0,
-            NULL
+            NULL,
+            0
         )
     );
 END;
@@ -126,33 +126,39 @@ CREATE FUNCTION get_user_solved_challenge(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_solved BOOLEAN;
 BEGIN
-    RETURN (
-        WITH challenge_total_points AS (
-            SELECT
-                challenge_template_id,
-                SUM(points) AS total_points
-            FROM challenge_flags
-            GROUP BY challenge_template_id
-        ),
-        user_completed_points AS (
-            SELECT
-                cc.user_id,
-                cc.challenge_template_id,
-                SUM(cf.points) AS user_points
-            FROM completed_challenges cc
-            JOIN challenge_flags cf ON cc.flag_id = cf.id
-            WHERE cc.user_id = p_user_id
-            GROUP BY cc.user_id, cc.challenge_template_id
-        )
+    WITH challenge_total_points AS (
         SELECT
-            COALESCE(ucp.user_points, 0) >= COALESCE(ctp.total_points, 0) AS solved
-        FROM challenge_templates ct
-        LEFT JOIN challenge_total_points ctp ON ctp.challenge_template_id = ct.id
-        LEFT JOIN user_completed_points ucp
-            ON ucp.challenge_template_id = ct.id AND ucp.user_id = p_user_id
-        WHERE ct.id = p_challenge_template_id
-    );
+            challenge_template_id,
+            SUM(points) AS total_points
+        FROM challenge_flags
+        GROUP BY challenge_template_id
+    ),
+    user_completed_points AS (
+        SELECT
+            cc.user_id,
+            cc.challenge_template_id,
+            SUM(cf.points) AS user_points
+        FROM completed_challenges cc
+        JOIN challenge_flags cf ON cc.flag_id = cf.id
+        WHERE cc.user_id = p_user_id
+        GROUP BY cc.user_id, cc.challenge_template_id
+    )
+    SELECT
+        COALESCE(ucp.user_points, 0) >= COALESCE(ctp.total_points, 0) INTO v_solved
+    FROM challenge_templates ct
+    LEFT JOIN challenge_total_points ctp ON ctp.challenge_template_id = ct.id
+    LEFT JOIN user_completed_points ucp
+        ON ucp.challenge_template_id = ct.id AND ucp.user_id = p_user_id
+    WHERE ct.id = p_challenge_template_id;
+
+    IF v_solved IS NULL THEN
+        RETURN FALSE;
+    ELSE
+        RETURN v_solved::BOOLEAN;
+    END IF;
 END;
 $$;
 

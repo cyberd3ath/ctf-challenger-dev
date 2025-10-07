@@ -225,7 +225,7 @@ class ExploreHandler
             'image' => htmlspecialchars($challenge['image_path'] ?? '../assets/images/ctf-default.png', ENT_QUOTES, 'UTF-8'),
             'created_at' => $challenge['created_at'],
             'is_active' => $challenge['is_active'],
-            'solved' => $solvedStatus === null ? null : (bool)$solvedStatus
+            'solved' => $solvedStatus
         ];
     }
 
@@ -233,19 +233,15 @@ class ExploreHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT get_user_solved_challenge(:user_id, :challenge_template_id)::BIGINT AS solved
+                SELECT get_user_solved_challenge(:user_id, :challenge_template_id) AS solved
             ");
             $stmt->execute([
                 ':user_id' => $this->userId,
                 ':challenge_template_id' => $challengeId
             ]);
-            $data = $stmt->fetch(PDO::FETCH_ASSOC);
+            $data = $stmt->fetchColumn();
 
-            if (!$data) {
-                return null;
-            }
-
-            return $data['solved'] === 1;
+            return $data;
         } catch (PDOException $e) {
             $this->logger->logError("Database error in getUserChallengeData for user $this->userId and challenge $challengeId: " . $e->getMessage());
             return null;

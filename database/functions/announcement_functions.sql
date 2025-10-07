@@ -3,7 +3,7 @@ RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN (SELECT COUNT(*) FROM announcements);
+    RETURN (SELECT COUNT(*) FROM announcements)::BIGINT;
 END;
 $$;
 
@@ -27,7 +27,17 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT * FROM announcements
+    SELECT
+        a.id::BIGINT,
+        a.title::TEXT,
+        a.content::TEXT,
+        a.short_description::TEXT,
+        a.importance::announcement_importance,
+        a.category::announcement_category,
+        a.author::TEXT,
+        a.created_at::TIMESTAMP,
+        a.updated_at::TIMESTAMP
+    FROM announcements a
     ORDER BY created_at DESC
     LIMIT p_limit OFFSET p_offset;
 END;
@@ -45,6 +55,8 @@ CREATE FUNCTION create_announcement(
 RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    new_id BIGINT;
 BEGIN
     INSERT INTO announcements (
         title,
@@ -64,7 +76,8 @@ BEGIN
         p_author,
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP
-    ) RETURNING id;
+    ) RETURNING id INTO new_id;
+    RETURN new_id::BIGINT;
 END;
 $$;
 
@@ -149,10 +162,20 @@ BEGIN
     END IF;
 
     RETURN QUERY
-    SELECT * FROM announcements a
+    SELECT
+        a.id::BIGINT,
+        a.title::TEXT,
+        a.content::TEXT,
+        a.short_description::TEXT,
+        a.importance::announcement_importance,
+        a.category::announcement_category,
+        a.author::TEXT,
+        a.created_at::TIMESTAMP,
+        a.updated_at::TIMESTAMP
+    FROM announcements a
     WHERE (p_importance IS NULL OR a.importance = p_importance)
       AND (v_start_date IS NULL OR a.created_at >= v_start_date)
-    ORDER BY a.created_at DESC, a.id ASC
+    ORDER BY a.created_at DESC, a.id
     LIMIT p_limit OFFSET p_offset;
 END;
 $$;
@@ -166,11 +189,13 @@ RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN COUNT(*) FROM get_filtered_announcements(
-        p_importance,
-        p_date_range,
-        NULL,
-        NULL
-    );
+    RETURN (
+        SELECT COUNT(*) FROM get_filtered_announcements(
+            p_importance,
+            p_date_range,
+            NULL,
+            NULL
+        )
+    )::BIGINT;
 END;
 $$;

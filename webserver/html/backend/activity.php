@@ -125,9 +125,6 @@ class ActivitiesHandler
             $this->sendResponse($activities, $total);
         } catch (PDOException $e) {
             $this->logger->logError("Database error in activities route: " . $e->getMessage());
-
-            fwrite(STDERR, "Database error: " . $e->getMessage());
-
             throw new CustomException('Database error occurred', 500);
         }
     }

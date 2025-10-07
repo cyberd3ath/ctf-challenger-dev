@@ -16,14 +16,14 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        b.id,
-        b.name,
-        b.description,
-        b.icon,
-        b.rarity,
-        b.requirements,
-        ub.earned_at,
-        CASE WHEN ub.user_id IS NULL THEN false ELSE true END as earned
+        b.id::BIGINT,
+        b.name::TEXT,
+        b.description::TEXT,
+        b.icon::TEXT,
+        b.rarity::badge_rarity,
+        b.requirements::TEXT,
+        ub.earned_at::TIMESTAMP,
+        CASE WHEN ub.user_id IS NULL THEN false::BOOLEAN ELSE true::BOOLEAN END as earned
     FROM badges b
     LEFT JOIN user_badges ub ON ub.badge_id = b.id AND ub.user_id = p_user_id
     ORDER BY b.rarity DESC, b.name, b.id;
@@ -66,7 +66,7 @@ BEGIN
         SELECT COUNT(*)
         FROM user_solved_challenges
         WHERE user_id = p_user_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -109,7 +109,7 @@ BEGIN
         SELECT COUNT(*)
         FROM user_solved_challenges
         WHERE user_id = p_user_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -126,7 +126,7 @@ BEGIN
         FROM completed_challenges cc
         JOIN challenge_flags cf ON cf.id = cc.flag_id
         WHERE cc.user_id = p_user_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -145,7 +145,7 @@ BEGIN
         JOIN badges b ON b.id = ub.badge_id
         WHERE ub.user_id = p_user_id
         AND b.id != p_exclude_badge_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -157,7 +157,7 @@ RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN (SELECT COUNT(*) FROM badges WHERE id != p_exclude_badge_id);
+    RETURN (SELECT COUNT(*) FROM badges WHERE id != p_exclude_badge_id)::BIGINT;
 END;
 $$;
 
@@ -174,8 +174,8 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        (SELECT COUNT(*) FROM badges) AS total_badges,
-        (SELECT COUNT(*) FROM user_badges WHERE user_id = p_user_id) AS earned_badges;
+        (SELECT COUNT(*) FROM badges)::BIGINT AS total_badges,
+        (SELECT COUNT(*) FROM user_badges WHERE user_id = p_user_id)::BIGINT AS earned_badges;
 END;
 $$;
 

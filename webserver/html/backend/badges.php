@@ -224,7 +224,7 @@ class BadgesHandler
         $total = $totalStmt->fetchColumn();
 
         $earnedStmt = $this->pdo->prepare("
-            get_user_earned_badges_count_exclude_one(:user_id, :badge_id)
+            SELECT get_user_earned_badges_count_exclude_one(:user_id, :badge_id) AS count
         ");
         $earnedStmt->execute(['user_id' => $this->userId, 'badge_id' => $badgeId]);
         $earned = $earnedStmt->fetchColumn();

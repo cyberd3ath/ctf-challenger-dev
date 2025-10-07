@@ -112,8 +112,8 @@ class OvaUploadHandlerTest extends TestCase
     {
         $this->securityHelper->method('initSecureSession')->willThrowException(new Exception());
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Session initialization error');
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Internal Server Error');
         $this->expectExceptionCode(500);
 
         new OvaUploadHandler(
@@ -139,7 +139,7 @@ class OvaUploadHandlerTest extends TestCase
     {
         $this->securityHelper->method('validateSession')->willReturn(false);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(CustomException::class);
         $this->expectExceptionMessage('Unauthorized - Please login');
         $this->expectExceptionCode(401);
 
@@ -167,8 +167,8 @@ class OvaUploadHandlerTest extends TestCase
         $this->securityHelper->method('validateSession')->willReturn(true);
         $this->securityHelper->method('validateCsrfToken')->willReturn(false);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Invalid request token');
+        $this->expectException(CustomException::class);
+        $this->expectExceptionMessage('Invalid CSRF token');
         $this->expectExceptionCode(403);
 
         new OvaUploadHandler(
@@ -196,7 +196,7 @@ class OvaUploadHandlerTest extends TestCase
         $this->securityHelper->method('validateCsrfToken')->willReturn(true);
         $this->securityHelper->method('validateAdminAccess')->willReturn(false);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(CustomException::class);
         $this->expectExceptionMessage('Unauthorized - Admin access required');
         $this->expectExceptionCode(403);
 
@@ -317,7 +317,7 @@ class OvaUploadHandlerTest extends TestCase
         $this->system = $this->createMock(ISystem::class);
         $this->system->method('file_get_contents')->willReturn($malformedJson);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(CustomException::class);
         $this->expectExceptionMessage('Invalid JSON data');
         $this->expectExceptionCode(400);
 
@@ -1631,14 +1631,7 @@ class OvaUploadHandlerTest extends TestCase
 
         $fetchStmt = $this->createMock(PDOStatement::class);
         $fetchStmt->method('execute')->willReturn(true);
-        $fetchStmt->method('fetch')->willReturn([
-            'id' => $ova_id,
-            'proxmox_filename' => $proxmox_filename,
-            'display_name' => $display_name,
-            'status' => 'completed',
-            'uploaded_at' => '2023-10-01 12:00:00',
-            'user_id' => $this->userId
-        ]);
+        $fetchStmt->method('fetchColumn')->willReturn($proxmox_filename);
 
         $deleteStmt = $this->createMock(PDOStatement::class);
         $deleteStmt->method('execute')->willThrowException(new PDOException());
@@ -1703,7 +1696,7 @@ class OvaUploadHandlerTest extends TestCase
 
         $stmt = $this->createMock(PDOStatement::class);
         $stmt->method('execute')->willReturn(true);
-        $stmt->method('fetch')->willThrowException(new PDOException());
+        $stmt->method('fetchColumn')->willThrowException(new PDOException());
         $pdo = $this->createMock(PDO::class);
         $pdo->method('prepare')->willReturn($stmt);
         $this->databaseHelper = $this->createMock(DatabaseHelper::class);

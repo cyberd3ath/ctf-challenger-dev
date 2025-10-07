@@ -8,7 +8,7 @@ BEGIN
         SELECT creator_id
         FROM challenge_templates
         WHERE id = p_challenge_template_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -25,7 +25,7 @@ BEGIN
         JOIN challenge_flags cf ON cc.flag_id = cf.id
         WHERE cc.challenge_template_id = p_challenge_template_id
         AND cf.points > 0
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -42,7 +42,7 @@ BEGIN
         WHERE name = p_name
         AND (p_exclude_challenge_template_id IS NULL OR id != p_exclude_challenge_template_id)
         LIMIT 1
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -58,7 +58,9 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT id, marked_for_deletion
+    SELECT
+        id::BIGINT AS id,
+        marked_for_deletion::BOOLEAN AS marked_for_deletion
     FROM challenge_templates
     WHERE id = p_challenge_template_id AND creator_id = p_user_id;
 END;
@@ -75,7 +77,7 @@ BEGIN
         SELECT marked_for_deletion
         FROM challenge_templates
         WHERE id = p_challenge_template_id
-    );
+    )::BOOLEAN;
 END;
 $$;
 
@@ -132,7 +134,10 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT id, name FROM challenge_templates
+    SELECT
+        id::BIGINT AS id,
+        name::TEXT AS name
+    FROM challenge_templates
     WHERE id = p_challenge_template_id AND creator_id = p_user_id;
 END;
 $$;
@@ -154,7 +159,6 @@ $$;
 CREATE FUNCTION get_running_instances_of_challenge_template(
     p_challenge_template_id BIGINT
 ) RETURNS TABLE (
-    id BIGINT,
     user_id BIGINT,
     challenge_id BIGINT
 )
@@ -162,7 +166,9 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT u.id AS user_id, c.id AS challenge_id
+    SELECT
+        u.id::BIGINT AS user_id,
+        c.id::BIGINT AS challenge_id
     FROM users u
     JOIN challenges c ON u.running_challenge = c.id
     WHERE c.challenge_template_id = p_challenge_template_id;
@@ -182,7 +188,7 @@ BEGIN
         JOIN users u ON u.running_challenge = c.id
         WHERE c.challenge_template_id = p_challenge_template_id
         AND u.running_challenge IS NOT NULL
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -309,21 +315,21 @@ BEGIN
         GROUP BY challenge_template_id
     )
     SELECT
-        ct.id,
-        ct.name,
-        ct.description,
-        ct.category,
-        ct.difficulty,
-        ct.image_path,
-        ct.is_active,
-        ct.created_at,
-        ct.marked_for_deletion,
-        COALESCE(rd.total_count, 0) AS total_deployments,
-        ct.hint,
-        ct.solution,
-        COALESCE(ad.active_count, 0) AS active_deployments,
-        COALESCE(ss.solve_count, 0) AS solve_count,
-        COALESCE(ss.avg_completion_minutes, 0) AS avg_completion_minutes
+        ct.id::BIGINT AS id,
+        ct.name::TEXT AS name,
+        ct.description::TEXT AS description,
+        ct.category::challenge_category AS category,
+        ct.difficulty::challenge_difficulty AS difficulty,
+        ct.image_path::TEXT AS image_path,
+        ct.is_active::BOOLEAN AS is_active,
+        ct.created_at::TIMESTAMP AS created_at,
+        ct.marked_for_deletion::BOOLEAN AS marked_for_deletion,
+        COALESCE(rd.total_count, 0)::BIGINT AS total_deployments,
+        ct.hint::TEXT AS hint,
+        ct.solution::TEXT AS solution,
+        COALESCE(ad.active_count, 0)::BIGINT AS active_deployments,
+        COALESCE(ss.solve_count, 0)::BIGINT AS solve_count,
+        COALESCE(ss.avg_completion_minutes, 0)::BIGINT AS avg_completion_minutes
     FROM challenge_templates ct
     LEFT JOIN solved_stats ss ON ss.challenge_template_id = ct.id
     LEFT JOIN active_deployments ad ON ad.challenge_template_id = ct.id
@@ -343,7 +349,7 @@ BEGIN
     RETURN (
         SELECT COUNT(*) FROM challenge_templates
         WHERE creator_id = p_user_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -360,7 +366,7 @@ BEGIN
         JOIN users u ON u.running_challenge = c.id
         JOIN challenge_templates ct ON c.challenge_template_id = ct.id
         WHERE ct.creator_id = p_user_id AND u.running_challenge IS NOT NULL
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -381,7 +387,7 @@ BEGIN
         ) rd
         JOIN challenge_templates ct ON rd.challenge_template_id = ct.id
         WHERE ct.creator_id = p_user_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -440,7 +446,7 @@ BEGIN
             FROM avg_times
             JOIN challenge_templates ct ON avg_times.challenge_template_id = ct.id
             WHERE ct.creator_id = p_user_id
-    );
+    )::BIGINT;
 END;
 $$;
 

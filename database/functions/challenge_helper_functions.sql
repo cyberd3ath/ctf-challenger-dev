@@ -11,9 +11,9 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        COUNT(DISTINCT cf.id) AS total_flags,
-        COUNT(DISTINCT cc.flag_id) AS flags_completed,
-        (COUNT(DISTINCT cc.flag_id) >= COUNT(DISTINCT cf.id)) AS is_solved
+        COUNT(DISTINCT cf.id)::BIGINT AS total_flags,
+        COUNT(DISTINCT cc.flag_id)::BIGINT AS flags_completed,
+        (COUNT(DISTINCT cc.flag_id) >= COUNT(DISTINCT cf.id))::BOOLEAN AS is_solved
     FROM challenge_flags cf
     LEFT JOIN completed_challenges cc ON
         cf.id = cc.flag_id AND
@@ -131,11 +131,15 @@ BEGIN
     ),
     ranked AS (
         SELECT u.username, u.avatar_url, s.total_seconds,
-               ROW_NUMBER() OVER (ORDER BY s.total_seconds ASC) AS rank
+               ROW_NUMBER() OVER (ORDER BY s.total_seconds) AS rank
         FROM summed s
         JOIN users u ON u.id = s.user_id
     )
-    SELECT username, avatar_url, total_seconds, rank
+    SELECT
+        username::TEXT,
+        avatar_url::TEXT,
+        total_seconds::BIGINT,
+        rank::BIGINT
     FROM ranked
     ORDER BY rank
     LIMIT 10;
@@ -218,12 +222,17 @@ BEGIN
         SELECT u.username, u.avatar_url,
                up.total_points,
                st.total_seconds,
-               ROW_NUMBER() OVER (ORDER BY up.total_points DESC, st.total_seconds ASC) AS rank
+               ROW_NUMBER() OVER (ORDER BY up.total_points DESC, st.total_seconds) AS rank
         FROM user_points up
         JOIN summed_time st ON up.user_id = st.user_id
         JOIN users u ON u.id = up.user_id
     )
-    SELECT username, avatar_url, total_points, total_seconds, rank
+    SELECT
+        username::TEXT,
+        avatar_url::TEXT,
+        total_points::BIGINT,
+        total_seconds::BIGINT,
+        rank::BIGINT
     FROM ranked
     ORDER BY rank
     LIMIT p_limit OFFSET p_offset;

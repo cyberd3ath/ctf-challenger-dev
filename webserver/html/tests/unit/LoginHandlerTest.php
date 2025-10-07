@@ -125,7 +125,7 @@ class LoginHandlerTest extends TestCase
         $jsonOutput = json_decode($output, true);
 
         $this->assertFalse($jsonOutput['success']);
-        $this->assertStringContainsString("Invalid request token", $jsonOutput['message']);
+        $this->assertStringContainsString("Invalid CSRF token", $jsonOutput['message']);
     }
 
     public function testEmptyUsernameOnPostRequestReturnsError(): void
@@ -227,7 +227,7 @@ class LoginHandlerTest extends TestCase
         $jsonOutput = json_decode($output, true);
 
         $this->assertFalse($jsonOutput['success']);
-        $this->assertStringContainsString("A database error occurred", $jsonOutput['message']);
+        $this->assertStringContainsString("Database error occurred", $jsonOutput['message']);
         $this->assertNull($this->session['user_id']);
         $this->assertNull($this->session['authenticated']);
     }

@@ -376,7 +376,7 @@ class ChallengeHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT challenge_template_should_be_deleted(:template_id)::BIGINT AS should_delete
+                SELECT challenge_template_should_be_deleted(:template_id) AS should_delete
             ");
             $stmt->execute(['template_id' => $challengeId]);
             $shouldDelete = $stmt->fetchColumn();
@@ -506,7 +506,7 @@ class ChallengeHandler
     private function checkDuplicateSubmission(int $challengeId, int $flagId): void
     {
         $stmt = $this->pdo->prepare("
-            SELECT is_duplicate_flag_submission(:user_id, :challenge_id, :flag_id)::BIGINT AS is_duplicate
+            SELECT is_duplicate_flag_submission(:user_id, :challenge_id, :flag_id) AS is_duplicate
         ");
         $stmt->execute([
             'user_id' => $this->userId,
@@ -904,7 +904,7 @@ class ChallengeHandler
     private function isFirstBlood(int $challengeId): bool
     {
         $stmt = $this->pdo->prepare("
-            SELECT is_first_blood(:challenge_id, :user_id)::BIGINT AS is_first_blood
+            SELECT is_first_blood(:challenge_id, :user_id) AS is_first_blood
         ");
         $stmt->execute([
             'challenge_id' => $challengeId,
@@ -955,7 +955,7 @@ class ChallengeHandler
 
     private function grantBadge(int $badgeId): bool
     {
-        $stmt = $this->pdo->prepare("SELECT badge_with_id_exists(:badge_id)::BIGINT AS exists");
+        $stmt = $this->pdo->prepare("SELECT badge_with_id_exists(:badge_id) AS exists");
         $stmt->execute(['badge_id' => $badgeId]);
         if ($stmt->fetchColumn() == 0) {
             $this->logger->logWarning("Attempt to grant non-existent badge - Badge ID: $badgeId, User ID: $this->userId");
@@ -963,7 +963,7 @@ class ChallengeHandler
         }
 
         $stmt = $this->pdo->prepare("
-            SELECT user_already_has_badge(:user_id, :badge_id)::BIGINT AS has_badge
+            SELECT user_already_has_badge(:user_id, :badge_id) AS has_badge
             
         ");
         $stmt->execute(['user_id' => $this->userId, 'badge_id' => $badgeId]);

@@ -29,9 +29,9 @@ BEGIN
         )
     )
     SELECT
-        u.username,
-        (SELECT total FROM user_points) AS total_points,
-        (SELECT COUNT(*) FROM solved_challenges) AS solved_count,
+        u.username::TEXT AS username,
+        (SELECT total FROM user_points)::BIGINT AS total_points,
+        (SELECT COUNT(*) FROM solved_challenges)::BIGINT AS solved_count,
         (
             SELECT COUNT(*) + 1
             FROM (
@@ -43,7 +43,7 @@ BEGIN
                 HAVING COALESCE(SUM(cf2.points), 0) > (SELECT total FROM user_points)
                 OR (COALESCE(SUM(cf2.points), 0) = (SELECT total FROM user_points) AND u2.id < p_user_id)
             ) ranked_users
-        ) AS user_rank
+        )::BIGINT AS user_rank
     FROM users u
     WHERE u.id = p_user_id;
 END;
@@ -82,16 +82,16 @@ BEGIN
         AND challenge_template_id NOT IN (SELECT challenge_template_id FROM solved_challenges)
     )
     SELECT
-        (SELECT COUNT(*) FROM solved_challenges) AS solved_count,
-        (SELECT count FROM failed_attempts) AS failed_count,
-        COUNT(DISTINCT challenge_template_id) AS total_attempts,
+        (SELECT COUNT(*) FROM solved_challenges)::BIGINT AS solved_count,
+        (SELECT count FROM failed_attempts)::BIGINT AS failed_count,
+        COUNT(DISTINCT challenge_template_id)::BIGINT AS total_attempts,
         AVG(
             CASE
                 WHEN completed_at > started_at
                 THEN EXTRACT(EPOCH FROM (completed_at - started_at))
                 ELSE NULL
             END
-        ) AS avg_time_seconds
+        )::BIGINT AS avg_time_seconds
     FROM completed_challenges
     WHERE user_id = p_user_id;
 END;
@@ -105,7 +105,7 @@ AS $$
 BEGIN
     RETURN (
         SELECT COUNT(*) AS total_challenges FROM challenge_templates WHERE is_active = true
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -168,21 +168,21 @@ BEGIN
         GROUP BY cc.challenge_template_id
     )
     SELECT
-        ct.id AS challenge_id,
-        ct.name AS challenge_name,
-        ct.category,
-        sc.total_points AS solved_points,
-        ca.earned_points AS current_points,
-        sc.completed_at IS NOT NULL AS solved,
-        ca.attempts,
-        ca.started_at,
-        ca.completed_at,
-        CASE
+        ct.id::BIGINT AS challenge_id,
+        ct.name::TEXT AS challenge_name,
+        ct.category::challenge_category AS category,
+        sc.total_points::BIGINT AS solved_points,
+        ca.earned_points::BIGINT AS current_points,
+        (sc.completed_at IS NOT NULL)::BOOLEAN AS solved,
+        ca.attempts::BIGINT AS attempts,
+        ca.started_at::TIMESTAMP AS started_at,
+        ca.completed_at::TIMESTAMP AS completed_at,
+        (CASE
             WHEN sc.completed_at IS NOT NULL THEN 'solved'
             WHEN ca.has_completed_attempt THEN 'failed'
             ELSE 'active'
-        END AS status,
-        CASE
+        END)::TEXT AS status,
+        (CASE
             WHEN sc.completed_at IS NOT NULL THEN
                 CASE
                     WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - sc.completed_at)) / 3600 < 24 THEN
@@ -204,7 +204,7 @@ BEGIN
                     ELSE
                         'Started ' || EXTRACT(DAY FROM (CURRENT_TIMESTAMP - ca.started_at)) || ' days ago'
                 END
-        END AS time_ago
+        END)::TEXT AS time_ago
     FROM challenge_templates ct
     JOIN challenge_attempts ca ON ca.challenge_template_id = ct.id
     LEFT JOIN solved_challenges sc ON sc.challenge_template_id = ct.id
@@ -231,7 +231,12 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT b.id, b.name, b.description, b.icon, b.color
+    SELECT
+        b.id::BIGINT,
+        b.name::TEXT,
+        b.description::TEXT,
+        b.icon::TEXT,
+        b.color::badge_color
     FROM user_badges ub
     JOIN badges b ON b.id = ub.badge_id
     WHERE ub.user_id = p_user_id;
@@ -271,9 +276,9 @@ BEGIN
         WHERE ctf.total_flags = ucf.completed_flags
     )
     SELECT
-        COUNT(*) AS solved_count,
-        (SELECT COUNT(*) FROM badges) AS total_badges,
-        (SELECT COUNT(*) FROM user_badges WHERE user_id = p_user_id) AS earned_badges
+        COUNT(*)::BIGINT AS solved_count,
+        (SELECT COUNT(*) FROM badges)::BIGINT AS total_badges,
+        (SELECT COUNT(*) FROM user_badges WHERE user_id = p_user_id)::BIGINT AS earned_badges
     FROM user_solved_challenges;
 END;
 $$;
@@ -327,13 +332,13 @@ BEGIN
         GROUP BY challenge_template_id
     )
     SELECT
-        ct.id,
-        ct.name,
-        ct.category,
-        (SELECT SUM(points) FROM challenge_flags WHERE challenge_template_id = ct.id) AS points,
-        ct.difficulty,
-        COALESCE(gsc.solved_count, 0) AS solved_count,
-        COALESCE(ac.attempted_count, 0) AS attempted_count
+        ct.id::BIGINT AS id,
+        ct.name::TEXT AS name,
+        ct.category::challenge_category AS category,
+        (SELECT SUM(points) FROM challenge_flags WHERE challenge_template_id = ct.id)::BIGINT AS points,
+        ct.difficulty::challenge_difficulty AS difficulty,
+        COALESCE(gsc.solved_count, 0)::BIGINT AS solved_count,
+        COALESCE(ac.attempted_count, 0)::BIGINT AS attempted_count
     FROM challenge_templates ct
     LEFT JOIN global_solved_counts gsc ON gsc.challenge_template_id = ct.id
     LEFT JOIN attempted_counts ac ON ac.challenge_template_id = ct.id
@@ -413,10 +418,10 @@ BEGIN
         ORDER BY ds.date
     )
     SELECT
-        date_group,
-        points_sum,
-        challenge_count,
-        challenge_details
+        date_group::TEXT,
+        points_sum::BIGINT,
+        challenge_count::BIGINT,
+        challenge_details::TEXT
     FROM daily_points;
 END;
 $$;
@@ -437,13 +442,13 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id,
-        title,
-        short_description,
-        importance,
-        category,
-        author,
-        TO_CHAR(created_at, 'YYYY-MM-DD') AS created_at
+        id::BIGINT AS id,
+        title::TEXT AS title,
+        short_description::TEXT AS short_description,
+        importance::announcement_importance AS importance,
+        category::announcement_category AS category,
+        author::TEXT AS author,
+        TO_CHAR(created_at, 'YYYY-MM-DD')::TEXT AS created_at
     FROM announcements
     ORDER BY created_at DESC
     LIMIT 3;
@@ -462,7 +467,7 @@ BEGIN
         FROM completed_challenges
         WHERE id = p_challenge_id
         LIMIT 1
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -485,13 +490,13 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        ct.id,
-        ct.name,
-        ct.category,
-        ct.difficulty,
-        (SELECT SUM(points) FROM challenge_flags WHERE challenge_template_id = ct.id) AS points,
-        cc.started_at AS current_attempt_started_at,
-        cc.id AS completed_challenge_id
+        ct.id::BIGINT AS id,
+        ct.name::TEXT AS name,
+        ct.category::challenge_category AS category,
+        ct.difficulty::challenge_difficulty AS difficulty,
+        (SELECT SUM(points) FROM challenge_flags WHERE challenge_template_id = ct.id)::BIGINT AS points,
+        cc.started_at::TIMESTAMP AS current_attempt_started_at,
+        cc.id::BIGINT AS completed_challenge_id
     FROM challenge_templates ct
     LEFT JOIN completed_challenges cc
         ON cc.user_id = p_user_id

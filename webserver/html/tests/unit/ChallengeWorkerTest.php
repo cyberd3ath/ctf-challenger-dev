@@ -150,7 +150,7 @@ class ChallengeWorkerTest extends TestCase
 
         // Insert related data
         $this->pdo->exec("INSERT INTO machine_templates (id, challenge_template_id, name, disk_file_path, ram_gb, cores) VALUES (1, 1, 'Machine 1', '/path/to/disk.vmdk', 1, 1);");
-        $this->pdo->exec("INSERT INTO network_templates (id, name, accessible) VALUES (1, 'net1', TRUE);");
+        $this->pdo->exec("INSERT INTO network_templates (id, name, accessible, challenge_template_id) VALUES (1, 'net1', TRUE, 1);");
         $this->pdo->exec("INSERT INTO network_connection_templates (machine_template_id, network_template_id) VALUES (1, 1);");
         $this->pdo->exec("INSERT INTO domain_templates (machine_template_id, domain_name) VALUES (1, 'example.com');");
         $this->pdo->exec("INSERT INTO challenge_flags (id, challenge_template_id, flag, points) VALUES (1, 1, 'FLAG{test}', 100);");
@@ -228,7 +228,7 @@ class ChallengeWorkerTest extends TestCase
 
         // Insert related data
         $this->pdo->exec("INSERT INTO machine_templates (id, challenge_template_id, name, disk_file_path, ram_gb, cores) VALUES (1, 1, 'Machine 1', '/path/to/disk.vmdk', 1, 1);");
-        $this->pdo->exec("INSERT INTO network_templates (id, name, accessible) VALUES (1, 'net1', TRUE);");
+        $this->pdo->exec("INSERT INTO network_templates (id, name, accessible, challenge_template_id) VALUES (1, 'net1', TRUE, 1);");
         $this->pdo->exec("INSERT INTO network_connection_templates (machine_template_id, network_template_id) VALUES (1, 1);");
         $this->pdo->exec("INSERT INTO domain_templates (machine_template_id, domain_name) VALUES (1, 'example.com');");
         $this->pdo->exec("INSERT INTO challenge_flags (id, challenge_template_id, flag, points) VALUES (1, 1, 'FLAG{test}', 100);");

@@ -41,8 +41,8 @@ class ProfileStatusHandlerTest extends TestCase
         $securityHelper = $this->createMock(ISecurityHelper::class);
         $securityHelper->method('initSecureSession')->will($this->throwException(new Exception('Session init failed')));
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Session initialization error');
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Internal Server Error');
         $this->expectExceptionCode(500);
 
         new ProfileStatusHandler(
@@ -57,7 +57,7 @@ class ProfileStatusHandlerTest extends TestCase
     public function testInvalidRequestMethodThrowsException(): void {
         $this->server['REQUEST_METHOD'] = 'POST';
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(CustomException::class);
         $this->expectExceptionMessage('Method not allowed');
         $this->expectExceptionCode(405);
 

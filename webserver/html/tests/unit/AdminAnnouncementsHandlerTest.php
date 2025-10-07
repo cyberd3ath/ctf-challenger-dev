@@ -156,20 +156,12 @@ class AdminAnnouncementsHandlerTest extends TestCase
 
         $this->get['action'] = 'list';
 
-        $stmtUser = $this->createMock(PDOStatement::class);
-        $stmtUser->method('execute')->willReturn(true);
-        $stmtUser->method('fetch')->willReturn(['id' => 1, 'username' => 'admin', 'is_admin' => true]);
-
-        $stmtIsAdmin = $this->createMock(PDOStatement::class);
-        $stmtIsAdmin->method('execute')->willReturn(true);
-        $stmtIsAdmin->method('fetchColumn')->willReturn(true);
-
         $stmtList = $this->createMock(PDOStatement::class);
         $stmtList->method('execute')->willReturn(true);
-        $stmtList->method('fetchAll')->willThrowException(new PDOException("Simulated database error"));
+        $stmtList->method('fetchColumn')->willThrowException(new PDOException("Simulated database error"));
 
         $pdo = $this->createMock(PDO::class);
-        $pdo->method('prepare')->willReturnOnConsecutiveCalls($stmtUser, $stmtIsAdmin, $stmtList);
+        $pdo->method('prepare')->willReturnOnConsecutiveCalls( $stmtList);
         $this->databaseHelper = $this->createMock(IDatabaseHelper::class);
         $this->databaseHelper->method('getPDO')->willReturn($pdo);
 
@@ -603,35 +595,6 @@ class AdminAnnouncementsHandlerTest extends TestCase
         $this->expectExceptionCode(400);
 
         $handler->handleRequest();
-    }
-
-    public function testNonExistentUserThrowsException(): void
-    {
-        $this->requireMockDB();
-
-        $this->securityHelper = $this->createMock(ISecurityHelper::class);
-        $this->securityHelper->method('validateSession')->willReturn(true);
-        $this->securityHelper->method('validateCsrfToken')->willReturn(true);
-        $this->securityHelper->method('validateAdminAccess')->willReturn(true);
-
-        $this->session['user_id'] = 9999; // Non-existent user ID
-        $this->session['username'] = 'nonexistent';
-
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage('User not found');
-        $this->expectExceptionCode(404);
-
-        new AdminAnnouncementsHandler(
-            $this->config,
-            $this->generalConfig,
-            $this->databaseHelper,
-            $this->securityHelper,
-            $this->logger,
-            $this->session,
-            $this->server,
-            $this->get,
-            $this->system
-        );
     }
 
     public function testCreateAnnouncement(): void

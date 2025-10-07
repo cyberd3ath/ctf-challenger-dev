@@ -11,10 +11,10 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id,
-        display_name,
-        upload_date
-    FROM disk_files
+        d.id::BIGINT,
+        d.display_name::TEXT,
+        d.upload_date::TIMESTAMP
+    FROM disk_files d
     WHERE user_id = p_user_id
     ORDER BY upload_date DESC, id ASC;
 END;
@@ -33,7 +33,7 @@ BEGIN
         SELECT 1 FROM disk_files
         WHERE user_id = p_user_id
         AND display_name = p_display_name
-    );
+    )::BOOLEAN;
 END;
 $$;
 
@@ -52,7 +52,7 @@ END;
 $$;
 
 
-CREATE FUNCTION get_filename_by_ids(
+CREATE FUNCTION get_filename_by_id(
     p_ova_id BIGINT,
     p_user_id BIGINT
 ) RETURNS TEXT
@@ -62,7 +62,7 @@ BEGIN
     RETURN (
         SELECT proxmox_filename FROM disk_files
         WHERE id = p_ova_id AND user_id = p_user_id
-    );
+    )::TEXT;
 END;
 $$;
 

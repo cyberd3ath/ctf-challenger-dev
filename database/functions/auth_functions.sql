@@ -43,7 +43,9 @@ BEGIN
     UPDATE users u SET vpn_static_ip = v_vpn_ip WHERE u.id = v_user_id;
 
     RETURN QUERY
-    SELECT v_user_id AS id, v_vpn_ip AS vpn_static_ip;
+    SELECT
+        v_user_id::BIGINT AS id,
+        v_vpn_ip::INET AS vpn_static_ip;
 END;
 $$;
 
@@ -66,7 +68,7 @@ RETURNS TEXT
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN (SELECT password_salt FROM users WHERE username = p_username);
+    RETURN (SELECT password_salt FROM users WHERE username = p_username)::TEXT;
 END;
 $$;
 
@@ -81,7 +83,7 @@ AS $$
 DECLARE
     v_user_id BIGINT;
 BEGIN
-    SELECT id INTO v_user_id
+    SELECT id::BIGINT INTO v_user_id
     FROM users
     WHERE username = p_username AND password_hash = p_password_hash;
     RETURN v_user_id;
@@ -106,5 +108,15 @@ BEGIN
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Old password does not match';
     END IF;
+END;
+$$;
+
+
+CREATE FUNCTION is_user_admin(p_user_id BIGINT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN ( SELECT is_admin FROM users WHERE id = p_user_id );
 END;
 $$;

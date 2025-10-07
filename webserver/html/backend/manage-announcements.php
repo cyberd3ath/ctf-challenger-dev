@@ -352,7 +352,7 @@ class AdminAnnouncementsHandler
      */
     private function verifyAnnouncementExists(int $id): void
     {
-        $stmt = $this->pdo->prepare("SELECT announcement_exists(:id)::BIGINT AS exists");
+        $stmt = $this->pdo->prepare("SELECT announcement_exists(:id) AS exists");
         $stmt->execute(['id' => $id]);
         if ($stmt->fetchColumn() == 0) {
             $this->logger->logError("Announcement not found for update - ID: $id, User: $this->username");

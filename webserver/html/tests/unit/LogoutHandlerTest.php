@@ -38,7 +38,6 @@ class LogoutHandlerTest extends TestCase
     public function testInvalidSessionThrowsException(): void
     {
         $this->securityHelper->method('validateSession')->willReturn(false);
-        $this->logger->method('anonymizeIp')->willReturn('anonymized-ip');
         $this->server['REMOTE_ADDR'] = '10.0.0.10';
 
         $this->expectException(Exception::class);
@@ -98,6 +97,6 @@ class LogoutHandlerTest extends TestCase
         $json = json_decode($output, true);
 
         $this->assertFalse($json['success']);
-        $this->assertEquals('Invalid security token', $json['message']);
+        $this->assertEquals('Invalid CSRF token', $json['message']);
     }
 }

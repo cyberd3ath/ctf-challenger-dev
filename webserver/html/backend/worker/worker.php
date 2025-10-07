@@ -139,7 +139,7 @@ class ChallengeWorker
     private function shouldDeleteChallengeTemplate($challengeTemplateId): bool
     {
         $stmt = $this->pdo->prepare("
-            SELECT challenge_template_should_be_deleted(:template_id)::BIGINT AS remaining_instances
+            SELECT challenge_template_should_be_deleted(:template_id) AS remaining_instances
         ");
         $stmt->execute(['template_id' => $challengeTemplateId]);
         return $stmt->fetchColumn() == 1;

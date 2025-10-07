@@ -588,13 +588,15 @@ class CtfCreationHandler
                 SELECT create_network_template(
                     :name,
                     :accessible,
-                    :is_dmz
+                    :is_dmz,
+                    :challenge_id
                 ) AS id
             ");
 
             $stmt->bindValue(':name', $subnetName, PDO::PARAM_STR);
             $stmt->bindValue(':accessible', (bool)($subnet['accessible'] ?? false), PDO::PARAM_BOOL);
             $stmt->bindValue(':is_dmz', (bool)($subnet['dmz'] ?? false), PDO::PARAM_BOOL);
+            $stmt->bindValue(':challenge_id', $challengeId, PDO::PARAM_INT);
 
             $stmt->execute();
             $networkId = $stmt->fetchColumn();

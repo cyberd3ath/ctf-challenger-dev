@@ -8,7 +8,7 @@ BEGIN
     RETURN (
         SELECT COUNT(*) FROM challenge_templates
         WHERE LOWER(name) = LOWER(p_name) AND creator_id = p_user_id
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -50,7 +50,7 @@ BEGIN
         p_hint,
         p_solution
      ) RETURNING id INTO new_challenge_id;
-    RETURN new_challenge_id;
+    RETURN new_challenge_id::BIGINT;
 END;
 $$;
 
@@ -66,7 +66,7 @@ BEGIN
         SELECT proxmox_filename FROM disk_files
         WHERE display_name = p_filename AND user_id = p_user_id
         LIMIT 1
-    );
+    )::TEXT;
 END;
 $$;
 
@@ -96,7 +96,7 @@ BEGIN
         p_cores,
         p_ram_gb
     ) RETURNING id INTO new_machine_id;
-    RETURN new_machine_id;
+    RETURN new_machine_id::BIGINT;
 END;
 $$;
 
@@ -122,7 +122,8 @@ $$;
 CREATE FUNCTION create_network_template(
     p_name TEXT,
     p_accessible BOOLEAN,
-    p_is_dmz BOOLEAN
+    p_is_dmz BOOLEAN,
+    p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
@@ -132,13 +133,15 @@ BEGIN
     INSERT INTO network_templates (
         name,
         accessible,
-        is_dmz
+        is_dmz,
+        challenge_template_id
     ) VALUES (
         p_name,
         p_accessible,
-        p_is_dmz
+        p_is_dmz,
+        p_challenge_template_id
     ) RETURNING id INTO new_network_id;
-    RETURN new_network_id;
+    RETURN new_network_id::BIGINT;
 END;
 $$;
 
@@ -154,7 +157,7 @@ BEGIN
         SELECT id FROM machine_templates
         WHERE name = p_name AND challenge_template_id = p_challenge_template_id
         LIMIT 1
-    );
+    )::BIGINT;
 END;
 $$;
 
@@ -186,6 +189,8 @@ CREATE FUNCTION create_challenge_flag(
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    new_flag_id BIGINT;
 BEGIN
     INSERT INTO challenge_flags (
         challenge_template_id,
@@ -199,7 +204,8 @@ BEGIN
         p_description,
         p_points,
         p_order_index
-    ) RETURNING id;
+    ) RETURNING id INTO new_flag_id;
+    RETURN new_flag_id::BIGINT;
 END;
 $$;
 
@@ -212,6 +218,8 @@ CREATE FUNCTION create_challenge_hint(
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    new_hint_id BIGINT;
 BEGIN
     INSERT INTO challenge_hints (
         challenge_template_id,
@@ -223,7 +231,8 @@ BEGIN
         p_hint_text,
         p_unlock_points,
         p_order_index
-    ) RETURNING id;
+    ) RETURNING id INTO new_hint_id;
+    RETURN new_hint_id::BIGINT;
 END;
 $$;
 
@@ -240,12 +249,12 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        id,
-        display_name AS name,
-        upload_date AS date
+        id::BIGINT,
+        display_name::TEXT AS name,
+        upload_date::TIMESTAMP AS date
     FROM disk_files
     WHERE user_id = p_user_id
-    ORDER BY upload_date DESC, id ASC;
+    ORDER BY upload_date DESC, id;
 END;
 $$;
 

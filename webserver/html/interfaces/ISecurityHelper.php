@@ -11,5 +11,5 @@ interface ISecurityHelper
     public function generateCsrfToken(): string;
     public function validateCsrfToken(string $token): bool;
     public function validateSession(): bool;
-    public function validateAdminAccess(PDO $db): bool;
+    public function validateAdminAccess(PDO $pdo): bool;
 }

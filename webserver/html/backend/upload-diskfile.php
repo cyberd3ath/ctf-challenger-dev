@@ -522,8 +522,8 @@ class OvaUploadHandler
             throw new CustomException('Missing file ID', 400);
         }
 
-        $ova = $this->getOvaForDeletion($ovaId);
-        $this->deleteFromProxmox($ova['proxmox_filename']);
+        $proxmox_filename = $this->getOvaForDeletion($ovaId);
+        $this->deleteFromProxmox($proxmox_filename);
         $this->deleteFromDatabase($ovaId);
 
         $this->logger->logDebug("Successfully deleted OVA $ovaId for user $this->userId");
@@ -553,7 +553,7 @@ class OvaUploadHandler
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT is_duplicate_file_name(:user_id, :display_name)::BIGINT AS count
+                SELECT is_duplicate_file_name(:user_id, :display_name) AS count
             ");
             $stmt->execute([
                 'user_id' => $this->userId,
@@ -700,25 +700,26 @@ class OvaUploadHandler
         }
     }
 
-    private function getOvaForDeletion(string $ovaId): array
+    private function getOvaForDeletion(string $ovaId): string
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT get_filename_by_ids(:ova_id, :user_id) AS proxmox_filename
+                SELECT get_filename_by_id(:ova_id, :user_id) AS proxmox_filename
             ");
             $stmt->execute(['ova_id' => $ovaId, 'user_id' => $this->userId]);
-            $ova = $stmt->fetch();
+            $proxmox_filename = $stmt->fetchColumn();
+
+            if (!$proxmox_filename) {
+                $this->logger->logError("Delete attempt for non-existent OVA $ovaId by user $this->userId");
+                throw new CustomException('File not found', 404);
+            }
+
+            return $proxmox_filename;
+
         } catch (PDOException $e) {
             $this->logger->logError("Database error fetching OVA $ovaId for deletion: " . $e->getMessage());
             throw new CustomException('Could not retrieve file information', 500);
         }
-
-        if (!$ova) {
-            $this->logger->logError("Delete attempt for non-existent OVA $ovaId by user $this->userId");
-            throw new CustomException('File not found', 404);
-        }
-
-        return $ova;
     }
 
     private function deleteFromProxmox(string $proxmoxFilename): void
