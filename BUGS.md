@@ -2,11 +2,11 @@
 
 ## External, No Privileges
 - :check: !! HIGH, TODO !! No Brute-Force protection on login (CAPTCHA)
-- :check: !! HIGH, TODO !! Rework CSRF protection to use http-only cookies to prevent furter rework XSS attacks from stealing CSRF tokens
+- :check: (HIGH, FIXED) Rework CSRF protection to use http-only cookies to prevent furter rework XSS attacks from stealing CSRF tokens
 - :check: (MODERATE, FIXED) Webserver directory structure and filenames were leaked through 403 errors and 301 redirects when scanning without trailing slash.
 - :check: (LOW, FIXED) Leaking Apache and PHP version numbers through HTTP headers. (fixed)
 - :check: !! HIGH, TODO !! No rate limiting on signup (CAPTCHA)
-- .check: !! MODERATE, TODO !! Remove detailed error messages to the user to prevent information leakage
+- .check: (MODERATE, FIXED) Remove detailed error messages to the user to prevent information leakage
 - :check: (MODERATE, FIXED) Missing locks in VPN config generation during signup leads to easy-rsa error which causes dangling database entries without created VPN config
 - :check: (MODERATE, FIXED) Too many concurrent launches or stops of challenges lead to `ifreload` before finished network device setup, resulting in missing network devices
 - :check: (LOW, FIXED) `SERIAL` IDs in `challenges` table and its use during MAC-Address generation could lead to duplicate MAC-Addresses due to overflow
