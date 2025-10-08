@@ -3,6 +3,7 @@ CREATE FUNCTION get_user_running_challenge(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN ( SELECT running_challenge FROM users WHERE id = p_user_id )::BIGINT;
@@ -18,6 +19,7 @@ RETURNS TABLE (
     is_active BOOLEAN
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -35,6 +37,7 @@ CREATE FUNCTION get_creator_id_by_challenge_template(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -50,6 +53,7 @@ CREATE FUNCTION create_new_challenge_attempt(
     p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO completed_challenges (
@@ -70,6 +74,7 @@ CREATE FUNCTION mark_attempt_completed(
     p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE completed_challenges
@@ -86,6 +91,7 @@ CREATE FUNCTION challenge_template_should_be_deleted(
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     v_count BIGINT;
@@ -108,6 +114,7 @@ CREATE FUNCTION delete_challenge_template(
     p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     DELETE FROM challenge_templates
@@ -124,6 +131,7 @@ CREATE FUNCTION validate_and_lock_flag(
     points BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -144,6 +152,7 @@ CREATE FUNCTION is_duplicate_flag_submission(
     p_flag_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN EXISTS (
@@ -162,6 +171,7 @@ CREATE FUNCTION get_user_submitted_flags_count_for_challenge(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -179,6 +189,7 @@ CREATE FUNCTION get_total_flags_count_for_challenge(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -194,6 +205,7 @@ CREATE FUNCTION get_active_attempt_id(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -212,6 +224,7 @@ CREATE FUNCTION update_running_attempt(
     p_attempt_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE completed_challenges
@@ -229,6 +242,7 @@ CREATE FUNCTION create_new_completed_attempt(
     p_flag_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO completed_challenges (
@@ -253,6 +267,7 @@ CREATE FUNCTION get_recent_unflagged_attempt(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -274,6 +289,7 @@ CREATE FUNCTION update_recent_attempt(
     p_attempt_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE completed_challenges
@@ -303,6 +319,7 @@ RETURNS TABLE (
     solve_count BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -351,6 +368,7 @@ CREATE FUNCTION get_challenge_user_status(
 )
 RETURNS TEXT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -408,6 +426,7 @@ CREATE FUNCTION get_challenge_solution(
     p_challenge_template_id BIGINT
 ) RETURNS TEXT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -425,6 +444,7 @@ CREATE FUNCTION get_remaining_seconds_for_user_challenge(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -450,6 +470,7 @@ RETURNS TABLE (
     order_index BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -462,7 +483,7 @@ BEGIN
         cf.order_index::BIGINT AS order_index
     FROM challenge_flags cf
     WHERE cf.challenge_template_id = p_challenge_template_id
-    ORDER BY order_index, id;
+    ORDER BY cf.order_index, cf.id;
 END;
 $$;
 
@@ -479,6 +500,7 @@ RETURNS TABLE (
     order_index BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -491,7 +513,7 @@ BEGIN
     FROM challenge_hints ch
     WHERE ch.challenge_template_id = p_challenge_template_id
     AND ch.unlock_points <= p_user_points
-    ORDER BY ch.order_index, id;
+    ORDER BY ch.order_index, ch.id;
 END;
 $$;
 
@@ -503,6 +525,7 @@ CREATE FUNCTION get_completed_flag_ids_for_user(
     flag_id BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -520,6 +543,7 @@ CREATE FUNCTION get_entrypoints_for_user_challenge(
     subnet INET
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -540,6 +564,7 @@ CREATE FUNCTION is_first_blood(
     p_user_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -567,6 +592,7 @@ CREATE FUNCTION get_remaining_extensions_for_user_challenge(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -584,6 +610,7 @@ CREATE FUNCTION get_category_of_challenge_instance(
     p_challenge_id BIGINT
 ) RETURNS challenge_category
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -599,6 +626,7 @@ CREATE FUNCTION get_user_solved_challenges_in_category(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -626,6 +654,7 @@ CREATE FUNCTION count_user_badges_excluding_one(
     p_excluded_badge_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -641,6 +670,7 @@ CREATE FUNCTION badge_with_id_exists(
     p_badge_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -655,6 +685,7 @@ CREATE FUNCTION user_already_has_badge(
     p_badge_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -669,6 +700,7 @@ CREATE FUNCTION award_badge_to_user(
     p_badge_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO user_badges (user_id, badge_id, earned_at)
@@ -686,6 +718,7 @@ CREATE FUNCTION get_id_and_used_extensions_of_running_challenge(
     used_extensions BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -706,6 +739,7 @@ CREATE FUNCTION extend_user_challenge_time(
     p_extend_scalar BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE challenges

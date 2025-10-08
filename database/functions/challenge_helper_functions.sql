@@ -7,6 +7,7 @@ CREATE FUNCTION get_solve_progress_data(
     is_solved BOOLEAN
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -29,6 +30,7 @@ CREATE FUNCTION get_elapsed_seconds_for_challenge(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -84,6 +86,7 @@ CREATE FUNCTION get_solved_leaderboard(
     rank BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -141,7 +144,7 @@ BEGIN
         r.total_seconds::BIGINT,
         r.rank::BIGINT
     FROM ranked r
-    ORDER BY rank
+    ORDER BY r.rank
     LIMIT 10;
 END;
 $$;
@@ -158,6 +161,7 @@ CREATE FUNCTION get_challenge_leaderboard(
     rank BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -234,7 +238,7 @@ BEGIN
         r.total_seconds::BIGINT,
         r.rank::BIGINT
     FROM ranked r
-    ORDER BY rank
+    ORDER BY r.rank
     LIMIT p_limit OFFSET p_offset;
 END;
 $$;

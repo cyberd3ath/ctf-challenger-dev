@@ -7,6 +7,7 @@ RETURNS TABLE (
     expires_at TIMESTAMP
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY

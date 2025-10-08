@@ -25,6 +25,7 @@ RETURNS TABLE (
     flag_id BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     v_date_start TIMESTAMP;
@@ -161,7 +162,7 @@ BEGIN
         )
     ) AS co
     WHERE (v_date_start IS NULL OR co.activity_date >= v_date_start)
-    ORDER BY activity_date DESC, item_id
+    ORDER BY co.activity_date DESC, co.item_id
     LIMIT p_limit OFFSET p_offset;
 END;
 $$;
@@ -175,6 +176,7 @@ CREATE FUNCTION get_user_activities_total_count(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (

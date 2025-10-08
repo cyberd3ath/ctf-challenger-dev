@@ -12,6 +12,7 @@ RETURNS TABLE (
     earned BOOLEAN
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -36,6 +37,7 @@ CREATE FUNCTION get_user_solved_challenge_count(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -77,6 +79,7 @@ CREATE FUNCTION get_user_solved_challenge_count_in_category(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -119,6 +122,7 @@ CREATE FUNCTION get_user_total_points(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -137,6 +141,7 @@ CREATE FUNCTION get_user_earned_badges_count_exclude_one(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -155,6 +160,7 @@ CREATE FUNCTION get_total_badge_count_exclude_one(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (SELECT COUNT(*) FROM badges WHERE id != p_exclude_badge_id)::BIGINT;
@@ -170,6 +176,7 @@ RETURNS TABLE (
     earned_badges BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY

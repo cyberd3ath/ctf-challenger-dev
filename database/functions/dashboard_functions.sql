@@ -7,6 +7,7 @@ CREATE FUNCTION get_user_data_dashboard(
     user_rank BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -59,6 +60,7 @@ CREATE FUNCTION get_progress_data_dashboard(
     avg_time_seconds BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -101,6 +103,7 @@ $$;
 CREATE FUNCTION get_total_active_challenges_count_dashboard()
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -127,6 +130,7 @@ CREATE FUNCTION get_user_activity_dashboard(
     time_ago TEXT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -228,6 +232,7 @@ CREATE FUNCTION get_user_badges_data_dashboard(
     color badge_color
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -252,6 +257,7 @@ CREATE FUNCTION get_user_progress_data_dashboard(
     earned_badges BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -296,6 +302,7 @@ CREATE FUNCTION get_challenges_data_dashboard(
     attempted_count BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -372,6 +379,7 @@ CREATE FUNCTION get_timeline_data_dashboard(
     challenge_details TEXT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -438,6 +446,7 @@ RETURNS TABLE (
     created_at TEXT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -460,6 +469,7 @@ CREATE FUNCTION get_challenge_template_id_from_challenge_id(
     p_challenge_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -486,6 +496,7 @@ RETURNS TABLE (
     completed_challenge_id BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY

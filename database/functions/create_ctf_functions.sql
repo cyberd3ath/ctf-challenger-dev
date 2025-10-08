@@ -3,6 +3,7 @@ CREATE FUNCTION count_user_challenges_with_same_name(
     p_user_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -25,6 +26,7 @@ CREATE FUNCTION create_challenge_template(
     p_solution TEXT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_challenge_id BIGINT;
@@ -60,6 +62,7 @@ CREATE FUNCTION get_proxmox_filename_for_user_disk_file(
     p_filename TEXT
 ) RETURNS TEXT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -79,6 +82,7 @@ CREATE FUNCTION create_machine_template(
     p_ram_gb BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_machine_id BIGINT;
@@ -106,6 +110,7 @@ CREATE FUNCTION create_domain_template(
     p_domain_name TEXT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO domain_templates (
@@ -126,6 +131,7 @@ CREATE FUNCTION create_network_template(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_network_id BIGINT;
@@ -151,6 +157,7 @@ CREATE FUNCTION get_machine_template_id_by_name_and_challenge_id(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -167,6 +174,7 @@ CREATE FUNCTION create_network_connection_template(
     p_network_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO network_connection_templates (
@@ -188,6 +196,7 @@ CREATE FUNCTION create_challenge_flag(
     p_order_index BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_flag_id BIGINT;
@@ -217,6 +226,7 @@ CREATE FUNCTION create_challenge_hint(
     p_order_index BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_hint_id BIGINT;
@@ -245,6 +255,7 @@ CREATE FUNCTION get_user_available_disk_files(
     upload_date TIMESTAMP
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -254,7 +265,7 @@ BEGIN
         df.upload_date::TIMESTAMP AS date
     FROM disk_files df
     WHERE df.user_id = p_user_id
-    ORDER BY df.upload_date DESC, id;
+    ORDER BY df.upload_date DESC, df.id;
 END;
 $$;
 

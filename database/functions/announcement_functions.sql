@@ -1,6 +1,7 @@
 CREATE FUNCTION get_total_announcement_count()
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (SELECT COUNT(*) FROM announcements)::BIGINT;
@@ -24,6 +25,7 @@ RETURNS TABLE (
     updated_at TIMESTAMP
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -38,7 +40,7 @@ BEGIN
         a.created_at::TIMESTAMP,
         a.updated_at::TIMESTAMP
     FROM announcements a
-    ORDER BY created_at DESC
+    ORDER BY a.created_at DESC
     LIMIT p_limit OFFSET p_offset;
 END;
 $$;
@@ -54,6 +56,7 @@ CREATE FUNCTION create_announcement(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_id BIGINT;
@@ -92,6 +95,7 @@ CREATE FUNCTION update_announcement(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE announcements
@@ -110,6 +114,7 @@ $$;
 CREATE FUNCTION announcement_exists(p_id BIGINT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN EXISTS (SELECT 1 FROM announcements WHERE id = p_id);
@@ -120,6 +125,7 @@ $$;
 CREATE FUNCTION delete_announcement(p_id BIGINT)
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     DELETE FROM announcements WHERE id = p_id;
@@ -145,6 +151,7 @@ RETURNS TABLE (
     updated_at TIMESTAMP
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     v_start_date TIMESTAMP;
@@ -187,6 +194,7 @@ CREATE FUNCTION get_filtered_announcements_count(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (

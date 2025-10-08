@@ -159,6 +159,12 @@ class MockPostgresDB
         ");
     }
 
+    public function installLintingTools(): void
+    {
+        $this->postgresContainer->exec(['apt-get', 'update']);
+        $this->postgresContainer->exec(['apt-get','install', '-y', 'postgresql-15-plpgsql-check']);
+    }
+
     public function __destruct()
     {
         if (isset($this->postgresContainer)) {

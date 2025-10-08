@@ -2,6 +2,7 @@ CREATE FUNCTION get_creator_id_by_challenge_id(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -17,6 +18,7 @@ CREATE FUNCTION get_total_leaderboard_entries_for_author(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -35,6 +37,7 @@ CREATE FUNCTION get_challenge_template_id_by_name_with_possible_exclude(
     p_exclude_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -55,6 +58,7 @@ CREATE FUNCTION get_challenge_template_data_for_deletion(
     marked_for_deletion BOOLEAN
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -71,6 +75,7 @@ CREATE FUNCTION challenge_template_is_marked_for_deletion(
     p_challenge_template_id BIGINT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -93,6 +98,7 @@ CREATE FUNCTION update_challenge_template(
     p_is_active BOOLEAN
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE challenge_templates SET
@@ -113,6 +119,7 @@ CREATE FUNCTION restore_challenge_template(
     p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE challenge_templates SET
@@ -131,6 +138,7 @@ CREATE FUNCTION verify_challenge_template_ownership_for_deletion(
     name TEXT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -147,6 +155,7 @@ CREATE FUNCTION mark_challenge_template_for_deletion(
     p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE challenge_templates SET
@@ -163,6 +172,7 @@ CREATE FUNCTION get_running_instances_of_challenge_template(
     challenge_id BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -180,6 +190,7 @@ CREATE FUNCTION count_active_deployments_of_challenge_template(
     p_challenge_template_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -197,6 +208,7 @@ CREATE FUNCTION mark_challenge_template_for_soft_deletion(
     p_challenge_template_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE challenge_templates SET
@@ -227,6 +239,7 @@ CREATE FUNCTION get_challenge_templates_for_management(
     avg_completion_minutes BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -289,7 +302,7 @@ BEGIN
         FROM aggregated_times
         GROUP BY challenge_template_id
     ),
-    active_deployments AS (
+    active_deployments_table AS (
         SELECT
             c.challenge_template_id,
             COUNT(DISTINCT c.id) AS active_count
@@ -325,7 +338,7 @@ BEGIN
         COALESCE(ss.avg_completion_minutes, 0)::BIGINT AS avg_completion_minutes
     FROM challenge_templates ct
     LEFT JOIN solved_stats ss ON ss.challenge_template_id = ct.id
-    LEFT JOIN active_deployments ad ON ad.challenge_template_id = ct.id
+    LEFT JOIN active_deployments_table ad ON ad.challenge_template_id = ct.id
     LEFT JOIN real_deployments rd ON rd.challenge_template_id = ct.id
     WHERE ct.creator_id = p_user_id
     ORDER BY ct.created_at DESC;
@@ -337,6 +350,7 @@ CREATE FUNCTION get_challenge_template_count_for_user(
     p_user_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -351,6 +365,7 @@ CREATE FUNCTION get_active_deployments_of_challenge_templates_by_user(
     p_user_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -368,6 +383,7 @@ CREATE FUNCTION get_total_deployments_of_challenge_templates_by_user(
     p_user_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -389,6 +405,7 @@ CREATE FUNCTION get_average_completion_time_of_challenge_templates_by_user(
     p_user_id BIGINT
 ) RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (

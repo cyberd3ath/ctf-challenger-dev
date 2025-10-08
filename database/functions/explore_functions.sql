@@ -19,6 +19,7 @@ RETURNS TABLE (
     attempted_count BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -102,6 +103,7 @@ CREATE FUNCTION explore_challenges_count(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -125,6 +127,7 @@ CREATE FUNCTION get_user_solved_challenge(
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     v_solved BOOLEAN;

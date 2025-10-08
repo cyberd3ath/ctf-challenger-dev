@@ -7,6 +7,7 @@ RETURNS TABLE (
     upload_date TIMESTAMP
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -15,8 +16,8 @@ BEGIN
         d.display_name::TEXT,
         d.upload_date::TIMESTAMP
     FROM disk_files d
-    WHERE user_id = p_user_id
-    ORDER BY upload_date DESC, id ASC;
+    WHERE d.user_id = p_user_id
+    ORDER BY d.upload_date DESC, d.id;
 END;
 $$;
 
@@ -27,6 +28,7 @@ CREATE FUNCTION is_duplicate_file_name(
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN EXISTS (
@@ -44,6 +46,7 @@ CREATE FUNCTION add_user_disk_file(
     p_proxmox_filename TEXT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO disk_files (user_id, display_name, proxmox_filename)
@@ -57,6 +60,7 @@ CREATE FUNCTION get_filename_by_id(
     p_user_id BIGINT
 ) RETURNS TEXT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -72,6 +76,7 @@ CREATE FUNCTION delete_user_disk_file(
     p_user_id BIGINT
 ) RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     DELETE FROM disk_files

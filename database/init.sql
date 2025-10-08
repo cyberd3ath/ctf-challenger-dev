@@ -4,6 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE OR REPLACE FUNCTION generate_random_default_avatar()
 RETURNS TEXT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN '/assets/avatars/avatar' || (FLOOR(1 + RANDOM() * 3))::BIGINT::TEXT || '.png';
@@ -15,6 +16,7 @@ $$;
 CREATE OR REPLACE FUNCTION assign_lowest_vpn_ip(user_id_param BIGINT)
 RETURNS INET
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     selected_ip INET;
@@ -42,6 +44,7 @@ $$;
 CREATE OR REPLACE FUNCTION assign_challenge_subnet()
 RETURNS INET
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     selected_subnet INET;
@@ -78,6 +81,7 @@ CREATE TABLE user_id_reclaim (
 CREATE OR REPLACE FUNCTION allocate_user_id()
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_id BIGINT;
@@ -102,6 +106,7 @@ $$;
 CREATE OR REPLACE FUNCTION reclaim_user_id()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO user_id_reclaim (id) VALUES (OLD.id)
@@ -125,6 +130,7 @@ CREATE TABLE machine_id_reclaim (
 CREATE OR REPLACE FUNCTION allocate_machine_id()
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_id BIGINT;
@@ -148,6 +154,7 @@ $$;
 CREATE OR REPLACE FUNCTION reclaim_machine_id()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO machine_id_reclaim (id) VALUES (OLD.id)
@@ -171,6 +178,7 @@ CREATE TABLE machine_template_id_reclaim (
 CREATE OR REPLACE FUNCTION allocate_machine_template_id()
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_id BIGINT;
@@ -194,6 +202,7 @@ $$;
 CREATE OR REPLACE FUNCTION reclaim_machine_template_id()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO machine_template_id_reclaim (id) VALUES (OLD.id)
@@ -216,6 +225,7 @@ CREATE TABLE network_id_reclaim (
 CREATE OR REPLACE FUNCTION allocate_network_id()
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_id BIGINT;
@@ -239,6 +249,7 @@ $$;
 CREATE OR REPLACE FUNCTION reclaim_network_id()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO network_id_reclaim (id) VALUES (OLD.id)
@@ -261,6 +272,7 @@ CREATE TABLE challenge_id_reclaim (
 CREATE OR REPLACE FUNCTION allocate_challenge_id()
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     new_id BIGINT;
@@ -284,6 +296,7 @@ $$;
 CREATE OR REPLACE FUNCTION reclaim_challenge_id()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     INSERT INTO challenge_id_reclaim (id) VALUES (OLD.id)

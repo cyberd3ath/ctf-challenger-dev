@@ -1,6 +1,7 @@
 CREATE FUNCTION is_username_taken(p_username TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN EXISTS (SELECT 1 FROM users WHERE users.username = p_username);
@@ -11,6 +12,7 @@ $$;
 CREATE FUNCTION is_email_taken(p_email TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN EXISTS(SELECT 1 FROM users WHERE users.email = p_email);
@@ -29,6 +31,7 @@ RETURNS TABLE (
     vpn_static_ip INET
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     v_user_id BIGINT;
@@ -54,6 +57,7 @@ $$;
 CREATE FUNCTION update_last_login(p_user_id BIGINT)
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE users
@@ -66,6 +70,7 @@ $$;
 CREATE FUNCTION get_user_password_salt(p_username TEXT)
 RETURNS TEXT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (SELECT password_salt FROM users WHERE username = p_username)::TEXT;
@@ -79,6 +84,7 @@ CREATE FUNCTION authenticate_user(
 )
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 DECLARE
     v_user_id BIGINT;
@@ -99,6 +105,7 @@ CREATE FUNCTION change_user_password(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE users
@@ -115,6 +122,7 @@ $$;
 CREATE FUNCTION is_user_admin(p_user_id BIGINT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN ( SELECT is_admin FROM users WHERE id = p_user_id );

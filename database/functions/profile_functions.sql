@@ -14,6 +14,7 @@ RETURNS TABLE (
     total_points BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -64,6 +65,7 @@ $$;
 CREATE FUNCTION get_user_rank(p_user_id BIGINT, p_user_points BIGINT)
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -89,6 +91,7 @@ RETURNS TABLE (
     total_points BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -133,6 +136,7 @@ RETURNS TABLE (
     color badge_color
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -153,6 +157,7 @@ $$;
 CREATE FUNCTION get_total_badges_count()
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (SELECT COUNT(*) AS total FROM badges)::BIGINT;
@@ -174,6 +179,7 @@ RETURNS TABLE (
     time_ago TEXT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -253,6 +259,7 @@ CREATE FUNCTION is_username_taken_by_other_user(
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -268,6 +275,7 @@ CREATE FUNCTION update_username(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE users
@@ -283,6 +291,7 @@ CREATE FUNCTION is_email_taken_by_other_user(
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -298,6 +307,7 @@ CREATE FUNCTION update_email(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE users
@@ -310,6 +320,7 @@ $$;
 CREATE FUNCTION user_profile_exists(p_user_id BIGINT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (
@@ -325,6 +336,7 @@ CREATE FUNCTION update_full_name(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     IF user_profile_exists(p_user_id) THEN
@@ -345,6 +357,7 @@ CREATE FUNCTION update_bio(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     IF user_profile_exists(p_user_id) THEN
@@ -367,6 +380,7 @@ CREATE FUNCTION update_urls(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     IF user_profile_exists(p_user_id) THEN
@@ -386,6 +400,7 @@ $$;
 CREATE FUNCTION get_user_avatar(p_user_id BIGINT)
 RETURNS TEXT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (SELECT avatar_url FROM users WHERE id = p_user_id)::TEXT;
@@ -399,6 +414,7 @@ CREATE FUNCTION update_user_avatar(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     UPDATE users
@@ -413,6 +429,7 @@ RETURNS TABLE (
     category challenge_category
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -430,6 +447,7 @@ RETURNS TABLE (
     total BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -449,6 +467,7 @@ RETURNS TABLE (
     solved BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -481,6 +500,7 @@ RETURNS TABLE(
     proxmox_filename TEXT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -500,6 +520,7 @@ CREATE FUNCTION delete_user_disk_files(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     IF EXISTS (SELECT 1 FROM users WHERE id = p_user_id AND password_hash = p_hashed_password) THEN
@@ -515,6 +536,7 @@ $$;
 CREATE FUNCTION delete_user_data(p_user_id BIGINT, p_hashed_password TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     IF EXISTS (SELECT 1 FROM users WHERE id = p_user_id AND password_hash = p_hashed_password) THEN
@@ -537,6 +559,7 @@ RETURNS TABLE (
     is_admin BOOLEAN
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -552,6 +575,7 @@ $$;
 CREATE FUNCTION get_id_by_username(p_username TEXT)
 RETURNS BIGINT
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN (SELECT id FROM users WHERE username = p_username)::BIGINT;
@@ -573,6 +597,7 @@ RETURNS TABLE (
     total_points BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -624,6 +649,7 @@ RETURNS TABLE (
     total BIGINT
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
@@ -646,6 +672,7 @@ RETURNS TABLE (
     color badge_color
 )
 LANGUAGE plpgsql
+SET plpgsql.variable_conflict = 'use_column'
 AS $$
 BEGIN
     RETURN QUERY
