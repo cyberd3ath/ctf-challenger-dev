@@ -10,14 +10,14 @@ sys.path.append(BACKEND_DIR)
 
 from mock_db import MockDatabase
 from test_user_setup import test_user_setup
-from create_user_config import create_user_config
+from get_user_config import get_user_config
 from delete_user_config import delete_user_config
 from check import check
 
 
 def test_backend_user_config_handling():
     """
-    Test the create_user_config function.
+    Test the get_user_config function.
     """
 
     print("\nTesting user configuration handling")
@@ -27,7 +27,7 @@ def test_backend_user_config_handling():
 
         print(f"\tTesting user configuration creation")
         try:
-            create_user_config(user_id, db_conn)
+            get_user_config(user_id, db_conn)
 
             check(
                 os.path.exists(f"/etc/openvpn/ccd/{user_id}"),

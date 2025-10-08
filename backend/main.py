@@ -8,7 +8,7 @@ from launch_challenge import launch_challenge as launch_challenge_backend
 from stop_challenge import stop_challenge as stop_challenge_backend
 from import_machine_templates import import_machine_templates as import_machine_template_backend
 from delete_machine_templates import delete_machine_templates as delete_machine_template_backend
-from create_user_config import create_user_config as create_user_config_backend
+from get_user_config import get_user_config as get_user_config_backend
 from delete_user_config import delete_user_config as delete_user_config_backend
 
 load_dotenv()
@@ -183,8 +183,8 @@ def delete_machine_templates():
             db_pool.putconn(db_conn)
 
 
-@app.route('/create-user-config', methods=['POST'])
-def create_user_config():
+@app.route('/get-user-config', methods=['POST'])
+def get_user_config():
     try:
         db_conn = db_pool.getconn()
 
@@ -197,9 +197,9 @@ def create_user_config():
             return {"error": "Invalid input data", "success": False}, 500
 
         try:
-            user_config_path = create_user_config_backend(user_id, db_conn)
+            user_config_path = get_user_config_backend(user_id, db_conn)
         except Exception as e:
-            print("Error creating user config", e, flush=True)
+            print("Error in getting user config", e, flush=True)
             return {"error": str(e), "success": False}, 500
 
         return send_file(user_config_path, as_attachment=True)

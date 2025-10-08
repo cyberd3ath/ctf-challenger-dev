@@ -100,7 +100,6 @@ class RegistrationHandler
             $create_data = $this->createUserAccount();
             $userId = $create_data['user_id'];
             $vpnIp = $create_data['vpn_static_ip'];
-            $this->generateAndSaveVpnConfig($userId);
             $this->updateLastLogin($userId);
             $this->initializeUserSession($userId);
             $this->sendSuccessResponse($userId, $vpnIp);
@@ -223,113 +222,6 @@ class RegistrationHandler
             if ($this->pdo->inTransaction()) {
                 $this->pdo->commit();
             }
-        }
-    }
-
-    /**
-     * @throws Exception
-     */
-    private function generateAndSaveVpnConfig($userId): void
-    {
-        $configResponse = $this->generateVpnConfig($userId);
-
-        if (!$configResponse['success']) {
-            $this->logger->logError("VPN config generation failed for user $userId: " . $configResponse['message']);
-            throw new CustomException('VPN setup incomplete', 500);
-        }
-
-        $configSaved = $this->saveVpnConfig($userId, $configResponse['config_content']);
-        if (!$configSaved) {
-            $this->logger->logError("Failed to save VPN config file for user $userId");
-            throw new CustomException('VPN setup incomplete', 500);
-        }
-    }
-
-    private function generateVpnConfig($userId)
-    {
-        try {
-            $result = $this->curlHelper->makeBackendRequest(
-                '/create-user-config',
-                'POST',
-                $this->authHelper->getBackendHeaders(),
-                ['user_id' => $userId]
-            );
-
-            if (!$result['success']) {
-                $error = $result['error'] ?? 'HTTP ' . $result['http_code'];
-                $this->logger->logError("VPN config API failed: $error");
-                return [
-                    'success' => false,
-                    'message' => 'Backend request failed: ' . ($result['error'] ?? 'HTTP ' . $result['http_code'])
-                ];
-            }
-
-            $isFileDownload = false;
-            if (isset($result['headers']['content-type'])) {
-                $isFileDownload = str_contains($result['headers']['content-type'], 'application/octet-stream');
-            }
-
-            if ($isFileDownload) {
-                return [
-                    'success' => true,
-                    'config_content' => $result['response']
-                ];
-            }
-
-            $jsonResponse = json_decode($result['response'], true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                if (isset($jsonResponse['error'])) {
-                    $this->logger->logError("VPN config error: {$jsonResponse['error']}");
-                    return [
-                        'success' => false,
-                        'message' => $jsonResponse['error']
-                    ];
-                }
-                return $jsonResponse;
-            }
-
-            $this->logger->logError("Unexpected VPN config response format");
-            return [
-                'success' => false,
-                'message' => 'Unexpected response format'
-            ];
-        } catch (CustomException $e) {
-            $this->logger->logError("VPN config generation error for user $userId: " . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'Configuration service error'
-            ];
-        } catch (Exception $e) {
-            $this->logger->logError("Unexpected error during VPN config generation for user $userId: " . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'Internal Server Error'
-            ];
-        }
-    }
-
-    private function saveVpnConfig($userId, $configContent): bool
-    {
-        try {
-            $configDir = '/var/lib/ctf-challenger/vpn-configs/';
-            if (!$this->system->file_exists($configDir) && !$this->system->mkdir($configDir, 0755, true)) {
-                throw new CustomException('Error creating VPN config directory', 500);
-            }
-
-            $filename = $configDir . 'user_' . $userId . '.ovpn';
-            $bytesWritten = $this->system->file_put_contents($filename, $configContent);
-
-            if ($bytesWritten === false) {
-                throw new CustomException('Error creating VPN config file', 500);
-            }
-
-            return true;
-        } catch (CustomException $e) {
-            $this->logger->logError("Config save failed: " . $e->getMessage());
-            return false;
-        } catch (Exception $e) {
-            $this->logger->logError("Unexpected error saving VPN config for user $userId: " . $e->getMessage());
-            return false;
         }
     }
 

@@ -10,10 +10,15 @@ load_dotenv()
 LOCK_FILE = "/var/lock/easy_rsa.lock"
 
 
-def create_user_config(user_id, db_conn):
+def get_user_config(user_id, db_conn):
     """
     Create a user configuration for a challenge.
     """
+
+    client_config_dir = "/etc/openvpn/client-configs"
+    client_config_path = os.path.join(client_config_dir, f"{user_id}.ovpn")
+    if os.path.exists(client_config_path):
+        return client_config_path
 
     with db_conn.cursor() as cursor:
         cursor.execute("SELECT vpn_static_ip FROM users WHERE id = %s", (user_id,))
@@ -29,9 +34,6 @@ def create_user_config(user_id, db_conn):
 
         ccd_dir = "/etc/openvpn/ccd"
         ccd_file = os.path.join(ccd_dir, str(user_id))
-
-        client_config_dir = "/etc/openvpn/client-configs"
-        client_config_path = os.path.join(client_config_dir, f"{user_id}.ovpn")
 
         vpn_server_ip = os.getenv("VPN_SERVER_IP")
 

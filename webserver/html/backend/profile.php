@@ -1015,18 +1015,11 @@ class ProfileHandler
     private function handleVpnConfigDownload(): void
     {
         try {
-            $configDir = '/var/lib/ctf-challenger/vpn-configs/';
-            $configFile = $configDir . 'user_' . $this->userId . '.ovpn';
-
-            if (!$this->system->file_exists($configFile) || !$this->system->is_readable($configFile)) {
-                $this->logger->logError("VPN config not found or inaccessible - User ID: $this->userId, Path: $configFile");
-                throw new CustomException('VPN configuration not found. Please contact support.', 404);
-            }
-
             $username = $this->session['username'] ?? 'user_' . $this->userId;
 
-            $safeUsername = preg_replace('/' . $this->generalConfig['user']['USERNAME_REGEX'] . '/', '', $username);
-            $filename = 'vpn_config_' . $safeUsername . '.ovpn';
+            $safeUsername = preg_replace('/[^a-zA-Z0-9_]/', '', $username);
+            $safeUsername = $safeUsername == '' ? 'user_' . $this->userId : $safeUsername;
+            $filename = $safeUsername . '.ovpn';
 
             while (ob_get_level()) {
                 ob_end_clean();
@@ -1038,11 +1031,23 @@ class ProfileHandler
             header('Expires: 0');
             header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
             header('Pragma: public');
-            header('Content-Length: ' . filesize($configFile));
             header('X-Content-Type-Options: nosniff');
             header('X-Frame-Options: DENY');
 
-            readfile($configFile);
+            $data = $this->curlHelper->makeBackendRequest(
+                '/get-vpn-config',
+                'POST',
+                $this->authHelper->getBackendHeaders(),
+                ['user_id' => $this->userId],
+            );
+
+            if (!$data['success'] || $data['http_code'] !== 200 || empty($data['response'])) {
+                $this->logger->logError("Failed to retrieve VPN config - User ID: $this->userId, Response: " . json_encode($data));
+                throw new CustomException('Failed to retrieve VPN configuration', 500);
+            }
+
+            echo $data['response'];
+
             defined('PHPUNIT_RUNNING') || exit;
 
         } catch (PDOException $e) {
@@ -1090,11 +1095,9 @@ class ProfileHandler
                 throw new CustomException('Password cannot be empty', 400);
             }
 
-
-
-            $stmt = $this->pdo->prepare("SELECT get_user_password_salt(:user_id) AS salt");
-            $stmt->execute(['user_id' => $this->userId]);
-            $passwordSalt = $stmt->fetch(PDO::FETCH_ASSOC)['salt'];
+            $stmt = $this->pdo->prepare("SELECT get_user_password_salt(:username) AS salt");
+            $stmt->execute(['username' => $this->session['username']]);
+            $passwordSalt = $stmt->fetchColumn();
 
             if (!$passwordSalt) {
                 $this->logger->logWarning("Incorrect password during verification - User ID: $this->userId");
@@ -1125,7 +1128,7 @@ class ProfileHandler
     private function stopRunningChallenge(): void
     {
         try {
-            $stmt = $this->pdo->prepare("SELECT get_running_challenge(:user_id) AS running_challenge");
+            $stmt = $this->pdo->prepare("SELECT get_user_running_challenge(:user_id) AS running_challenge");
             $stmt->execute(['user_id' => $this->userId]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1216,7 +1219,7 @@ class ProfileHandler
         try {
             $this->pdo->beginTransaction();
 
-            $this->pdo->prepare("SELECT delete_user_account(:user_id, :password_hash)")
+            $this->pdo->prepare("SELECT delete_user_data(:user_id, :password_hash)")
                 ->execute([
                     'user_id' => $this->userId,
                     'password_hash' => $hashedPassword

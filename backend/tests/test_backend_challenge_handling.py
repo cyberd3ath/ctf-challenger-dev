@@ -11,7 +11,7 @@ sys.path.append(BACKEND_DIR)
 
 from mock_db import MockDatabase
 from test_challenge_template_setup import test_plain_ubuntu_setup
-from create_user_config import create_user_config
+from get_user_config import get_user_config
 from delete_user_config import delete_user_config
 from import_machine_templates import import_machine_templates
 from delete_machine_templates import delete_machine_templates
@@ -34,7 +34,7 @@ def test_backend_challenge_handling():
         creator_id, challenge_template = test_plain_ubuntu_setup(db_conn)
 
         # Create the user config
-        create_user_config(creator_id, db_conn)
+        get_user_config(creator_id, db_conn)
 
         # Import machine templates
         import_machine_templates(challenge_template.id, db_conn)

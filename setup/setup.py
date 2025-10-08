@@ -1029,12 +1029,9 @@ def setup_webserver():
 
     execute_command("sudo chown root:root /var/www/html")
 
-    print("\tCreating directories for the vpn-configs and logs")
-    execute_command("sudo mkdir -p /var/lib/ctf-challenger/vpn-configs")
+    print("\tCreating directories for the logs")
     execute_command("sudo mkdir -p /var/log/ctf-challenger")
-    execute_command("sudo chown -R www-data:www-data /var/lib/ctf-challenger/vpn-configs")
     execute_command("sudo chown -R www-data:www-data /var/log/ctf-challenger")
-    execute_command("sudo chmod 755 /var/lib/ctf-challenger/vpn-configs")
     execute_command("sudo chmod 755 /var/log/ctf-challenger")
 
 
@@ -1426,10 +1423,10 @@ def setup_database(conn=None, create_admin_config=True):
                        (admin_user_id, vpn_static_ip))
 
     if create_admin_config:
-        from create_user_config import create_user_config
+        from get_user_config import get_user_config
         if not connection_managed_externally:
             print("\tCreating user config")
-        create_user_config(admin_user_id, conn)
+        get_user_config(admin_user_id, conn)
         if not connection_managed_externally:
             print("\tSaved admin vpn config to /etc/openvpn/client-configs/1.ovpn")
 

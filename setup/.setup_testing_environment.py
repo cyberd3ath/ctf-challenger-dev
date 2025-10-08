@@ -56,8 +56,8 @@ def insert_test_user(db_conn):
     print(f"\tEmail: {TESTUSER_EMAIL}")
     print(f"\tPassword: {TESTUSER_PASSWORD}")
 
-    from create_user_config import create_user_config
-    config_path = create_user_config(user_id, db_conn)
+    from get_user_config import get_user_config
+    config_path = get_user_config(user_id, db_conn)
 
     print(f"\tUser vpn config created at {config_path}\n")
 
