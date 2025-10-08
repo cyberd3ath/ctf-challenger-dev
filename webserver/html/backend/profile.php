@@ -715,7 +715,7 @@ class ProfileHandler
 
             $this->pdo->beginTransaction();
 
-            $stmt = $this->pdo->prepare("SELECT update_social_links(:user_id, :github, :twitter, :website)");
+            $stmt = $this->pdo->prepare("SELECT update_urls(:user_id, :github, :twitter, :website)");
             $stmt->execute([
                 'user_id' => $this->userId,
                 'github' => $sanitizedData['github'],
@@ -1035,7 +1035,7 @@ class ProfileHandler
             header('X-Frame-Options: DENY');
 
             $data = $this->curlHelper->makeBackendRequest(
-                '/get-vpn-config',
+                '/get-user-config',
                 'POST',
                 $this->authHelper->getBackendHeaders(),
                 ['user_id' => $this->userId],

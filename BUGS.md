@@ -19,7 +19,7 @@
 ## Webserver, Low Privilege (www-data)
 - :check: (CRITICAL, FIXED) DB and PROXMOX credentials are stored in plaintext in the .env file on the webserver which is world-readable. Change to a templated DB query approach on the DB side and a API token approach with limited permissions for the Proxmox side
 - :check: (CRITICAL, FIXED) A compromised www-data user on the webserver can modify webserver configs and files to serve malware to users, steal credentials, or deface the website. Mitigate by removing write permissions except for uploads, logs, and vpn configs
-- :check: !! CRITICAL, TODO !! Modify VPN configs to be passed through to users directly from the backend to the users browser instead of being stored on the webserver to prevent attackers from changing them and rerouting user traffic through their own VPN server
+- :check: (CRITICAL, TODO) Modify VPN configs to be passed through to users directly from the backend to the users browser instead of being stored on the webserver to prevent attackers from changing them and rerouting user traffic through their own VPN server
 - :check: (HIGH, FIXED) Introduce templated db queries on the database server side to prevent arbitrary SQL queries through a compromised webserver
 - :check: !! HIGH, TODO !! Remove CSRF tokens and SESSION IDs from logs to prevent information leakage to a compromised www-data user
 
