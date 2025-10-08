@@ -153,6 +153,7 @@ class CTFManagementHandler
             $this->handleError($e);
         } catch (Exception $e) {
             // most likely not reachable, gonna leave it here for safety
+            $this->logger->logError("Unexpected error in CTF management: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             $this->handleError(new Exception('Internal Server Error', 500));
         }
     }
@@ -313,16 +314,15 @@ class CTFManagementHandler
             $errors['fields'][] = 'edit-name';
         } else {
             $stmt = $this->pdo->prepare("
-                SELECT get_challenge_template_id_by_name_with_possible_exclude(:name, :user_id, :exclude_id) AS exists
+                SELECT get_challenge_template_id_by_name_with_possible_exclude(:name, :exclude_id) AS exists
             ");
 
             $stmt->execute([
                 'name' => $input['name'],
-                'user_id' => $this->userId,
                 'exclude_id' => isset($input['id']) ? (int)$input['id'] : null
             ]);
 
-            if ($stmt->fetch()) {
+            if ($stmt->fetchColumn()) {
                 $errors['errors'][] = 'A challenge with this name already exists';
                 $errors['fields'][] = 'edit-name';
             }
@@ -365,10 +365,10 @@ class CTFManagementHandler
             SELECT
                 id,
                 marked_for_deletion
-            FROM verify_challenge_template_owner_id_for_deletion(:id, :user_id)
+            FROM get_challenge_template_data_for_deletion(:user_id, :id)
         ");
         $stmt->execute(['id' => $challengeId, 'user_id' => $this->userId]);
-        $challenge = $stmt->fetch();
+        $challenge = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$challenge) {
             $this->logger->logError("Challenge not found or access denied - Challenge ID: $challengeId, User ID: $this->userId");
@@ -559,7 +559,6 @@ class CTFManagementHandler
             return 'Challenge marked for deletion (will be removed when all instances complete)';
         }
 
-        $this->deleteCompletedChallenges($challengeId);
         $this->deleteVmTemplates($challengeId);
         $this->deleteRelatedDatabaseEntries($challengeId);
         return 'Challenge deleted successfully (no active instances)';
@@ -693,7 +692,7 @@ try {
 } catch (Exception $e) {
     http_response_code(500);
     $logger = new Logger();
-    $logger->logError("Unexpected error in manage-ctf endpoint: " . $e->getMessage());
+    $logger->logError("Unexpected error in manage-ctf endpoint: " . $e->getMessage() . "\n" . $e->getTraceAsString());
     echo json_encode([
         'success' => false,
         'message' => 'An unexpected error occurred'

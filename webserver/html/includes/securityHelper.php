@@ -60,9 +60,7 @@ class SecurityHelper implements ISecurityHelper
             'samesite' => 'Strict'
         ];
 
-        if (!$this->session->set_cookie_params($cookieParams)) {
-            throw new CustomException('Failed to set secure session cookie parameters');
-        }
+        $this->session->set_cookie_params($cookieParams);
     }
 
     private function startSession(): void

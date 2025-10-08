@@ -235,7 +235,7 @@ class ChallengeHandler
     private function checkRunningChallenge(): void
     {
         $stmt = $this->pdo->prepare("
-            SELECT user_running_challenge(:user_id) AS running_challenge
+            SELECT get_user_running_challenge(:user_id) AS running_challenge
         ");
         $stmt->execute(['user_id' => $this->userId]);
         $user = $stmt->fetch();
