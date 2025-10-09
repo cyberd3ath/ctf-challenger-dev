@@ -11,7 +11,6 @@
 </head>
 <body>
 <?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/header.html'); ?>
-<?php include($_SERVER['DOCUMENT_ROOT'] . '/partials/header.html'); ?>
 <main class="profile-container">
     <div class="profile-grid">
         <section class="account-info-card">

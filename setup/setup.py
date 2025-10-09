@@ -945,7 +945,7 @@ def setup_webserver():
     # Install Apache, PHP, and composer on the webserver
     print("\tInstalling Apache, PHP, and composer on the webserver")
     execute_command("sudo apt update")
-    execute_command("sudo apt install apache2 php libapache2-mod-php php-curl php-pgsql php-xml php-mbstring php-xdebug php-sockets composer -y")
+    execute_command("sudo apt install apache2 php libapache2-mod-php php-curl php-pgsql php-xml php-mbstring php-xdebug php-sockets php-imagick composer -y")
 
     # Enable Apache modules
     print("\tEnabling Apache modules")

@@ -10,7 +10,7 @@
 - :check: (MODERATE, FIXED) Missing locks in VPN config generation during signup leads to easy-rsa error which causes dangling database entries without created VPN config
 - :check: (MODERATE, FIXED) Too many concurrent launches or stops of challenges lead to `ifreload` before finished network device setup, resulting in missing network devices
 - :check: (LOW, FIXED) `SERIAL` IDs in `challenges` table and its use during MAC-Address generation could lead to duplicate MAC-Addresses due to overflow
-
+- (MODERATE, FIXED) Metadata of uploaded files was not sanitized, could lead to accidental information leakage
 
 ## Website, admin privileges
 - :check: !! MODERATE, TODO !! User account deletion of author or user could lead to dangling network devices or orphaned challenges if a challenge is running. Could also lead to double usage of network device names
