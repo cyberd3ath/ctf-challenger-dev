@@ -440,6 +440,16 @@ class CtfCreationHandler
         $filename = uniqid('challenge_') . '.' . $extension;
         $destination = $uploadDir . $filename;
 
+        try {
+            $imagick = new Imagick($file['tmp_name']);
+            $imagick->stripImage(); // removes all metadata
+            $imagick->writeImage($file['tmp_name']); // overwrite the temp file without metadata
+            $imagick->clear();
+        } catch (Exception $e) {
+            $this->logger->logError("Failed to strip image metadata - User ID: $this->userId - " . $e->getMessage());
+            throw new CustomException('Error processing image', 500);
+        }
+
         if (!$this->system->move_uploaded_file($file['tmp_name'], $destination)) {
             $error = error_get_last();
             throw new CustomException('Failed to save uploaded image', 500);

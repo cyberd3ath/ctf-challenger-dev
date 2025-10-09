@@ -63,7 +63,7 @@ class LoginHandler
 
     private function checkAlreadyAuthenticated(): void
     {
-        if ($this->securityHelper->validateSession() && !empty($this->session['authenticated'])) {
+        if ($this->securityHelper->validateSession(false) && !empty($this->session['authenticated'])) {
             $this->handleAlreadyAuthenticated();
         }
     }

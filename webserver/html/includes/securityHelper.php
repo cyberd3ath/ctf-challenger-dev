@@ -176,11 +176,14 @@ class SecurityHelper implements ISecurityHelper
         return $isValid;
     }
 
-    public function validateSession(): bool
+    public function validateSession(bool $logErrors = true): bool
     {
         try {
             if (!$this->hasValidSessionData()) {
-                $this->logger->logError("Session validation failed - missing user_id or authenticated flag");
+                if ($logErrors) {
+                    $this->logger->logError("Session validation failed - missing user_id or authenticated flag");
+                }
+
                 return false;
             }
 

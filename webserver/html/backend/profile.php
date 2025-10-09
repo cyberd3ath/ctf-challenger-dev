@@ -806,6 +806,16 @@ class ProfileHandler
                 throw new CustomException('Failed to process avatar', 500);
             }
 
+            try {
+                $imagick = new Imagick($file['tmp_name']);
+                $imagick->stripImage(); // removes all metadata
+                $imagick->writeImage($file['tmp_name']); // overwrite the temp file without metadata
+                $imagick->clear();
+            } catch (Exception $e) {
+                $this->logger->logError("Failed to strip image metadata - User ID: $this->userId - " . $e->getMessage());
+                throw new CustomException('Error processing image', 500);
+            }
+
             if (!$this->system->move_uploaded_file($file['tmp_name'], $fullPath)) {
                 $this->logger->logError("Failed to save avatar - User ID: $this->userId, Path: $fullPath");
                 throw new CustomException('Error processing request', 500);
