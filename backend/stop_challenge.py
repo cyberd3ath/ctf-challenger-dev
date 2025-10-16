@@ -3,6 +3,8 @@ from proxmox_api_calls import *
 import subprocess
 import os
 import time
+import requests
+import urllib3
 from tenacity import retry, stop_after_attempt, wait_fixed
 from dotenv import load_dotenv, find_dotenv
 
@@ -12,6 +14,11 @@ CHALLENGES_ROOT_SUBNET = os.getenv("CHALLENGES_ROOT_SUBNET", "10.128.0.0")
 CHALLENGES_ROOT_SUBNET_MASK = os.getenv("CHALLENGES_ROOT_SUBNET_MASK", "255.128.0.0")
 CHALLENGES_ROOT_SUBNET_MASK_INT = sum(bin(int(x)).count('1') for x in CHALLENGES_ROOT_SUBNET_MASK.split('.'))
 CHALLENGES_ROOT_SUBNET_CIDR = f"{CHALLENGES_ROOT_SUBNET}/{CHALLENGES_ROOT_SUBNET_MASK_INT}"
+
+MONITORING_HOST = os.getenv("MONITORING_HOST", "10.0.0.103")
+WAZUH_PORT = os.getenv("WAZUH_API_PORT", "55000")
+WAZUH_USER = os.getenv("WAZUH_API_USER", "wazuh-wui")
+WAZUH_PASSWORD = os.getenv("WAZUH_API_PASSWORD", "MyS3cr37P450r.*-")
 
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances"
 
@@ -37,6 +44,8 @@ def stop_challenge(user_id, db_conn):
         delete_iptables_rules(challenge, user_vpn_ip)
 
         stop_dnsmasq_instances(challenge)
+
+        remove_challenge_from_wazuh(challenge)
 
         remove_database_entries(challenge, user_id, db_conn)
 
@@ -112,6 +121,76 @@ def fetch_networks(challenge, db_conn):
 
                 connection = Connection(machine, challenge.networks[network_id], client_mac, client_ip)
                 challenge.networks[network_id].add_connection(connection)
+
+
+def delete_wazuh_agent(machine_id):
+    """
+    Delete a Wazuh agent by machine ID using Wazuh Manager API.
+
+    Args:
+        machine_id: The VM ID used to identify the agent
+
+    Returns:
+        bool: True if deletion was successful, False otherwise
+    """
+
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    agent_name = f"agent_{machine_id}"
+    base_url = f"https://{MONITORING_HOST}:{WAZUH_PORT}"
+
+    try:
+        auth_response = requests.post(
+            f"{base_url}/security/user/authenticate?raw=true",
+            auth=(WAZUH_USER, WAZUH_PASSWORD),
+            verify=False,
+            timeout=10
+        )
+
+        if auth_response.status_code != 200:
+            return False
+
+        token = auth_response.text.strip()
+        headers = {"Authorization": f"Bearer {token}"}
+
+        search_response = requests.get(
+            f"{base_url}/agents",
+            headers=headers,
+            params={"name": agent_name},
+            verify=False,
+            timeout=10
+        )
+
+        if search_response.status_code != 200:
+            return False
+
+        data = search_response.json()
+        agents = data.get("data", {}).get("affected_items", [])
+
+        if not agents:
+            return False
+
+        agent_id = agents[0]["id"]
+
+        delete_response = requests.delete(
+            f"{base_url}/agents",
+            headers=headers,
+            params={
+                "agents_list": agent_id,
+                "status": "all",
+                "older_than": "0s"
+            },
+            verify=False,
+            timeout=10
+        )
+
+        if delete_response.status_code == 200:
+            return True
+        else:
+            return False
+
+    except Exception as e:
+        return False
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
@@ -295,6 +374,17 @@ def stop_dnsmasq_instances(challenge):
         if os.path.exists(log_path):
             os.remove(log_path)
 
+def remove_challenge_from_wazuh(challenge):
+    """
+    Remove challenge from wazuh manager.
+    """
+
+    for machine in challenge.machines.values():
+        try:
+            delete_wazuh_agent(machine.id)
+            pass
+        except requests.RequestException:
+            pass
 
 def remove_database_entries(challenge, user_id, db_conn):
     """
