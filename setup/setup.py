@@ -68,6 +68,13 @@ BACKEND_AUTHENTICATION_TOKEN = os.getenv("BACKEND_AUTHENTICATION_TOKEN")
 CHALLENGES_ROOT_SUBNET = os.getenv("CHALLENGES_ROOT_SUBNET", "10.128.0.0")
 CHALLENGES_ROOT_SUBNET_MASK = os.getenv("CHALLENGES_ROOT_SUBNET_MASK", "255.128.0.0")
 
+MONITORING_VPN_INTERFACE = os.getenv("MONITORING_VPN_INTERFACE", "ctf_monitoring")
+MONITORING_DMZ_INTERFACE = os.getenv("MONITORING_DMZ_INTERFACE", "dmz_monitoring")
+MONITORING_HOST = os.getenv("MONITORING_HOST", "10.0.0.103")
+WAZUH_PORT = os.getenv("WAZUH_API_PORT", "55000")
+WAZUH_USER = os.getenv("WAZUH_API_USER", "wazuh-wui")
+WAZUH_PASSWORD = os.getenv("WAZUH_API_PASSWORD", "MyS3cr37P450r.*-")
+
 time_start = datetime.datetime.now()
 
 
@@ -305,6 +312,12 @@ def generate_and_distribute_env_files(api_token):
 
         backend_env_file.write(f"VPN_SERVER_IP='{PROXMOX_EXTERNAL_IP}'\n")
 
+        backend_env_file.write(f"MONITORING_VPN_INTERFACE='{MONITORING_VPN_INTERFACE}'\n")
+        backend_env_file.write(f"MONITORING_DMZ_INTERFACE='{MONITORING_DMZ_INTERFACE}'\n")
+        backend_env_file.write(f"MONITORING_HOST='{MONITORING_HOST}'\n")
+        backend_env_file.write(f"WAZUH_API_PORT='{WAZUH_PORT}'\n")
+        backend_env_file.write(f"WAZUH_API_USER='{WAZUH_USER}'\n")
+        backend_env_file.write(f"WAZUH_API_PASSWORD='{WAZUH_PASSWORD}'\n")
 
 
 def setup_backend_dnsmasq():

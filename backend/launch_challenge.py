@@ -2,17 +2,19 @@ import random
 import subprocess
 from subnet_calculations import nth_network_subnet
 from DatabaseClasses import *
+
 from proxmox_api_calls import *
 import os
-from stop_challenge import delete_iptables_rules, remove_database_entries, stop_dnsmasq_instances
+from stop_challenge import delete_iptables_rules, remove_database_entries, stop_dnsmasq_instances,remove_challenge_from_wazuh
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
+import time
 
 DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances/"
 os.makedirs(DNSMASQ_INSTANCES_DIR, exist_ok=True)
 
 
 @retry(stop=stop_after_attempt(10), wait=wait_exponential_jitter(initial=1, max=5, exp_base=1.1, jitter=1))
-def launch_challenge(challenge_template_id, user_id, db_conn):
+def launch_challenge(challenge_template_id, user_id, db_conn, ip_pool, vpn_monitoring_device, dmz_monitoring_device):
     """
     Launch a challenge by creating a user and network device.
     """
@@ -46,6 +48,8 @@ def launch_challenge(challenge_template_id, user_id, db_conn):
         try:
             clone_machines(challenge_template, challenge, db_conn)
 
+            execute_cloud_init_for_challenge(challenge, ip_pool)
+
             create_networks_and_connections(challenge_template, challenge, user_id, db_conn)
 
             create_domains(challenge_template, challenge, db_conn)
@@ -54,7 +58,7 @@ def launch_challenge(challenge_template_id, user_id, db_conn):
 
             wait_for_networks_to_be_up(challenge)
 
-            add_iptables_rules(challenge, user_vpn_ip)
+            add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monitoring_device)
 
             attach_networks_to_vms(challenge)
 
@@ -229,6 +233,158 @@ def clone_machines(challenge_template, challenge, db_conn):
         clone_vm_api_call(machine_template, machine)
 
 
+def vmid_to_ipv6(vmid, offset=0x1000):
+    """
+    Create ipv6 address from a VMID.
+    """
+    host_id = offset + vmid
+    high = (host_id >> 16) & 0xFFFF
+    low  = host_id & 0xFFFF
+    return f"fd12:3456:789a:1::{high:x}:{low:x}"
+
+
+def wait_for_cloud_init_completion(machine, timeout=300):
+    """
+    Wait until Cloud init finishes
+    """
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        try:
+            cmd = f"qm guest exec {machine.id} -- bash -c \"cloud-init status --wait\""
+
+            result = subprocess.run(cmd,shell=True, capture_output=True, text=True, timeout=30)
+
+            print(result.stdout.lower(),flush=True)
+
+            if "done" in result.stdout.lower() or result.returncode == 0:
+                return True
+
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            pass
+
+        time.sleep(10)
+    raise TimeoutError(f"Cloud-init timeout for VM {machine.id}")
+
+
+def write_meta_data_launch_snippet(vm_id, base_path="/var/lib/vz/snippets"):
+    instance_id = f"launch-{vm_id}-{int(time.time())}"
+    meta_content = f"""instance-id: {instance_id}
+local-hostname: vm{vm_id}
+"""
+    path = os.path.join(base_path, f"meta-data-{vm_id}.yaml")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(meta_content)
+    return f"local:snippets/meta-data-{vm_id}.yaml"
+
+
+def write_user_data_launch_snippet(
+    vm_id,
+    ip6,
+    vrtmon_ip6="fd12:3456:789a:1::1",
+    base_path="/var/lib/vz/snippets",
+    manager_ip="fd12:3456:789a:1::101"
+):
+    """
+    Write a VM-specific user-data.yaml snippet that:
+    - configures IPv6 address + default route
+    - runs setup_wazuh.sh
+    """
+
+    snippets_path = os.path.join(base_path, f"user-launch-data-{vm_id}.yaml")
+    os.makedirs(os.path.dirname(snippets_path), exist_ok=True)
+
+    user_data_content = f"""#cloud-config
+runcmd:
+  - iface=$(ip -o link | awk '/0A:01/ {{print $2; exit}}' | tr -d :)
+  - ip -6 addr add {ip6}/64 dev $iface
+  - ip -6 route add default via {vrtmon_ip6}
+  - [ bash, /var/monitoring/wazuh-agent/setup_wazuh.sh, --name=Agent_{vm_id}, --manager={manager_ip}, --yes ]
+  - rm -rf /var/monitoring
+"""
+
+    with open(snippets_path, "w") as f:
+        f.write(user_data_content)
+
+    return f"local:snippets/user-launch-data-{vm_id}.yaml"
+
+
+def execute_cloud_init_for_machine(machine):
+    """
+    Execute cloud-init for a single machine
+    """
+    try:
+        ipv6 = vmid_to_ipv6(machine.id)
+
+        user_custom_path = write_user_data_launch_snippet(
+            machine.id,
+            ipv6,
+            vrtmon_ip6="fd12:3456:789a:1::1",
+            base_path="/var/lib/vz/snippets",
+            manager_ip="fd12:3456:789a:1::101"
+        )
+
+        meta_custom_path = write_meta_data_launch_snippet(machine.id, base_path="/var/lib/vz/snippets")
+
+        set_cicustom_api_call(machine.id, user_custom_path, meta_custom_path)
+        print("cicusto")
+        launch_vm_api_call(machine)
+        print("cloud init finished", flush=True)
+
+        return True
+
+    except Exception as e:
+        try:
+            stop_vm_api_call(machine)
+        except:
+            pass
+        raise
+
+
+def execute_cloud_init_for_challenge(challenge, ip_pool, timeout=30):
+    """
+    Execute cloud-init for all machines in a challenge
+    """
+
+    results = {}
+    for machine in challenge.machines.values():
+        try:
+            add_network_device_api_call(machine.id, nic="net31" ,bridge="vrtmon", model="e1000", mac_index="0A:01")
+            ipv6 = vmid_to_ipv6(machine.id)
+            add_cloud_ipconfig_ipv6(machine, ipv6, nic=31, gw="fd12:3456:789a:1::1")
+            allocated_ip = ip_pool.allocate_ip(machine.id)
+            if not allocated_ip:
+                raise RuntimeError(f"Could not allocate IP for VM {machine.id}")
+            add_cloud_ipconfig(machine, allocated_ip, nic=30)
+            success_cloud = execute_cloud_init_for_machine(machine)
+            results[machine.id] = success_cloud
+        except Exception as e:
+            results[machine.id] = False
+
+    for machine in challenge.machines.values():
+        wait_for_cloud_init_completion(machine)
+        stop_vm_api_call(machine)
+        start_time = time.time()
+
+        try:
+            while time.time() - start_time < timeout:
+                if vm_is_stopped_api_call(machine):
+                    break
+        except Exception:
+            pass
+
+        detach_cloud_init_drive(machine.id)
+        detach_network_device_api_call(vmid=machine.id, nic="net30")
+        ip_pool.release_ip(machine.id)
+
+    if not all(results.values()):
+        failed_vms = [vm_id for vm_id, success in results.items() if not success]
+        raise Exception(f"Cloud-init failed for VMs: {failed_vms}")
+
+    return results
+
+
 def generate_mac_address(challenge_id, local_network_id, local_connection_id):
     """
     Generate a MAC address based on the machine ID, network ID, and connection ID.
@@ -372,7 +528,7 @@ def fetch_user_vpn_ip(user_id, db_conn):
     return user_vpn_ip
 
 
-def add_iptables_rules(challenge, user_vpn_ip):
+def add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monitoring_device):
     """
     Update iptables rules for the given user VPN IP.
     """
@@ -393,6 +549,22 @@ def add_iptables_rules(challenge, user_vpn_ip):
         # Disallow traffic to the router IP
         subprocess.run(["iptables", "-A", "INPUT", "-i", network.host_device, "-d", network.router_ip, "-j", "DROP"],
                        check=True)
+
+        # Set up qdisc
+        subprocess.run(["tc", "qdisc", "add", "dev", network.host_device, "clsact"], check=False)
+
+        # Mirror traffic on this network to monitoring_device
+        subprocess.run([
+            "tc", "filter", "add", "dev", network.host_device, "ingress", "protocol", "ip",
+            "matchall",  # ADD THIS
+            "action", "mirred", "egress", "mirror", "dev", vpn_monitoring_device
+        ], check=True)
+
+        subprocess.run([
+            "tc", "filter", "add", "dev", network.host_device, "egress", "protocol", "ip",
+            "matchall",  # ADD THIS
+            "action", "mirred", "egress", "mirror", "dev", vpn_monitoring_device
+        ], check=True)
 
         if network.accessible:
             for network_connection in network.connections.values():
@@ -421,6 +593,23 @@ def add_iptables_rules(challenge, user_vpn_ip):
             subprocess.run(
                 ["iptables", "-A", "FORWARD", "-i", "vmbr0", "-o", network.host_device, "-d", network.subnet, "-m",
                  "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"], check=True)
+
+            # Set up qdisc for DMZ monitoring
+            subprocess.run(["tc", "qdisc", "add", "dev", "vmbr0", "clsact"], check=False)
+
+            # Mirror DMZ traffic (internet-bound only)
+            subprocess.run([
+                "tc", "filter", "add", "dev", network.host_device, "egress",
+                "protocol", "ip", "flower",
+                "src_ip", network.subnet,
+                "action", "mirred", "egress", "mirror", "dev", dmz_monitoring_device
+            ], check=True)
+            subprocess.run([
+                "tc", "filter", "add", "dev", "vmbr0", "ingress",
+                "protocol", "ip", "flower",
+                "dst_ip", network.subnet,
+                "action", "mirred", "egress", "mirror", "dev", dmz_monitoring_device
+            ], check=True)
 
 
 def wait_for_networks_to_be_up(challenge):
@@ -551,6 +740,7 @@ def undo_launch_challenge(challenge, user_id, user_vpn_ip, db_conn):
     delete_iptables_rules(challenge, user_vpn_ip)
     stop_dnsmasq_instances(challenge)
     remove_database_entries(challenge, user_id, db_conn)
+    remove_challenge_from_wazuh(challenge)
 
 
 def stop_and_delete_machines(challenge):

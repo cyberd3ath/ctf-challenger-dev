@@ -1,6 +1,7 @@
 from flask import Flask, request, send_file, redirect
 import psycopg2
 from dotenv import load_dotenv
+from cloud_init_ip_pool import ip_pool
 import os
 
 from launch_challenge import launch_challenge as launch_challenge_backend
@@ -29,6 +30,9 @@ BACKEND_CERTIFICATE_FILE = os.getenv("BACKEND_CERTIFICATE_FILE", "/root/ctf-chal
 BACKEND_CERTIFICATE_KEY_FILE = os.getenv("BACKEND_CERTIFICATE_KEY_FILE", "/root/ctf-challenger/backend.key")
 
 BACKEND_AUTHENTICATION_TOKEN = os.getenv("BACKEND_AUTHENTICATION_TOKEN")
+
+MONITORING_VPN_INTERFACE = os.getenv("MONITORING_VPN_INTERFACE", "ctf_monitoring")
+MONITORING_DMZ_INTERFACE = os.getenv("MONITORING_DMZ_INTERFACE", "dmz_monitoring")
 
 os.makedirs(BACKEND_LOGGING_DIR, exist_ok=True)
 
@@ -74,7 +78,7 @@ def launch_challenge():
         return {"error": "Invalid input data", "success": False}, 500
 
     try:
-        accessible_networks = launch_challenge_backend(challenge_template_id, user_id, db_conn)
+        accessible_networks = launch_challenge_backend(challenge_template_id, user_id, db_conn, ip_pool, MONITORING_VPN_INTERFACE, MONITORING_DMZ_INTERFACE)
     except Exception as e:
         print("Error launching challenge", e, flush=True)
         return {"error": str(e), "success": False}, 500
@@ -134,7 +138,7 @@ def import_machine_template():
         return {"error": "Invalid input data", "success": False}, 500
 
     try:
-        import_machine_template_backend(challenge_template_id, db_conn)
+        import_machine_template_backend(challenge_template_id, db_conn, ip_pool)
     except Exception as e:
         print("Error importing machine templates", e, flush=True)
         return {"error": str(e), "success": False}, 500
@@ -209,6 +213,6 @@ def delete_user_config():
 
     delete_user_config_backend(user_id)
     return {"message": "User config deleted", "success": True}, 200
-    
+
 
 app.run(host=BACKEND_HOST, port=int(BACKEND_PORT), ssl_context=(BACKEND_CERTIFICATE_FILE, BACKEND_CERTIFICATE_KEY_FILE))

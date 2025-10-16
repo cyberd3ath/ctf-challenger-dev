@@ -4,8 +4,7 @@ from DatabaseClasses import MachineTemplate, ChallengeTemplate
 from hashlib import sha256
 import time
 
-
-def import_machine_templates(challenge_template_id, db_conn):
+def import_machine_templates(challenge_template_id, db_conn, ip_pool):
     """
     Import a machine template from a disk image file and associate it with a challenge.
     """
@@ -19,7 +18,7 @@ def import_machine_templates(challenge_template_id, db_conn):
     try:
         import_disk_images_to_vm_templates(challenge_template)
 
-        configure_vms(challenge_template)
+        configure_vms(challenge_template, ip_pool)
 
         convert_machine_template_vms_to_templates(challenge_template)
     except Exception as e:
@@ -170,17 +169,111 @@ def convert_iso_to_machine_template(disk_file_path, machine_template_id):
 
         raise RuntimeError(f"Failed to import ISO file: {e1}")
 
+def wait_for_cloud_init_completion(machine, timeout=300):
+    """
+    Wait until Cloud init finishes
+    """
+    start_time = time.time()
 
-def configure_vms(challenge_template):
+    while time.time() - start_time < timeout:
+        try:
+            cmd = f"qm guest exec {machine.id} -- bash -c \"cloud-init status --wait\""
+
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+
+            if "done" in result.stdout.lower() or result.returncode == 0:
+                return True
+
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as e:
+            print(e, flush=True)
+            pass
+
+        time.sleep(10)
+    raise TimeoutError(f"Cloud-init timeout for VM {machine.id}")
+
+
+def write_user_data_snippet(snippets_path="/var/lib/vz/snippets/user-data.yaml",
+                            config_dir="/root/ctf-challenger/monitoring/wazuh/agent"):
     """
-    Configure the VM settings for the machine template.
+    Write a Cloud-Init user-data.yaml snippet with files encoded in Base64.
+    Includes all files from config_dir/config/* and the .sh script.
+    Returns the Proxmox volume path for cicustom.
     """
+    os.makedirs(os.path.dirname(snippets_path), exist_ok=True)
+
+    user_data_content = """#cloud-config
+packages:
+  - curl
+  - wget
+write_files:
+"""
+
+    files_to_include = []
+
+    config_subdir = os.path.join(config_dir, "config")
+    for root, dirs, files in os.walk(config_subdir):
+        for fname in files:
+            files_to_include.append(os.path.join(root, fname))
+
+    setup_script = os.path.join(config_dir, "setup_wazuh.sh")
+    if os.path.isfile(setup_script):
+        files_to_include.append(setup_script)
+
+    for local_path in files_to_include:
+        rel_path = os.path.relpath(local_path, config_dir)
+        target_path = f"/var/monitoring/wazuh-agent/{rel_path}"
+
+        target_path = target_path.replace("\\", "/")
+
+        with open(local_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("utf-8")
+
+        user_data_content += f"""  - path: {target_path}
+    owner: root:root
+    permissions: '0755'
+    encoding: b64
+    content: |
+      {encoded}
+"""
+    with open(snippets_path, "w") as f:
+        f.write(user_data_content)
+
+    return "local:snippets/user-data.yaml"
+
+
+def configure_vms(challenge_template, ip_pool):
+    """
+    Configure VMs with proper IP pool management.
+    """
+    for machine_template in challenge_template.machine_templates.values():
+        allocated_ip = None
+
+        try:
+            allocated_ip = ip_pool.allocate_ip(machine_template.id)
+            if not allocated_ip:
+                raise RuntimeError(f"Could not allocate IP for VM {machine_template.id}")
+
+            attach_cloud_init_drive(machine_template.id)
+            ci_custom_path = write_user_data_snippet()
+            add_network_device_api_call(machine_template.id)
+            initial_configuration_api_call(machine_template,allocated_ip, ci_custom_path)
+            time.sleep(5)
+            launch_vm_api_call(machine_template)
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to configure VM {machine_template.id}: {e}")
 
     for machine_template in challenge_template.machine_templates.values():
-        try:
-            initial_configuration_api_call(machine_template)
-        except Exception as e:
-            raise RuntimeError(f"Failed to configure VM: {e}")
+        wait_for_cloud_init_completion(machine_template)
+        stop_vm_api_call(machine_template)
+        max_wait = 900  # 15 minutes
+        start_time = time.time()
+        while time.time() - start_time < max_wait:
+            if vm_is_stopped_api_call(machine_template):
+                break
+            time.sleep(30)
+        else:
+            raise RuntimeError(f"Cloud-init timed out for VM {machine_template.id}")
 
 
 def convert_machine_template_vms_to_templates(challenge_template):
