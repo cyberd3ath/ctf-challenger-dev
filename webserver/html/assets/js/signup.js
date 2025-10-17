@@ -11,7 +11,8 @@ class SignupForm {
             'Username': 'username',
             'Email': 'email',
             'Password': 'password',
-            'Confirm Password': 'confirm-password'
+            'Confirm Password': 'confirm-password',
+            'Token': 'token'
         };
 
         this.loadConfig().then(() => {
@@ -46,6 +47,7 @@ class SignupForm {
         const emailField = this.form.querySelector('#email');
         const passwordField = this.form.querySelector('#password');
         const confirmPasswordField = this.form.querySelector('#confirm-password');
+        const tokenField = this.form.querySelector('#token');
 
         if (usernameField) {
             usernameField.addEventListener('blur', () => this.validateUsername(usernameField.value));
@@ -65,6 +67,10 @@ class SignupForm {
                     this.validatePasswordMatch(passwordField.value, confirmPasswordField.value);
                 }
             });
+        }
+
+        if (tokenField) {
+            tokenField.addEventListener('blur', () => this.validateToken(tokenField.value));
         }
     }
 
@@ -143,6 +149,16 @@ class SignupForm {
         return true;
     }
 
+    validateToken(token) {
+        if (!token) {
+            this.showError('token', 'Token is required');
+            return false;
+        }
+
+        this.clearError('token');
+        return true;
+    }
+
     clearError(fieldId) {
         const field = document.getElementById(fieldId);
         if (!field) return;
@@ -167,13 +183,15 @@ class SignupForm {
             const email = this.form.querySelector('#email')?.value;
             const password = this.form.querySelector('#password')?.value;
             const confirmPassword = this.form.querySelector('#confirm-password')?.value;
+            const token = this.form.querySelector('#token')?.value;
 
             const isUsernameValid = this.validateUsername(username);
             const isEmailValid = this.validateEmail(email);
             const isPasswordValid = this.validatePassword(password);
             const isPasswordMatchValid = this.validatePasswordMatch(password, confirmPassword);
+            const isTokenValid = this.validateToken(token);
 
-            if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isPasswordMatchValid) {
+            if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isPasswordMatchValid || !isTokenValid) {
                 return;
             }
 

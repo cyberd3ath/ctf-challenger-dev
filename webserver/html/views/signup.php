@@ -70,6 +70,14 @@ $csrf_token = $securityHelper->generateCsrfToken();
             </div>
             <small class="error-message" id="confirm-password-error"></small>
         </div>
+        <div class="input-group has-icon">
+            <label for="token">Token</label>
+            <div class="input-wrapper">
+                <input type="text" id="token" name="token" placeholder="Enter your token" required>
+                <i class="fa-solid fa-circle-exclamation input-error-icon" id="token-icon"></i>
+            </div>
+            <small class="error-message" id="token-error"></small>
+        </div>
         <button type="submit" class="button button-primary">Sign Up</button>
         <div class="form-feedback" id="form-feedback"></div>
         <p class="create-account">
