@@ -216,6 +216,7 @@ class ChallengeHandler
         $entrypoints = $responseData['entrypoints'] ?? [];
 
         $this->startNewAttempt($challengeId);
+        $this->logUserNetworkTraceStart($challengeId);
 
         $this->logger->logDebug("Challenge deployed successfully - ID: $challengeId, User ID: $this->userId");
 
@@ -318,10 +319,51 @@ class ChallengeHandler
     /**
      * @throws Exception
      */
+    private function logUserNetworkTraceStart($challengeId): void
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT start_user_network_trace(:userid, :challenge_template_id)
+            ");
+            $stmt->execute([
+                'userid' => $this->userId,
+                'challenge_template_id' => $challengeId
+            ]);
+            $this->logger->logDebug("UserNetworkTrace Entry Created - User ID: $this->userId");
+        } catch (PDOException $e) {
+            $this->logger->logError("Failed to create user network trace - User ID: $this->userId, Error: " . $e->getMessage());
+            throw new CustomException("Failed to start challenge attempt", 500);
+        }
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function logUserNetworkTraceStop($challengeId): void
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT stop_user_network_trace(:userid, :challenge_template_id)
+            ");
+            $stmt->execute([
+                'userid' => $this->userId,
+                'challenge_template_id' => $challengeId
+            ]);
+            $this->logger->logDebug("UserNetworkTrace Entry Created - User ID: $this->userId");
+        } catch (PDOException $e) {
+            $this->logger->logError("Failed to create user network trace - User ID: $this->userId, Error: " . $e->getMessage());
+            throw new CustomException("Failed to stop challenge attempt", 500);
+        }
+    }
+
+    /**
+     * @throws Exception
+     */
     private function handleCancel(int $challengeId): void
     {
         $this->stopRunningChallenge();
         $this->markAttemptAsCompleted($challengeId);
+        $this->logUserNetworkTraceStop($challengeId);
 
         if ($this->shouldDeleteChallengeTemplate($challengeId)) {
             $this->deleteChallengeTemplate($challengeId);

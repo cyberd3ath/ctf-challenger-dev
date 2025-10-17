@@ -88,6 +88,7 @@ class ChallengeWorker
         try {
             $this->stopChallenge($challenge['user_id']);
             $this->markAttemptAsCompleted($challenge['user_id'], $challenge['challenge_template_id']);
+            $this->logUserNetworkTraceStop($challenge['user_id'], $challenge['challenge_template_id']);
             if ($this->shouldDeleteChallengeTemplate($challenge['challenge_template_id'])) {
                 $this->deleteChallengeTemplate($challenge['challenge_template_id']);
             }
@@ -133,6 +134,17 @@ class ChallengeWorker
         $stmt->execute([
             'user_id' => $userId,
             'challenge_id' => $challengeTemplateId
+        ]);
+    }
+
+    private function logUserNetworkTraceStop($userId, $challengeTemplateId): void
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT stop_user_network_trace(:userid, :challenge_template_id)
+        ");
+        $stmt->execute([
+            'userid' => $userId,
+            'challenge_template_id' => $challengeTemplateId
         ]);
     }
 

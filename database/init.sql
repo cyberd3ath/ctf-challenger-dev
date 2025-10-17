@@ -586,6 +586,17 @@ CREATE TABLE machines
 );
 
 
+CREATE TABLE user_network_trace (
+    id SERIAL PRIMARY KEY,
+    username TEXT NOT NULL REFERENCES users(username),
+    email TEXT NOT NULL REFERENCES users(email),
+    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    stopped_at TIMESTAMP,
+    subnet INET NOT NULL,
+    CHECK (stopped_at IS NULL OR stopped_at >= started_at)
+);
+
+
 CREATE TRIGGER trg_reclaim_machine_id
 AFTER DELETE ON machines
 FOR EACH ROW
