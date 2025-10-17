@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION start_user_network_trace(
+CREATE FUNCTION start_user_network_trace(
     p_user_id BIGINT,
     p_challenge_template_id BIGINT
 )
@@ -49,9 +49,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
-
-CREATE OR REPLACE FUNCTION stop_user_network_trace(
+CREATE FUNCTION stop_user_network_trace(
     p_user_id BIGINT,
     p_challenge_template_id BIGINT
 )
@@ -77,16 +75,19 @@ BEGIN
     END IF;
 
     -- Stop all active traces for all networks linked to that challenge
-    UPDATE user_network_trace ut
-    SET stopped_at = NOW()
-    WHERE username = v_username
-      AND stopped_at IS NULL
-      AND subnet IN (
-        SELECT subnet FROM networks WHERE challenge_id = v_challenge_id
+    WITH updated AS (
+        UPDATE user_network_trace ut
+        SET stopped_at = NOW()
+        WHERE username = v_username
+          AND stopped_at IS NULL
+          AND subnet IN (
+            SELECT subnet FROM networks WHERE challenge_id = v_challenge_id
+        )
+        RETURNING 1
     )
-    RETURNING 1 INTO v_count;
+    SELECT COUNT(*) INTO v_count FROM updated;
 
-    IF v_count IS NULL THEN
+    IF v_count = 0 THEN
         RAISE NOTICE 'No active traces found for user % on challenge %', v_username, v_challenge_id;
     ELSE
         RAISE NOTICE 'Stopped % trace(s) for user % on challenge %', v_count, v_username, v_challenge_id;
