@@ -238,6 +238,9 @@ write_files:
     content: |
       {encoded}
 """
+    user_data_content += """bootcmd:
+  - systemctl mask systemd-networkd-wait-online.service
+    """
     with open(snippets_path, "w") as f:
         f.write(user_data_content)
 
