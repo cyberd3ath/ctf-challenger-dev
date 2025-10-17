@@ -361,9 +361,9 @@ class ChallengeHandler
      */
     private function handleCancel(int $challengeId): void
     {
+        $this->logUserNetworkTraceStop($challengeId);
         $this->stopRunningChallenge();
         $this->markAttemptAsCompleted($challengeId);
-        $this->logUserNetworkTraceStop($challengeId);
 
         if ($this->shouldDeleteChallengeTemplate($challengeId)) {
             $this->deleteChallengeTemplate($challengeId);
