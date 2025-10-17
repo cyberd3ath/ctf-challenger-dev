@@ -270,7 +270,7 @@ sudo mv {tmp_file} /etc/systemd/system/{BANNER_SERVICE_NAME}"""
         execute_remote_command_with_key(MONITORING_IP, "sudo systemctl daemon-reload", SSH_USER, ssh_key_path=PROXMOX_SSH_KEYFILE)
         execute_remote_command_with_key(MONITORING_IP, f"sudo systemctl enable {BANNER_SERVICE_NAME}", SSH_USER, ssh_key_path=PROXMOX_SSH_KEYFILE)
         execute_remote_command_with_key(MONITORING_IP, f"sudo systemctl start {BANNER_SERVICE_NAME}", SSH_USER, ssh_key_path=PROXMOX_SSH_KEYFILE)
-        execute_remote_command_with_key(MONITORING_IP, f"sudo ufw enable {BANNER_SERVER_PORT}/tcp", SSH_USER, ssh_key_path=PROXMOX_SSH_KEYFILE)
+        execute_remote_command_with_key(MONITORING_IP, f"sudo ufw allow {BANNER_SERVER_PORT}/tcp", SSH_USER, ssh_key_path=PROXMOX_SSH_KEYFILE)
 
         log_success(f"Banner server service deployed and started on {MONITORING_IP}")
 
