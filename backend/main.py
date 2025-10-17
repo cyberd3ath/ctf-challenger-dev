@@ -1,6 +1,5 @@
 from flask import Flask, request, send_file, redirect
 import psycopg2
-from psycopg2 import pool
 from dotenv import load_dotenv
 from cloud_init_ip_pool import ip_pool
 import os
@@ -37,14 +36,19 @@ MONITORING_DMZ_INTERFACE = os.getenv("MONITORING_DMZ_INTERFACE", "dmz_monitoring
 
 os.makedirs(BACKEND_LOGGING_DIR, exist_ok=True)
 
-db_pool = pool.SimpleConnectionPool(
-    minconn=3,
-    maxconn=20,
-    host=DB_HOST,
-    database=DB_NAME,
-    user=DB_USER,
-    password=DB_PASSWORD
-)
+
+def get_db_connection():
+    """
+    Establish a connection to the PostgreSQL database.
+    """
+    conn = psycopg2.connect(
+        host=DB_HOST,
+        database=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
+    )
+    return conn
+
 
 
 @app.before_request
@@ -68,7 +72,7 @@ def before_request():
 @app.route('/launch-challenge', methods=['POST'])
 def launch_challenge():
     try:
-        db_conn = db_pool.getconn()
+        db_conn = get_db_connection()
 
         try:
             data = request.json
@@ -94,13 +98,13 @@ def launch_challenge():
 
     finally:
         if 'db_conn' in locals():
-            db_pool.putconn(db_conn)
+            db_conn.close()
 
 
 @app.route('/stop-challenge', methods=['POST'])
 def stop_challenge():
     try:
-        db_conn = db_pool.getconn()
+        db_conn = get_db_connection()
 
         try:
             data = request.json
@@ -124,13 +128,13 @@ def stop_challenge():
 
     finally:
         if 'db_conn' in locals():
-            db_pool.putconn(db_conn)
+            db_conn.close()
 
 
 @app.route('/import-machine-templates', methods=['POST'])
 def import_machine_template():
     try:
-        db_conn = db_pool.getconn()
+        db_conn = get_db_connection()
 
         try:
             data = request.json
@@ -154,13 +158,13 @@ def import_machine_template():
 
     finally:
         if 'db_conn' in locals():
-            db_pool.putconn(db_conn)
+            db_conn.close()
 
 
 @app.route('/delete-machine-templates', methods=['POST'])
 def delete_machine_templates():
     try:
-        db_conn = db_pool.getconn()
+        db_conn = get_db_connection()
 
         try:
             data = request.json
@@ -184,13 +188,13 @@ def delete_machine_templates():
 
     finally:
         if 'db_conn' in locals():
-            db_pool.putconn(db_conn)
+            db_conn.close()
 
 
 @app.route('/get-user-config', methods=['POST'])
 def get_user_config():
     try:
-        db_conn = db_pool.getconn()
+        db_conn = get_db_connection()
 
         try:
             data = request.json
@@ -214,7 +218,7 @@ def get_user_config():
 
     finally:
         if 'db_conn' in locals():
-            db_pool.putconn(db_conn)
+            db_conn.close()
 
 
 @app.route('/delete-user-config', methods=['POST'])
