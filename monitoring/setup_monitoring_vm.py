@@ -32,8 +32,7 @@ from script_helper import (
 MONITORING_VM_ID = os.getenv("MONITORING_VM_ID", "9000")
 MONITORING_VM_NAME = os.getenv("MONITORING_VM_NAME", "monitoring-vm")
 MONITORING_VM_MAC_ADDRESS = os.getenv("MONITORING_VM_MAC_ADDRESS", "00:16:3e:00:00:03")
-UBUNTU_BASE_SERVER_URL = os.getenv("UBUNTU_BASE_SERVER_URL",
-                                   "https://heibox.uni-heidelberg.de/f/aa4f76f2eb9649cdb686/?dl=1")
+UBUNTU_BASE_SERVER_URL = os.getenv("UBUNTU_BASE_SERVER_URL")
 BACKEND_NETWORK_DEVICE = os.getenv("BACKEND_NETWORK_DEVICE", "vrt-backend")
 VM_MEMORY = os.getenv("MONITORING_VM_MEMORY", "10240")
 VM_CORES = os.getenv("MONITORING_VM_CORES", "2")
