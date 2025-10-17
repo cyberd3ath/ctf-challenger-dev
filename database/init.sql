@@ -610,6 +610,27 @@ CREATE TABLE user_identification_history (
 );
 
 
+CREATE OR REPLACE FUNCTION update_network_traces_on_user_change()
+    RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE user_network_trace
+    SET username = NEW.username,
+        email = NEW.email
+    WHERE username = OLD.username
+      AND stopped_at IS NULL;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_update_network_traces
+    AFTER UPDATE OF username, email ON users
+    FOR EACH ROW
+    WHEN (OLD.username IS DISTINCT FROM NEW.username
+        OR OLD.email IS DISTINCT FROM NEW.email)
+EXECUTE FUNCTION update_network_traces_on_user_change();
+
+
 CREATE TRIGGER trg_reclaim_machine_id
 AFTER DELETE ON machines
 FOR EACH ROW
