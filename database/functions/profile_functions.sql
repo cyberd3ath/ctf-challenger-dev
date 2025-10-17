@@ -277,10 +277,32 @@ RETURNS VOID
 LANGUAGE plpgsql
 SET plpgsql.variable_conflict = 'use_column'
 AS $$
+DECLARE
+    v_old_username TEXT;
+    v_email TEXT;
 BEGIN
+    SELECT username, email INTO v_old_username, v_email
+    FROM users
+    WHERE id = p_user_id;
+
     UPDATE users
     SET username = p_new_username
     WHERE id = p_user_id;
+
+    INSERT INTO user_identification_history (
+        username_old,
+        username_new,
+        email_old,
+        email_new,
+        changed_at
+    )
+    VALUES (
+        v_old_username,
+        p_new_username,
+        v_email,
+        v_email,
+        CURRENT_TIMESTAMP
+    );
 END;
 $$;
 
@@ -309,10 +331,32 @@ RETURNS VOID
 LANGUAGE plpgsql
 SET plpgsql.variable_conflict = 'use_column'
 AS $$
+DECLARE
+    v_old_email TEXT;
+    v_username TEXT;
 BEGIN
+    SELECT email, username INTO v_old_email, v_username
+    FROM users
+    WHERE id = p_user_id;
+
     UPDATE users
     SET email = p_new_email
     WHERE id = p_user_id;
+
+    INSERT INTO user_identification_history (
+        username_old,
+        username_new,
+        email_old,
+        email_new,
+        changed_at
+    )
+    VALUES (
+        v_username,
+        v_username,
+        v_old_email,
+        p_new_email,
+        CURRENT_TIMESTAMP
+    );
 END;
 $$;
 
@@ -533,19 +577,46 @@ END;
 $$;
 
 
-CREATE FUNCTION delete_user_data(p_user_id BIGINT, p_hashed_password TEXT)
+CREATE FUNCTION delete_user_data(
+    p_user_id BIGINT,
+    p_hashed_password TEXT
+)
 RETURNS VOID
 LANGUAGE plpgsql
 SET plpgsql.variable_conflict = 'use_column'
 AS $$
+DECLARE
+    v_username TEXT;
+    v_email TEXT;
 BEGIN
-    IF EXISTS (SELECT 1 FROM users WHERE id = p_user_id AND password_hash = p_hashed_password) THEN
+    SELECT username, email INTO v_username, v_email
+    FROM users
+    WHERE id = p_user_id;
+
+    IF FOUND AND (SELECT password_hash FROM users WHERE id = p_user_id) = p_hashed_password THEN
         DELETE FROM user_badges WHERE user_id = p_user_id;
         DELETE FROM user_profiles WHERE user_id = p_user_id;
         DELETE FROM completed_challenges WHERE user_id = p_user_id;
         DELETE FROM disk_files WHERE user_id = p_user_id;
         UPDATE vpn_static_ips SET user_id = NULL WHERE user_id = p_user_id;
         DELETE FROM users WHERE id = p_user_id;
+
+        INSERT INTO user_identification_history (
+            username_old,
+            username_new,
+            email_old,
+            email_new,
+            deleted,
+            changed_at
+        )
+        VALUES (
+            v_username,
+            NULL,
+            v_email,
+            NULL,
+            TRUE,
+            CURRENT_TIMESTAMP
+        );
     ELSE
         RAISE EXCEPTION 'Authentication failed: Invalid password.';
     END IF;

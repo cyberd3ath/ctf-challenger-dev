@@ -43,7 +43,26 @@ BEGIN
     VALUES (p_username, p_email, p_password_hash, p_password_salt, v_user_id);
 
     v_vpn_ip := assign_lowest_vpn_ip(v_user_id);
-    UPDATE users u SET vpn_static_ip = v_vpn_ip WHERE u.id = v_user_id;
+    UPDATE users u
+    SET vpn_static_ip = v_vpn_ip
+    WHERE u.id = v_user_id;
+
+    INSERT INTO user_identification_history (
+        username_old,
+        username_new,
+        email_old,
+        email_new,
+        created,
+        changed_at
+    )
+    VALUES (
+        NULL,
+        p_username,
+        NULL,
+        p_email,
+        TRUE,
+        CURRENT_TIMESTAMP
+    );
 
     RETURN QUERY
     SELECT
