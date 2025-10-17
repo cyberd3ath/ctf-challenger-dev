@@ -22,10 +22,8 @@ BEGIN
 
     -- Find the most recent challenge instance for this template
     SELECT id INTO v_challenge_id
-    FROM challenges
-    WHERE challenge_template_id = p_challenge_template_id
-    ORDER BY expires_at DESC
-    LIMIT 1;
+    FROM users u JOIN challenges c ON u.running_challenge = c.id
+    WHERE c.challenge_template_id = p_challenge_template_id;
 
     IF v_challenge_id IS NULL THEN
         RAISE EXCEPTION 'No challenge instance found for template %', p_challenge_template_id;
@@ -71,10 +69,8 @@ BEGIN
 
     -- Find the challenge instance
     SELECT id INTO v_challenge_id
-    FROM challenges
-    WHERE challenge_template_id = p_challenge_template_id
-    ORDER BY expires_at DESC
-    LIMIT 1;
+    FROM users u JOIN challenges c ON u.running_challenge = c.id
+    WHERE c.challenge_template_id = p_challenge_template_id;
 
     IF v_challenge_id IS NULL THEN
         RAISE EXCEPTION 'No challenge instance found for template %', p_challenge_template_id;
