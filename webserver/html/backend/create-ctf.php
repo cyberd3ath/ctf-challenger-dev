@@ -711,8 +711,10 @@ class CtfCreationHandler
         try {
             $this->pdo->beginTransaction();
 
-            $this->pdo->prepare("DELETE FROM challenge_templates WHERE id = ?")
-                ->execute([$challengeId]);
+            $this->pdo->prepare("SELECT delete_challenge_template(
+                :challenge_id
+            )")
+                ->execute(['challenge_id' => $challengeId]);
 
             $this->pdo->commit();
             $this->logger->logInfo("Successfully reverted challenge creation for ID: $challengeId");
