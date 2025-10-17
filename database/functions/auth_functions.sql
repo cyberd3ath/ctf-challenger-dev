@@ -24,7 +24,8 @@ CREATE FUNCTION create_user(
     p_username TEXT,
     p_email TEXT,
     p_password_hash TEXT,
-    p_password_salt TEXT
+    p_password_salt TEXT,
+    p_ip_addr INET
 )
 RETURNS TABLE (
     id BIGINT,
@@ -52,6 +53,7 @@ BEGIN
         username_new,
         email_old,
         email_new,
+        ip_addr,
         created,
         changed_at
     )
@@ -60,6 +62,7 @@ BEGIN
         p_username,
         NULL,
         p_email,
+        p_ip_addr,
         TRUE,
         CURRENT_TIMESTAMP
     );

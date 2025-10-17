@@ -190,14 +190,16 @@ class RegistrationHandler
         }
 
         $this->pdo->beginTransaction();
+        $ip_addr = $_SERVER['REMOTE_ADDR'];
 
         try {
-            $stmt = $this->pdo->prepare("SELECT id AS user_id, vpn_static_ip FROM create_user(:username, :email, :password_hash, :password_salt)");
+            $stmt = $this->pdo->prepare("SELECT id AS user_id, vpn_static_ip FROM create_user(:username, :email, :password_hash, :password_salt, :ip_addr)");
             $stmt->execute([
                 'username' => $this->username,
                 'email' => $this->email,
                 'password_hash' => $passwordHash,
-                'password_salt' => $passwordSalt
+                'password_salt' => $passwordSalt,
+                'ip_addr' => $ip_addr
             ]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 

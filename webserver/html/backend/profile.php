@@ -570,8 +570,9 @@ class ProfileHandler
                 throw new CustomException('Username is already taken', 400);
             }
 
-            $updateStmt = $this->pdo->prepare("SELECT update_username(:user_id, :username)");
-            $updateStmt->execute(['username' => $newUsername, 'user_id' => $this->userId]);
+            $ip_addr = $_SERVER['REMOTE_ADDR'];
+            $updateStmt = $this->pdo->prepare("SELECT update_username(:user_id, :username, :ip_addr)");
+            $updateStmt->execute(['username' => $newUsername, 'user_id' => $this->userId, 'ip_addr' => $ip_addr]);
 
             $this->pdo->commit();
 
@@ -602,12 +603,14 @@ class ProfileHandler
                 throw new CustomException('Email is already registered', 400);
             }
 
+            $ip_addr = $_SERVER['REMOTE_ADDR'];
             $updateStmt = $this->pdo->prepare("
-                SELECT update_email(:user_id, :email)
+                SELECT update_email(:user_id, :email, :ip_addr)
             ");
             $updateStmt->execute([
                 'email' => $newEmail,
-                'user_id' => $this->userId
+                'user_id' => $this->userId,
+                'ip_addr' => $ip_addr
             ]);
 
             $this->pdo->commit();
@@ -1229,10 +1232,12 @@ class ProfileHandler
         try {
             $this->pdo->beginTransaction();
 
+            $ip_addr = $_SERVER['REMOTE_ADDR'];
             $this->pdo->prepare("SELECT delete_user_data(:user_id, :password_hash)")
                 ->execute([
                     'user_id' => $this->userId,
-                    'password_hash' => $hashedPassword
+                    'password_hash' => $hashedPassword,
+                    'ip_addr' => $ip_addr
                 ]);
 
             $this->pdo->commit();

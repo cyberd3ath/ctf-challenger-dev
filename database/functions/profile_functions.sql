@@ -271,7 +271,8 @@ $$;
 
 CREATE FUNCTION update_username(
     p_user_id BIGINT,
-    p_new_username TEXT
+    p_new_username TEXT,
+    p_ip_addr INET
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -294,6 +295,7 @@ BEGIN
         username_new,
         email_old,
         email_new,
+        ip_addr,
         changed_at
     )
     VALUES (
@@ -301,6 +303,7 @@ BEGIN
         p_new_username,
         v_email,
         v_email,
+        p_ip_addr,
         CURRENT_TIMESTAMP
     );
 END;
@@ -325,7 +328,8 @@ $$;
 
 CREATE FUNCTION update_email(
     p_user_id BIGINT,
-    p_new_email TEXT
+    p_new_email TEXT,
+    p_ip_addr INET
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -348,6 +352,7 @@ BEGIN
         username_new,
         email_old,
         email_new,
+        ip_addr,
         changed_at
     )
     VALUES (
@@ -355,6 +360,7 @@ BEGIN
         v_username,
         v_old_email,
         p_new_email,
+        p_ip_addr,
         CURRENT_TIMESTAMP
     );
 END;
@@ -579,7 +585,8 @@ $$;
 
 CREATE FUNCTION delete_user_data(
     p_user_id BIGINT,
-    p_hashed_password TEXT
+    p_hashed_password TEXT,
+    p_ip_addr INET
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -606,6 +613,7 @@ BEGIN
             username_new,
             email_old,
             email_new,
+            ip_addr,
             deleted,
             changed_at
         )
@@ -614,6 +622,7 @@ BEGIN
             NULL,
             v_email,
             NULL,
+            p_ip_addr,
             TRUE,
             CURRENT_TIMESTAMP
         );

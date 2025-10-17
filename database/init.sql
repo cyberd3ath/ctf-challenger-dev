@@ -603,6 +603,7 @@ CREATE TABLE user_identification_history (
     username_new TEXT,
     email_old TEXT,
     email_new TEXT,
+    ip_addr INET,
     deleted BOOLEAN DEFAULT false,
     created BOOLEAN DEFAULT false,
     changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
