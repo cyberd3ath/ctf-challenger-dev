@@ -20,7 +20,8 @@ DNSMASQ_INSTANCES_DIR = "/etc/dnsmasq-instances/"
 os.makedirs(DNSMASQ_INSTANCES_DIR, exist_ok=True)
 
 
-@retry(stop=stop_after_attempt(10), wait=wait_exponential_jitter(initial=1, max=5, exp_base=1.1, jitter=1), reraise=True)
+@retry(stop=stop_after_attempt(10), wait=wait_exponential_jitter(initial=1, max=5, exp_base=1.1, jitter=1),
+       reraise=True)
 def launch_challenge(challenge_template_id, user_id, db_conn, ip_pool, vpn_monitoring_device, dmz_monitoring_device):
     """
     Launch a challenge by creating a user and network device.
@@ -28,44 +29,33 @@ def launch_challenge(challenge_template_id, user_id, db_conn, ip_pool, vpn_monit
     with db_conn:
         try:
             user_vpn_ip = fetch_user_vpn_ip(user_id, db_conn)
-
             challenge_template = ChallengeTemplate(challenge_template_id)
-
             fetch_machines(challenge_template, db_conn)
-
             fetch_network_and_connection_templates(challenge_template, db_conn)
-
             fetch_domain_templates(challenge_template, db_conn)
-
         except Exception as e:
             raise ValueError(f"Error fetching from database: {e}")
 
         try:
             challenge = create_challenge(challenge_template, db_conn)
-
         except Exception as e:
             raise ValueError(f"Error creating challenge: {e}")
 
         try:
             clone_machines(challenge_template, challenge, db_conn)
-
-            execute_cloud_init_for_challenge(challenge, ip_pool)
-
+            attach_vrtmon_network(challenge)
             create_networks_and_connections(challenge_template, challenge, user_id, db_conn)
-
             create_domains(challenge_template, challenge, db_conn)
-
             create_network_devices(challenge)
-
             wait_for_networks_to_be_up(challenge)
-
             add_iptables_rules(challenge, user_vpn_ip, vpn_monitoring_device, dmz_monitoring_device)
 
+            # Attach final networks and start VMs
             attach_networks_to_vms(challenge)
-
             start_dnsmasq_instances(challenge, user_vpn_ip)
-
             launch_machines(challenge)
+
+            configure_wazuh_for_challenge(challenge)
 
             add_running_challenge_to_user(challenge, user_id, db_conn)
 
@@ -196,6 +186,22 @@ def clone_machines(challenge_template, challenge, db_conn):
         clone_vm_api_call(machine_template, machine)
 
 
+def attach_vrtmon_network(challenge):
+    """
+    Attach the vrtmon management network (net31) to all VMs.
+    This network is used for monitoring and Wazuh communication.
+    """
+    for machine in challenge.machines.values():
+        add_network_device_api_call(
+            machine.id,
+            nic="net31",
+            bridge="vrtmon",
+            model="e1000",
+            mac_index="0A:01"
+        )
+        print(f"[Info] Attached vrtmon network to VM {machine.id}", flush=True)
+
+
 def vmid_to_ipv6(vmid, offset=0x1000):
     """
     Create ipv6 address from a VMID.
@@ -206,146 +212,68 @@ def vmid_to_ipv6(vmid, offset=0x1000):
     return f"fd12:3456:789a:1::{high:x}:{low:x}"
 
 
-def wait_for_cloud_init_completion(machine, timeout=300):
+def configure_wazuh_for_challenge(challenge, manager_ip="fd12:3456:789a:1::101"):
     """
-    Wait until Cloud init finishes
+    Configure Wazuh for all machines in a challenge via QEMU Guest Agent
+    """
+    # Wait for all VMs to boot and qemu-ga to be ready
+    for machine in challenge.machines.values():
+        wait_for_qemu_guest_agent(machine)
+
+    # Configure Wazuh on all machines
+    for machine in challenge.machines.values():
+        try:
+            configure_ipv6_and_wazuh_via_guest_agent(machine, manager_ip)
+            print(f"[Info] Wazuh configured for VM {machine.id}", flush=True)
+        except Exception as e:
+            print(f"[Error] Failed to configure Wazuh for VM {machine.id}: {e}", flush=True)
+            raise
+
+
+def wait_for_qemu_guest_agent(machine, timeout=120):
+    """
+    Wait until QEMU Guest Agent is ready
     """
     start_time = time.time()
 
     while time.time() - start_time < timeout:
         try:
-            cmd = f"qm guest exec {machine.id} -- bash -c \"cloud-init status --wait\""
+            cmd = f"qm guest exec {machine.id} -- echo 'ready'"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
 
-            result = subprocess.run(cmd,shell=True, capture_output=True, text=True, timeout=30)
-
-            print(result.stdout.lower(),flush=True)
-
-            if "done" in result.stdout.lower() or result.returncode == 0:
+            if result.returncode == 0:
                 return True
-
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
             pass
 
-        time.sleep(10)
-    raise TimeoutError(f"Cloud-init timeout for VM {machine.id}")
+        time.sleep(5)
+
+    raise TimeoutError(f"QEMU Guest Agent timeout for VM {machine.id}")
 
 
-def write_meta_data_launch_snippet(vm_id, base_path="/var/lib/vz/snippets"):
-    instance_id = f"launch-{vm_id}-{int(time.time())}"
-    meta_content = f"""instance-id: {instance_id}
-local-hostname: vm{vm_id}
-"""
-    path = os.path.join(base_path, f"meta-data-{vm_id}.yaml")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
-        f.write(meta_content)
-    return f"local:snippets/meta-data-{vm_id}.yaml"
-
-
-def write_user_data_launch_snippet(
-    vm_id,
-    ip6,
-    vrtmon_ip6="fd12:3456:789a:1::1",
-    base_path="/var/lib/vz/snippets",
-    manager_ip="fd12:3456:789a:1::101"
-):
+def configure_ipv6_and_wazuh_via_guest_agent(machine, manager_ip="fd12:3456:789a:1::101"):
     """
-    Write a VM-specific user-data.yaml snippet that:
-    - configures IPv6 address + default route
-    - runs setup_wazuh.sh
+    Configure IPv6 on vrtmon interface and Wazuh agent via QEMU Guest Agent
     """
+    ipv6 = vmid_to_ipv6(machine.id)
+    vrtmon_gw = "fd12:3456:789a:1::1"
+    agent_name = f"Agent_{machine.id}"
 
-    snippets_path = os.path.join(base_path, f"user-launch-data-{vm_id}.yaml")
-    os.makedirs(os.path.dirname(snippets_path), exist_ok=True)
+    # Combined command: Configure IPv6 + Run Wazuh setup
+    cmd = f"""qm guest exec {machine.id} -- bash -c '
+        iface=$(ip -o link | awk "/0A:01/ {{print \\$2; exit}}" | tr -d :) && \
+        ip -6 addr add {ipv6}/64 dev $iface && \
+        ip -6 route add default via {vrtmon_gw} && \
+        bash /var/monitoring/wazuh-agent/setup_wazuh.sh --run --manager={manager_ip} --name={agent_name} --yes && \
+        rm -rf /var/monitoring
+    '"""
 
-    user_data_content = f"""#cloud-config
-runcmd:
-  - iface=$(ip -o link | awk '/0A:01/ {{print $2; exit}}' | tr -d :)
-  - ip -6 addr add {ip6}/64 dev $iface
-  - ip -6 route add default via {vrtmon_ip6}
-  - [ bash, /var/monitoring/wazuh-agent/setup_wazuh.sh, --name=Agent_{vm_id}, --manager={manager_ip}, --yes ]
-  - rm -rf /var/monitoring
-"""
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
 
-    with open(snippets_path, "w") as f:
-        f.write(user_data_content)
+    if result.returncode != 0:
+        raise RuntimeError(f"Failed to configure VM {machine.id}: {result.stderr}")
 
-    return f"local:snippets/user-launch-data-{vm_id}.yaml"
-
-
-def execute_cloud_init_for_machine(machine):
-    """
-    Execute cloud-init for a single machine
-    """
-    try:
-        ipv6 = vmid_to_ipv6(machine.id)
-
-        user_custom_path = write_user_data_launch_snippet(
-            machine.id,
-            ipv6,
-            vrtmon_ip6="fd12:3456:789a:1::1",
-            base_path="/var/lib/vz/snippets",
-            manager_ip="fd12:3456:789a:1::101"
-        )
-
-        meta_custom_path = write_meta_data_launch_snippet(machine.id, base_path="/var/lib/vz/snippets")
-
-        set_cicustom_api_call(machine.id, user_custom_path, meta_custom_path)
-        print("cicusto")
-        launch_vm_api_call(machine)
-        print("cloud init finished", flush=True)
-
-        return True
-
-    except Exception as e:
-        try:
-            stop_vm_api_call(machine)
-        except:
-            pass
-        raise
-
-
-def execute_cloud_init_for_challenge(challenge, ip_pool, timeout=30):
-    """
-    Execute cloud-init for all machines in a challenge
-    """
-
-    results = {}
-    for machine in challenge.machines.values():
-        try:
-            add_network_device_api_call(machine.id, nic="net31" ,bridge="vrtmon", model="e1000", mac_index="0A:01")
-            ipv6 = vmid_to_ipv6(machine.id)
-            add_cloud_ipconfig_ipv6(machine, ipv6, nic=31, gw="fd12:3456:789a:1::1")
-            allocated_ip = ip_pool.allocate_ip(machine.id)
-            if not allocated_ip:
-                raise RuntimeError(f"Could not allocate IP for VM {machine.id}")
-            add_cloud_ipconfig(machine, allocated_ip, nic=30)
-            success_cloud = execute_cloud_init_for_machine(machine)
-            results[machine.id] = success_cloud
-        except Exception as e:
-            results[machine.id] = False
-
-    for machine in challenge.machines.values():
-        wait_for_cloud_init_completion(machine)
-        stop_vm_api_call(machine)
-        start_time = time.time()
-
-        try:
-            while time.time() - start_time < timeout:
-                if vm_is_stopped_api_call(machine):
-                    break
-        except Exception:
-            pass
-
-        detach_cloud_init_drive(machine.id)
-        detach_network_device_api_call(vmid=machine.id, nic="net30")
-        ip_pool.release_ip(machine.id)
-
-    if not all(results.values()):
-        failed_vms = [vm_id for vm_id, success in results.items() if not success]
-        raise Exception(f"Cloud-init failed for VMs: {failed_vms}")
-
-    return results
+    print(f"[Info] Configured IPv6 {ipv6} and Wazuh for VM {machine.id}", flush=True)
 
 
 def generate_mac_address(machine_id, local_network_id, local_connection_id):

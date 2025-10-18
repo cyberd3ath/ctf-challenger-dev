@@ -28,6 +28,7 @@ AGENT_NAME="Agent_$LOCAL_IP_ADDRESS"
 SYSTEM_HEALTH="true"
 BASH_LOG="true"
 UFW="true"
+MODE="full"
 
 OS_RPM_AMD="Linux RPM amd64"
 OS_RPM_AARCH="Linux RPM aarch64"
@@ -45,7 +46,7 @@ CMD_RUN_WIN="NET START WazuhSvc"
 CMD_RUN_MAC=" /Library/Ossec/bin/wazuh-control start"
 CMD_RUN_ARCH="$CMD_RUN_LINUX"
 
-# Install commands
+# Install commands WITH env vars
 CMD_INSTALL_RPM_AMD='curl -o wazuh-agent-4.11.1-1.x86_64.rpm https://packages.wazuh.com/4.x/yum/wazuh-agent-4.11.1-1.x86_64.rpm &&  WAZUH_MANAGER="${MANAGER_IP_ADDRESS}" WAZUH_AGENT_NAME="${AGENT_NAME}" rpm -ihv wazuh-agent-4.11.1-1.x86_64.rpm'
 CMD_INSTALL_RPM_AARCH='curl -o wazuh-agent-4.11.1-1.aarch64.rpm https://packages.wazuh.com/4.x/yum/wazuh-agent-4.11.1-1.aarch64.rpm &&  WAZUH_MANAGER="${MANAGER_IP_ADDRESS}" WAZUH_AGENT_NAME="${AGENT_NAME}" rpm -ihv wazuh-agent-4.11.1-1.aarch64.rpm'
 CMD_INSTALL_DEB_AMD='wget https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.11.1-1_amd64.deb &&  WAZUH_MANAGER="${MANAGER_IP_ADDRESS}" WAZUH_AGENT_NAME="${AGENT_NAME}" dpkg -i ./wazuh-agent_4.11.1-1_amd64.deb'
@@ -66,6 +67,18 @@ else
    pacman -Syu --noconfirm wazuh-agent || { echo "[Error] wazuh-agent not in pacman repos. Install manually or use an AUR helper."; exit 1; }
 fi
 '
+
+# Install commands WITHOUT env vars
+CMD_INSTALL_RPM_AMD_PLAIN='curl -o wazuh-agent-4.11.1-1.x86_64.rpm https://packages.wazuh.com/4.x/yum/wazuh-agent-4.11.1-1.x86_64.rpm && rpm -ihv wazuh-agent-4.11.1-1.x86_64.rpm'
+CMD_INSTALL_RPM_AARCH_PLAIN='curl -o wazuh-agent-4.11.1-1.aarch64.rpm https://packages.wazuh.com/4.x/yum/wazuh-agent-4.11.1-1.aarch64.rpm && rpm -ihv wazuh-agent-4.11.1-1.aarch64.rpm'
+CMD_INSTALL_DEB_AMD_PLAIN='wget https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.11.1-1_amd64.deb && dpkg -i ./wazuh-agent_4.11.1-1_amd64.deb'
+CMD_INSTALL_DEB_AARCH_PLAIN='wget https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.11.1-1_arm64.deb && dpkg -i ./wazuh-agent_4.11.1-1_arm64.deb'
+CMD_INSTALL_WIN_PLAIN='Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.11.1-1.msi -OutFile $env:tmp\\wazuh-agent; msiexec.exe /i $env:tmp\\wazuh-agent /q'
+CMD_INSTALL_MAC_INTEL_PLAIN='curl -so wazuh-agent.pkg https://packages.wazuh.com/4.x/macos/wazuh-agent-4.11.1-1.intel64.pkg && installer -pkg ./wazuh-agent.pkg -target /'
+CMD_INSTALL_MAC_SILICON_PLAIN='curl -so wazuh-agent.pkg https://packages.wazuh.com/4.x/macos/wazuh-agent-4.11.1-1.arm64.pkg && installer -pkg ./wazuh-agent.pkg -target /'
+
+CMD_INSTALL_SUSE_AMD_PLAIN="$CMD_INSTALL_RPM_AMD_PLAIN"
+CMD_INSTALL_SUSE_AARCH_PLAIN="$CMD_INSTALL_RPM_AARCH_PLAIN"
 
 CMD_INSTALL="$CMD_INSTALL_DEB_AMD"
 
@@ -104,6 +117,37 @@ function print_info() { echo -e "\e[34m[Info]:\e[0m $1"; }
 function print_warning() { echo -e "\e[33m[Warning]:\e[0m $1"; }
 function print_error() { echo -e "\e[31m[Error]:\e[0m $1"; }
 
+update_ossec_config() {
+    local config_file="/var/ossec/etc/ossec.conf"
+    local new_manager="$1"
+    local new_agent_name="$2"
+
+    if [ ! -f "$config_file" ]; then
+        print_error "Config file $config_file not found!"
+        return 1
+    fi
+
+    print_info "Updating Wazuh configuration..."
+
+    # Update manager address
+    if [ -n "$new_manager" ]; then
+        sed -i "s|<address>.*</address>|<address>$new_manager</address>|g" "$config_file"
+        print_info "Updated manager address to: $new_manager"
+    fi
+
+    # Update agent name
+    if [ -n "$new_agent_name" ]; then
+        # Try to find and replace agent_name in client block
+        if grep -q "<agent_name>" "$config_file"; then
+            sed -i "s|<agent_name>.*</agent_name>|<agent_name>$new_agent_name</agent_name>|g" "$config_file"
+        else
+            # Add agent_name if it doesn't exist (after <client> tag)
+            sed -i "/<client>/a\    <agent_name>$new_agent_name</agent_name>" "$config_file"
+        fi
+        print_info "Updated agent name to: $new_agent_name"
+    fi
+}
+
 OS_TYPE=$(detect_os)
 
 # CLI arguments
@@ -116,19 +160,43 @@ while [[ $# -gt 0 ]]; do
     --use_bash_log=*) BASH_LOG="${1#*=}" ;;
     --use_ufw=*) UFW="${1#*=}" ;;
     --os=*) OS_TYPE="${1#*=}" ;;
+    --install) MODE="install" ;;
+    --run) MODE="run" ;;
     -y|--yes) SKIP_CONFIRMATION="true" ;;
     -h|--help)
         cat <<'EOF'
 Usage: set_up_agent.sh [OPTIONS]
 
-    --manager=<ip>
-    --name=<name>
-    --use_system_health=<true|false>
-    --use_bash_log=<true|false>
-    --use_ufw=<true|false>
-    --os=<rpm_amd|rpm_aarch|deb_amd|deb_aarch|suse_amd|suse_aarch|arch|win|mac_intel|mac_silicon>
-    -y, --yes
-    -h, --help
+Options:
+    --manager=<ip>              Manager IP address
+    --name=<name>               Agent name
+    --use_system_health=<bool>  Enable system health logging (default: true)
+    --use_bash_log=<bool>       Enable bash logging (default: true)
+    --use_ufw=<bool>            Enable UFW logging (default: true)
+    --os=<type>                 OS type (auto-detected by default)
+    --install                   Only install the agent (don't configure/run)
+    --run                       Only configure and run the agent (don't install)
+    -y, --yes                   Skip confirmation prompts
+    -h, --help                  Show this help
+
+OS Types:
+    rpm_amd, rpm_aarch, deb_amd, deb_aarch, suse_amd, suse_aarch,
+    arch, win, mac_intel, mac_silicon
+
+Modes:
+    Default (no mode flag):  Full installation + configuration + start
+    --install:               Install agent only (no manager/name required)
+    --run:                   Configure + start (requires --manager and --name)
+
+Examples:
+    # Full installation with manager config
+    ./set_up_agent.sh --manager=192.168.1.100 --name=MyAgent
+
+    # Install only (no configuration)
+    ./set_up_agent.sh --install -y
+
+    # Configure and start existing installation
+    ./set_up_agent.sh --run --manager=192.168.1.200 --name=NewAgentName -y
 EOF
         exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -136,34 +204,70 @@ EOF
   shift
 done
 
-# Map OS_TYPE to commands
-case "$OS_TYPE" in
-    rpm_amd) CMD_INSTALL="$CMD_INSTALL_RPM_AMD"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_RPM_AMD" ;;
-    rpm_aarch) CMD_INSTALL="$CMD_INSTALL_RPM_AARCH"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_RPM_AARCH" ;;
-    deb_amd) CMD_INSTALL="$CMD_INSTALL_DEB_AMD"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_DEB_AMD" ;;
-    deb_aarch) CMD_INSTALL="$CMD_INSTALL_DEB_AARCH"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_DEB_AARCH" ;;
-    suse_amd) CMD_INSTALL="$CMD_INSTALL_SUSE_AMD"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_SUSE_AMD" ;;
-    suse_aarch) CMD_INSTALL="$CMD_INSTALL_SUSE_AARCH"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_SUSE_AARCH" ;;
-    arch) CMD_INSTALL="$CMD_INSTALL_ARCH"; CMD_RUN="$CMD_RUN_ARCH"; OS="$OS_ARCH" ;;
-    win) CMD_INSTALL="$CMD_INSTALL_WIN"; CMD_RUN="$CMD_RUN_WIN"; OS="$OS_WIN" ;;
-    mac_intel) CMD_INSTALL="$CMD_INSTALL_MAC_INTEL"; CMD_RUN="$CMD_RUN_MAC"; OS="$OS_INTEL" ;;
-    mac_silicon) CMD_INSTALL="$CMD_INSTALL_MAC_SILICON"; CMD_RUN="$CMD_RUN_MAC"; OS="$OS_SILICON" ;;
-    *) CMD_INSTALL="$CMD_INSTALL_DEB_AMD"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_DEB_AMD" ;;
-esac
-
-echo "[Info] Setting up Agent:"
-echo "OS: $OS"
-echo "Agent Name: $AGENT_NAME"
-echo "Agent IP: $LOCAL_IP_ADDRESS"
-echo "Manager IP: $MANAGER_IP_ADDRESS"
-
-if [ "$MANAGER_IP_ADDRESS" == "$LOCAL_IP_ADDRESS" ]; then
-  print_warning "Wazuh manager has same address as wazuh agent. Provide --manager if that's unintended."
+# Validation for --run mode
+if [ "$MODE" == "run" ]; then
+    if [ -z "$MANAGER_IP_ADDRESS" ]; then
+        print_error "--run mode requires --manager=<ip>"
+        exit 1
+    fi
+    if [ -z "$AGENT_NAME" ]; then
+        print_error "--run mode requires --name=<name>"
+        exit 1
+    fi
 fi
 
-echo "Logging System Health: $SYSTEM_HEALTH"
-echo "Logging Bash: $BASH_LOG"
-echo "Logging UFW: $UFW"
+# Map OS_TYPE to commands based on MODE
+if [ "$MODE" == "install" ]; then
+    # Plain installation without env vars
+    case "$OS_TYPE" in
+        rpm_amd) CMD_INSTALL="$CMD_INSTALL_RPM_AMD_PLAIN"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_RPM_AMD" ;;
+        rpm_aarch) CMD_INSTALL="$CMD_INSTALL_RPM_AARCH_PLAIN"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_RPM_AARCH" ;;
+        deb_amd) CMD_INSTALL="$CMD_INSTALL_DEB_AMD_PLAIN"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_DEB_AMD" ;;
+        deb_aarch) CMD_INSTALL="$CMD_INSTALL_DEB_AARCH_PLAIN"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_DEB_AARCH" ;;
+        suse_amd) CMD_INSTALL="$CMD_INSTALL_SUSE_AMD_PLAIN"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_SUSE_AMD" ;;
+        suse_aarch) CMD_INSTALL="$CMD_INSTALL_SUSE_AARCH_PLAIN"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_SUSE_AARCH" ;;
+        arch) CMD_INSTALL="$CMD_INSTALL_ARCH"; CMD_RUN="$CMD_RUN_ARCH"; OS="$OS_ARCH" ;;
+        win) CMD_INSTALL="$CMD_INSTALL_WIN_PLAIN"; CMD_RUN="$CMD_RUN_WIN"; OS="$OS_WIN" ;;
+        mac_intel) CMD_INSTALL="$CMD_INSTALL_MAC_INTEL_PLAIN"; CMD_RUN="$CMD_RUN_MAC"; OS="$OS_INTEL" ;;
+        mac_silicon) CMD_INSTALL="$CMD_INSTALL_MAC_SILICON_PLAIN"; CMD_RUN="$CMD_RUN_MAC"; OS="$OS_SILICON" ;;
+        *) CMD_INSTALL="$CMD_INSTALL_DEB_AMD_PLAIN"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_DEB_AMD" ;;
+    esac
+else
+    # Full installation with env vars
+    case "$OS_TYPE" in
+        rpm_amd) CMD_INSTALL="$CMD_INSTALL_RPM_AMD"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_RPM_AMD" ;;
+        rpm_aarch) CMD_INSTALL="$CMD_INSTALL_RPM_AARCH"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_RPM_AARCH" ;;
+        deb_amd) CMD_INSTALL="$CMD_INSTALL_DEB_AMD"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_DEB_AMD" ;;
+        deb_aarch) CMD_INSTALL="$CMD_INSTALL_DEB_AARCH"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_DEB_AARCH" ;;
+        suse_amd) CMD_INSTALL="$CMD_INSTALL_SUSE_AMD"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_SUSE_AMD" ;;
+        suse_aarch) CMD_INSTALL="$CMD_INSTALL_SUSE_AARCH"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_SUSE_AARCH" ;;
+        arch) CMD_INSTALL="$CMD_INSTALL_ARCH"; CMD_RUN="$CMD_RUN_ARCH"; OS="$OS_ARCH" ;;
+        win) CMD_INSTALL="$CMD_INSTALL_WIN"; CMD_RUN="$CMD_RUN_WIN"; OS="$OS_WIN" ;;
+        mac_intel) CMD_INSTALL="$CMD_INSTALL_MAC_INTEL"; CMD_RUN="$CMD_RUN_MAC"; OS="$OS_INTEL" ;;
+        mac_silicon) CMD_INSTALL="$CMD_INSTALL_MAC_SILICON"; CMD_RUN="$CMD_RUN_MAC"; OS="$OS_SILICON" ;;
+        *) CMD_INSTALL="$CMD_INSTALL_DEB_AMD"; CMD_RUN="$CMD_RUN_LINUX"; OS="$OS_DEB_AMD" ;;
+    esac
+fi
+
+echo "[Info] Mode: $MODE"
+echo "[Info] Setting up Agent:"
+echo "OS: $OS"
+
+if [ "$MODE" != "install" ]; then
+    echo "Agent Name: $AGENT_NAME"
+    echo "Agent IP: $LOCAL_IP_ADDRESS"
+    echo "Manager IP: $MANAGER_IP_ADDRESS"
+
+    if [ "$MANAGER_IP_ADDRESS" == "$LOCAL_IP_ADDRESS" ]; then
+      print_warning "Wazuh manager has same address as wazuh agent. Provide --manager if that's unintended."
+    fi
+fi
+
+if [ "$MODE" == "full" ] || [ "$MODE" == "install" ]; then
+    echo "Logging System Health: $SYSTEM_HEALTH"
+    echo "Logging Bash: $BASH_LOG"
+    echo "Logging UFW: $UFW"
+fi
 
 if [ "$SKIP_CONFIRMATION" != "true" ]; then
     echo "Proceed with setup? [y/yes]"
@@ -173,63 +277,79 @@ if [ "$SKIP_CONFIRMATION" != "true" ]; then
     fi
 fi
 
-print_info "Downloading and Installing Agent..."
-eval "$CMD_INSTALL"
+# INSTALL MODE
+if [ "$MODE" == "full" ] || [ "$MODE" == "install" ]; then
+    print_info "Downloading and Installing Agent..."
+    eval "$CMD_INSTALL"
 
-print_info "Running Agent..."
-eval "$CMD_RUN"
+    if [ "$MODE" == "install" ]; then
+        print_info "Agent installed. Use --run to configure and start it."
+        exit 0
+    fi
 
-print_info "Adding Localfiles..."
-if [ -f /var/monitoring/wazuh-agent/config/localfile_ossec_config ]; then
-   tee -a /var/ossec/etc/ossec.conf < /var/monitoring/wazuh-agent/config/localfile_ossec_config >/dev/null
-else
-  print_warning "/var/monitoring/wazuh-agent/config/localfile_ossec_config not found — skipping append."
-fi
+    print_info "Adding Localfiles..."
+    if [ -f /var/monitoring/wazuh-agent/config/localfile_ossec_config ]; then
+       tee -a /var/ossec/etc/ossec.conf < /var/monitoring/wazuh-agent/config/localfile_ossec_config >/dev/null
+    else
+      print_warning "/var/monitoring/wazuh-agent/config/localfile_ossec_config not found — skipping append."
+    fi
 
-if [ "$SYSTEM_HEALTH" == "true" ]; then
-  if [ -f /var/monitoring/wazuh-agent/config/localfile_ossec_config_system_health ]; then
-     tee -a /var/ossec/etc/ossec.conf < /var/monitoring/wazuh-agent/config/localfile_ossec_config_system_health >/dev/null
-  else
-    print_warning "/var/monitoring/wazuh-agent/config/localfile_ossec_config_system_health not found"
-  fi
-fi
+    if [ "$SYSTEM_HEALTH" == "true" ]; then
+      if [ -f /var/monitoring/wazuh-agent/config/localfile_ossec_config_system_health ]; then
+         tee -a /var/ossec/etc/ossec.conf < /var/monitoring/wazuh-agent/config/localfile_ossec_config_system_health >/dev/null
+      else
+        print_warning "/var/monitoring/wazuh-agent/config/localfile_ossec_config_system_health not found"
+      fi
+    fi
 
-if [ "$BASH_LOG" == "true" ]; then
-  if [ -x /var/monitoring/wazuh-agent/config/bash_loggin_set_up.sh ]; then
-    mkdir -p /etc/monitoring
-    mv /var/monitoring/wazuh-agent/config/bash_loggin_set_up.sh /etc/monitoring
-    chmod +x /etc/monitoring/bash_loggin_set_up.sh
-    mv /var/monitoring/wazuh-agent/config/bash_loggin_systemd.service /etc/systemd/system/
-    mv /var/monitoring/wazuh-agent/config/bash_loggin_timer.timer /etc/systemd/system/
-    systemctl daemon-reload
-    systemctl enable bash_loggin_systemd.service
-    systemctl enable bash_loggin_timer.timer
-    systemctl start bash_loggin_systemd.service
-    systemctl start bash_loggin_timer.timer
-  else
-    print_warning "/var/monitoring/wazuh-agent/config/bash_loggin_set_up.sh missing or not executable"
-  fi
-fi
+    if [ "$BASH_LOG" == "true" ]; then
+      if [ -x /var/monitoring/wazuh-agent/config/bash_loggin_set_up.sh ]; then
+        mkdir -p /etc/monitoring
+        mv /var/monitoring/wazuh-agent/config/bash_loggin_set_up.sh /etc/monitoring
+        chmod +x /etc/monitoring/bash_loggin_set_up.sh
+        mv /var/monitoring/wazuh-agent/config/bash_loggin_systemd.service /etc/systemd/system/
+        mv /var/monitoring/wazuh-agent/config/bash_loggin_timer.timer /etc/systemd/system/
+        systemctl daemon-reload
+        systemctl enable bash_loggin_systemd.service
+        systemctl enable bash_loggin_timer.timer
+        systemctl start bash_loggin_systemd.service
+        systemctl start bash_loggin_timer.timer
+      else
+        print_warning "/var/monitoring/wazuh-agent/config/bash_loggin_set_up.sh missing or not executable"
+      fi
+    fi
 
-if [ "$UFW" == "true" ]; then
-    if [ -f /var/monitoring/wazuh-agent/config/localfile_ossec_config_ufw_status ]; then
-       tee -a /var/ossec/etc/ossec.conf < /var/monitoring/wazuh-agent/config/localfile_ossec_config_ufw_status >/dev/null
+    if [ "$UFW" == "true" ]; then
+        if [ -f /var/monitoring/wazuh-agent/config/localfile_ossec_config_ufw_status ]; then
+           tee -a /var/ossec/etc/ossec.conf < /var/monitoring/wazuh-agent/config/localfile_ossec_config_ufw_status >/dev/null
+        fi
+    fi
+
+    if [ "$BASH_LOG" == "false" ] && [ "$UFW" == "false" ] && [ "$SYSTEM_HEALTH" == "false" ]; then
+        print_info "Nothing additional to set up."
+    fi
+
+    # Fix commands.log
+    if [ -f /var/log/commands.log ]; then
+        print_info "Setting up /var/log/commands.log..."
+        chown syslog:syslog /var/log/commands.log
+        chmod 644 /var/log/commands.log
+        systemctl restart rsyslog || true
+        print_info "/var/log/commands.log permissions updated and rsyslog restarted."
     fi
 fi
 
-if [ "$BASH_LOG" == "false" ] && [ "$UFW" == "false" ] && [ "$SYSTEM_HEALTH" == "false" ]; then
-    print_info "[4/4] Nothing to Set Up."
+# RUN MODE
+if [ "$MODE" == "run" ]; then
+    # Update config with new parameters
+    update_ossec_config "$MANAGER_IP_ADDRESS" "$AGENT_NAME"
 fi
 
-# Restart agent
-systemctl restart wazuh-agent || true
+# Start agent
+if [ "$MODE" == "full" ] || [ "$MODE" == "run" ]; then
+    print_info "Starting Wazuh Agent..."
+    eval "$CMD_RUN"
+    print_info "Wazuh Agent is now running!"
+fi
 
-echo "[Info] Wazuh Agent installation finished!"
-
-# Fix commands.log
-echo "[Info] Setting up /var/log/commands.log..."
-chown syslog:syslog /var/log/commands.log
-chmod 644 /var/log/commands.log
-systemctl restart rsyslog
-
-echo "[Info] /var/log/commands.log permissions updated and rsyslog restarted."
+echo "[Info] Wazuh Agent setup finished! (Mode: $MODE)"
