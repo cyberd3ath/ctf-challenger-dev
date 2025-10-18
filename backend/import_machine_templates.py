@@ -240,7 +240,9 @@ write_files:
 """
     user_data_content += """bootcmd:
   - systemctl mask systemd-networkd-wait-online.service
-    """
+runcmd:
+  - [ bash, /var/monitoring/wazuh-agent/setup_wazuh.sh, --install, --yes ]
+"""
     with open(snippets_path, "w") as f:
         f.write(user_data_content)
 
@@ -262,7 +264,7 @@ def configure_vms(challenge_template, ip_pool):
             attach_cloud_init_drive(machine_template.id)
             ci_custom_path = write_user_data_snippet()
             add_network_device_api_call(machine_template.id)
-            initial_configuration_api_call(machine_template,allocated_ip, ci_custom_path)
+            initial_configuration_api_call(machine_template, allocated_ip, ci_custom_path)
             time.sleep(5)
             launch_vm_api_call(machine_template)
 
@@ -272,7 +274,7 @@ def configure_vms(challenge_template, ip_pool):
     for machine_template in challenge_template.machine_templates.values():
         wait_for_cloud_init_completion(machine_template)
         stop_vm_api_call(machine_template)
-        max_wait = 900  # 15 minutes
+        max_wait = 900
         start_time = time.time()
         while time.time() - start_time < max_wait:
             if vm_is_stopped_api_call(machine_template):
@@ -280,6 +282,10 @@ def configure_vms(challenge_template, ip_pool):
             time.sleep(30)
         else:
             raise RuntimeError(f"Cloud-init timed out for VM {machine_template.id}")
+
+        detach_cloud_init_drive(machine_template.id)
+        detach_network_device_api_call(vmid=machine_template.id, nic="net30")
+        ip_pool.release_ip(machine_template.id)
 
 
 def convert_machine_template_vms_to_templates(challenge_template):
