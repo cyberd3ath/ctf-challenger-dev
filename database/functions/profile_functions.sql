@@ -768,3 +768,14 @@ BEGIN
     ORDER BY b.rarity DESC, ub.earned_at DESC, b.id;
 END;
 $$;
+
+CREATE FUNCTION update_ai_training_consent(
+    p_user_id INTEGER,
+    p_consent BOOLEAN
+) RETURNS VOID AS $$
+BEGIN
+    UPDATE users
+    SET ai_training_consent = p_consent
+    WHERE id = p_user_id;
+END;
+$$ LANGUAGE plpgsql;

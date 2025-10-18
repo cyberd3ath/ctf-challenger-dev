@@ -12,6 +12,7 @@ class RegistrationHandler
     private string $confirmPassword;
     private string $csrfToken;
     private string $token;
+    private bool $agreeTos;
     private array $generalConfig;
 
     private IDatabaseHelper $databaseHelper;
@@ -93,6 +94,8 @@ class RegistrationHandler
         $this->password = $this->post['password'] ?? '';
         $this->confirmPassword = $this->post['confirm-password'] ?? '';
         $this->token = trim($this->post['token'] ?? '');
+        $this->agreeTos = isset($this->post['agree_tos']) &&
+            ($this->post['agree_tos'] === 'on' || $this->post['agree_tos'] === '1' || $this->post['agree_tos'] === true);
     }
 
     public function handleRequest(): void
@@ -122,24 +125,31 @@ class RegistrationHandler
     {
         if (empty($this->username) || empty($this->email) || empty($this->password) || empty($this->confirmPassword) || empty($this->token)) {
             throw new CustomException('All fields are required', 400);
-        } elseif (strlen($this->username) < $this->generalConfig['user']['MIN_USERNAME_LENGTH']) {
-            throw new CustomException('Username must be at least' . $this->generalConfig['user']['MIN_USERNAME_LENGTH'] . 'characters long', 400);
+        }
+
+        if (!$this->agreeTos) {
+            $this->logger->logWarning("Registration attempt without ToS agreement - Username: $this->username, IP: " . $this->logger->anonymizeIp($this->server['REMOTE_ADDR'] ?? 'unknown'));
+            throw new CustomException('You must agree to the Terms of Service and Privacy Policy', 400);
+        }
+
+        if (strlen($this->username) < $this->generalConfig['user']['MIN_USERNAME_LENGTH']) {
+            throw new CustomException('Username must be at least ' . $this->generalConfig['user']['MIN_USERNAME_LENGTH'] . ' characters long', 400);
         } elseif (strlen($this->username) > $this->generalConfig['user']['MAX_USERNAME_LENGTH']) {
-            throw new CustomException('Username must not exceed ' . $this->generalConfig['user']['MAX_USERNAME_LENGTH'] . 'characters', 400);
+            throw new CustomException('Username must not exceed ' . $this->generalConfig['user']['MAX_USERNAME_LENGTH'] . ' characters', 400);
         } elseif (!preg_match('/' . $this->generalConfig['user']['USERNAME_REGEX'] . '/', $this->username)) {
             throw new CustomException("Username contains invalid characters only '_' is allowed", 400);
         }
 
         if (strlen($this->email) > $this->generalConfig['user']['MAX_EMAIL_LENGTH']) {
-            throw new CustomException('Email must not exceed ' . $this->generalConfig['user']['MAX_EMAIL_LENGTH'] . 'characters', 400);
+            throw new CustomException('Email must not exceed ' . $this->generalConfig['user']['MAX_EMAIL_LENGTH'] . ' characters', 400);
         } elseif (!filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
             throw new CustomException('Invalid email format', 400);
         }
 
         if (strlen($this->password) < $this->generalConfig['user']['MIN_PASSWORD_LENGTH']) {
-            throw new CustomException('Password must be at least ' . $this->generalConfig['user']['MIN_PASSWORD_LENGTH'] . 'characters long', 400);
+            throw new CustomException('Password must be at least ' . $this->generalConfig['user']['MIN_PASSWORD_LENGTH'] . ' characters long', 400);
         } elseif (strlen($this->password) > $this->generalConfig['user']['MAX_PASSWORD_LENGTH']) {
-            throw new CustomException('Password must not exceed ' . $this->generalConfig['user']['MAX_PASSWORD_LENGTH'] . 'characters', 400);
+            throw new CustomException('Password must not exceed ' . $this->generalConfig['user']['MAX_PASSWORD_LENGTH'] . ' characters', 400);
         }
 
         if ($this->password !== $this->confirmPassword) {
@@ -231,6 +241,8 @@ class RegistrationHandler
             if (!$result || empty($result['user_id']) || empty($result['vpn_static_ip'])) {
                 throw new CustomException('Account creation failed', 500);
             }
+
+            $this->logger->logInfo("User account created successfully - User ID: {$result['user_id']}, Username: $this->username, ToS Agreed: true");
 
             return $result;
         } catch (CustomException $e) {

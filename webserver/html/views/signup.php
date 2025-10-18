@@ -78,6 +78,20 @@ $csrf_token = $securityHelper->generateCsrfToken();
             </div>
             <small class="error-message" id="token-error"></small>
         </div>
+        <div class="input-group tos">
+            <label class="remember-me tos-label">
+                <div>
+                    <input type="checkbox" id="agree-tos" name="agree_tos">
+                    <span class="custom-checkbox"></span>
+                </div>
+                <div>
+                    I have read and agree to the
+                    <a href="/terms" target="_blank" class="tos-link">Terms of Service</a>
+                    and
+                    <a href="/privacy" target="_blank" class="tos-link">Privacy Policy</a>
+                </div>
+            </label>
+        </div>
         <button type="submit" class="button button-primary">Sign Up</button>
         <div class="form-feedback" id="form-feedback"></div>
         <p class="create-account">

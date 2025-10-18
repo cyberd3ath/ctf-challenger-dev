@@ -216,6 +216,10 @@ class ProfileHandler
             case 'get_vpn_config':
                 $this->handleVpnConfigDownload();
                 break;
+            case 'update_ai_consent':
+                $consent = filter_var($data['consent'] ?? true, FILTER_VALIDATE_BOOLEAN);
+                $this->updateAiConsent($consent);
+                break;
             default:
                 $this->logger->logWarning("Invalid action in profile update - Action: $action, User ID: $this->userId");
                 throw new CustomException('Invalid action specified', 400);
@@ -367,7 +371,8 @@ class ProfileHandler
                     twitter_url,
                     website_url,
                     solved_count,
-                    total_points
+                    total_points,
+                    ai_training_consent
                 FROM get_basic_profile_data(:user_id)
             ");
             $stmt->execute(['user_id' => $this->userId]);
@@ -415,7 +420,8 @@ class ProfileHandler
                 ],
                 'rank' => (int)($rankData['user_rank'] ?? 1),
                 'points' => (int)$profileData['total_points'],
-                'solved_count' => (int)$profileData['solved_count']
+                'solved_count' => (int)$profileData['solved_count'],
+                'ai_training_consent' => (bool)$profileData['ai_training_consent']
             ];
 
         } catch (PDOException $e) {
@@ -424,6 +430,34 @@ class ProfileHandler
         }
     }
 
+    /**
+     * @throws Exception
+     */
+    private function updateAiConsent(bool $consent): void
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare("SELECT update_ai_training_consent(:user_id, :consent)");
+            $stmt->execute([
+                'user_id' => $this->userId,
+                'consent' => $consent
+            ]);
+
+            $this->pdo->commit();
+            $this->logger->logDebug("AI training consent updated - User ID: $this->userId, Consent: " . ($consent ? 'true' : 'false'));
+
+            $this->sendResponse([
+                'success' => true,
+                'message' => 'Privacy preferences updated successfully',
+                'ai_training_consent' => $consent
+            ]);
+
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            $this->logger->logError("Database error during AI consent update - User ID: $this->userId - " . $e->getMessage());
+            throw new CustomException('Failed to update privacy preferences', 500);
+        }
+    }
 
     private function getProfileStats(): array
     {
